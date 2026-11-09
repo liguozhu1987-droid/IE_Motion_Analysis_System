@@ -1,0 +1,24 @@
+{
+  "name": "ie-platform-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI赋能IE改善效率平台 · MVP v2.1 落地工程（4页面/3表/规则引擎）",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:server": "node --watch server/src/index.js",
+    "dev:web": "npm --workspace web run dev",
+    "build": "npm --workspace web run build",
+    "typecheck": "npm --workspace web run typecheck",
+    "start": "node server/src/index.js",
+    "seed": "node server/src/db/seed.js",
+    "smoke": "node scripts/smoke.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}

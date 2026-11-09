@@ -1,0 +1,21 @@
+/* ============================================================
+ * videos.css · 视频库页（v3.57 源视频保留期）
+ * ------------------------------------------------------------
+ * 只补三个展示类，其余沿用 base.css 的 table / btn / tag / muted。
+ * ============================================================ */
+
+.video-name { font-size: 12.5px; word-break: break-all; }
+
+.video-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+.video-status { font-size: 11.5px; }
+.video-status-auto { color: var(--ink2); }
+.video-status-extended { color: var(--steel); }
+.video-status-permanent { color: var(--copper); }
+
+.video-footnote {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+  max-width: 980px;
+}

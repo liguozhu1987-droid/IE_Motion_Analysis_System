@@ -1,0 +1,100 @@
+[
+  {
+    "label": "master-page",
+    "data": {
+      "h3s": [
+        "主数据来源",
+        "公司",
+        "产线（CMC · 只读 102 条）",
+        "分析工位（本地 3 个）"
+      ],
+      "lineRows": 105,
+      "tagSample": [
+        "Beijing（BJ） · China",
+        "Changchun（CC） · China",
+        "Chongqing（CQ） · China",
+        "Guangzhou（GZ） · China",
+        "Shanghai（SH） · China",
+        "Wuhan（WH） · China"
+      ],
+      "hasEditTenant": true,
+      "stationEditBtns": 3,
+      "addBtns": 0
+    }
+  },
+  {
+    "label": "master-line-projects",
+    "data": {
+      "text": "公司/产线/项目及产线-项目分配关系 实时只读 自产能系统（CMC：factories / production_lines / project_line_allocations / cbco_records），本系统不做同步、不提供修改入口—— 在产能系统变更后，下次查询即自动生效，天然一致。 本平台仅维护 分析工位（创建向导自动生成编码）。",
+      "tags": [
+        "Beijing（BJ） · China",
+        "Changchun（CC） · China",
+        "Chongqing（CQ） · China",
+        "Guangzhou（GZ） · China",
+        "Shanghai（SH） · China",
+        "Wuhan（WH） · China",
+        "T6763 · Volvo - S90L - L541 LTE · CT 105s",
+        "T7081a · Xiaomi_kunlun 30 (KN30 +N1)  + N2_Front Rollo · CT 80s"
+      ]
+    }
+  },
+  {
+    "label": "wizard-init",
+    "data": {
+      "secCount": 4,
+      "tags": [
+        "CMC 实时",
+        "CMC 实时",
+        "决定驾驶舱的\"产品项目\"分组",
+        "唯一需要您填写的部分"
+      ],
+      "summary": "默认租户（本部） › Beijing BJFA1（BJFA1） › 新工位",
+      "hasSelects": 0
+    }
+  },
+  {
+    "label": "wizard-factory-menu",
+    "data": {
+      "found": true,
+      "inViewport": true,
+      "rect": {
+        "top": 356,
+        "left": 440,
+        "w": 340
+      },
+      "options": [
+        "Beijing（BJ）China",
+        "Changchun（CC）China",
+        "Chongqing（CQ）China",
+        "Guangzhou（GZ）China",
+        "Shanghai（SH）China",
+        "Wuhan（WH）China"
+      ]
+    }
+  },
+  {
+    "label": "wizard-after-project",
+    "data": {
+      "codeValue": "",
+      "codeDisabled": false,
+      "ttValue": "105",
+      "hint": [
+        "Beijing · 装配 · BL",
+        "标准节拍 CT = 105s · 分配比例 1%（已预填到 TT）"
+      ]
+    }
+  },
+  {
+    "label": "wizard-created",
+    "data": {
+      "wzGone": true,
+      "banner": "已创建 UI冒烟v321临时（BJFA1-ST01）· 产线 BJFA1"
+    }
+  },
+  {
+    "label": "cmc-unreachable",
+    "data": {
+      "banner": "产能系统（CMC）暂不可联：上游数据库连接失败。公司/产线/项目为实时只读，恢复后自动可用。"
+    }
+  }
+]

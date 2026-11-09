@@ -1,0 +1,167 @@
+/* ============================================================
+ * dashboard.css · 驾驶舱层（KPI / 筛选条 / 分布 / 产线横评表 / 上手引导）
+ * ============================================================ */
+
+/* ---------------- KPI 指标条 ---------------- */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; }
+.metric {
+  position: relative; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 11px 14px 12px;
+  box-shadow: var(--sh-1);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.metric:hover { transform: translateY(-2px); box-shadow: var(--sh-2); }
+/* 顶部一条细铜线 + 右上倒角块：机加工 trafficking */
+.metric::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, var(--steel) 0%, rgba(176, 112, 60, 0.55) 100%);
+  opacity: 0.72;
+}
+.metric .v {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 23px; font-weight: 600; line-height: 1.22; letter-spacing: -0.01em;
+}
+.metric .l {
+  font-size: 11.5px; color: var(--ink3); margin-top: 1px;
+  display: flex; align-items: center; gap: 5px; letter-spacing: 0.02em;
+}
+.v.red { color: var(--red); }
+.v.teal { color: var(--teal); }
+.v.amber { color: var(--amber); }
+.v.blue { color: var(--steel); }
+
+/* ---------------- 维度筛选条 · 工艺参数条 ---------------- */
+.filter-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background-color: var(--card);
+  background-image: var(--tex-grid);
+  background-size: 20px 20px;
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 10px 14px; margin-bottom: 14px;
+  box-shadow: var(--sh-1);
+}
+.filter-item { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink2); }
+.filter-item > span {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3);
+  white-space: nowrap;
+}
+.filter-item select {
+  width: auto; min-width: 112px; padding: 4px 8px; font-size: 12.5px; border-radius: var(--r-sm);
+  border-color: var(--line2); background-color: var(--card-solid);
+}
+/* v3.59 筛选条自绘下拉（SelectMenu）：触发器视觉对齐原 select——紧凑高度、
+   筛选条卡片底色、行内自适应宽度；菜单本体用组件全局样式（legacy 层 .sm-menu） */
+.filter-item .sm-trigger {
+  min-width: 112px; padding: 4px 8px; font-size: 12.5px;
+  background: var(--card-solid); border-color: var(--line2); border-radius: var(--r-sm);
+  gap: 6px;
+}
+.filter-item .sm-trigger .sm-caret { margin-left: auto; }
+.filter-loading {
+  font-size: 11.5px; color: var(--steel); margin-left: auto;
+  display: flex; align-items: center; gap: 6px; font-family: var(--font-mono);
+}
+.filter-loading::before {
+  content: ''; width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--steel-line); border-top-color: var(--steel);
+  animation: spin 0.7s linear infinite;
+}
+
+/* ---------------- 分布卡（条形 + 点击筛选） ---------------- */
+.dist-list { display: flex; flex-direction: column; gap: 2px; }
+.dist-row {
+  display: grid; grid-template-columns: 92px 1fr auto; grid-template-rows: auto auto;
+  align-items: center; gap: 2px 10px; padding: 7px 8px; border-radius: var(--r-sm);
+  cursor: pointer; transition: background var(--dur) var(--ease);
+}
+.dist-row:hover { background: var(--stone-200); }
+.dist-row.on { background: var(--steel-bg); box-shadow: inset 2px 0 0 var(--steel); }
+.dist-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dist-row.on .dist-name { color: var(--steel); }
+/* 进度条做成分段式「标尺」：底槽 + 45° 斜纹填充 */
+.dist-bar {
+  height: 9px; border-radius: 2px; overflow: hidden;
+  background-color: var(--stone-200);
+  background-image: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 10px);
+  border: 1px solid var(--line);
+}
+.dist-bar-fill {
+  height: 100%; min-width: 2px; border-radius: 1px;
+  background-color: var(--steel);
+  background-image: var(--tex-hatch);
+  transition: width var(--dur-long) var(--ease);
+}
+.dist-bar-fill.amber { background-color: var(--copper); }
+.dist-val { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; }
+.dist-sub { grid-column: 2 / -1; font-size: 11.5px; color: var(--ink3); }
+
+/* ---------------- 驾驶舱表格 ---------------- */
+.dash-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.dash-table th, .dash-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.dash-table th {
+  color: var(--ink3); font-weight: 600; font-size: 11px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  border-bottom: 1px solid var(--line2);
+  background: linear-gradient(180deg, var(--stone-100), transparent);
+}
+.dash-table .num, .dash-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.dash-table tbody tr:hover, .pick:hover { background: var(--steel-bg); }
+.dash-table tbody tr.pick:hover { box-shadow: inset 2px 0 0 var(--steel); }
+.pick { cursor: pointer; transition: background var(--dur) var(--ease); }
+.pick.on { background: var(--steel-bg); box-shadow: inset 2px 0 0 var(--steel); }
+.table-scroll { overflow-x: auto; }
+
+/* ---------------- 集团树 ---------------- */
+.tree-sub { display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px 20px; border-radius: var(--r-md); cursor: pointer; user-select: none; font-size: 12.5px; }
+.tree-sub:hover { background: var(--stone-200); }
+.tree-sub.on { background: var(--steel-bg); }
+.tree-sub.on .tree-line-name { color: var(--steel); }
+.tree-leaf { display: flex; align-items: center; gap: 7px; padding: 5px 8px 5px 40px; border-radius: var(--r-sm); cursor: pointer; user-select: none; font-size: 12.5px; color: var(--ink2); }
+.tree-leaf:hover { background: var(--stone-200); }
+.tree-leaf .dot { width: 7px; height: 7px; border-radius: 2px; flex: 0 0 7px; }
+
+/* ---------------- 空态引导 ---------------- */
+.dash-guide { margin: 8px 0 14px; padding-left: 20px; color: var(--ink2); }
+.dash-guide li { margin: 6px 0; }
+.dash-guide code {
+  background: var(--stone-100); border: 1px solid var(--line);
+  border-radius: var(--r-xs); padding: 1px 6px; font-size: 12px; font-family: var(--font-mono);
+}
+
+/* ---------------- 三步上手引导条 ---------------- */
+.onboarding {
+  background-color: var(--card);
+  background-image: var(--tex-grid), linear-gradient(120deg, var(--steel-bg) 0%, var(--stone-100) 72%);
+  border: 1px solid var(--line); border-left: 3px solid var(--steel); border-radius: var(--r-lg);
+  padding: 13px 16px; margin: 2px 0 14px; box-shadow: var(--sh-1);
+}
+.ob-head { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink2); }
+.ob-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px; }
+.ob-step {
+  display: flex; gap: 10px; background: var(--card-solid);
+  border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px;
+  transition: box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.ob-step:hover { box-shadow: var(--sh-2); transform: translateY(-1px); }
+.ob-n {
+  width: 24px; height: 24px; border-radius: var(--r-sm); flex: 0 0 24px;
+  background: linear-gradient(160deg, var(--steel-400), var(--steel-700)); color: #fff;
+  font-family: var(--font-mono); font-weight: 600; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--sh-inset);
+}
+.ob-body { min-width: 0; }
+.ob-t { font-weight: 600; font-size: 13.5px; }
+.ob-d { font-size: 12px; color: var(--ink3); margin: 2px 0 8px; }
+.ob-empty { margin-top: 10px; font-size: 12.5px; color: var(--amber); }
+.onboarding-recall { margin: 2px 0 10px; }
+
+@media (max-width: 1080px) {
+  .ob-steps { grid-template-columns: 1fr; }
+}
+@media print {
+  .filter-bar, .metrics { break-inside: avoid; }
+  .metric:hover { transform: none; box-shadow: none; }
+}

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI赋能的IE分析改善效率工具 · 总体蓝图</title>
+<style>
+  :root{
+    --ink:#1a2332; --ink2:#3d4a5c; --ink3:#6b7787;
+    --line:#e3e8f0; --line2:#cbd5e3;
+    --bg:#f6f8fb; --card:#ffffff;
+    --blue:#1f5fd0; --blue-bg:#eef4ff; --blue-line:#c7d8f5;
+    --teal:#0e8074; --teal-bg:#e8f6f4; --teal-line:#bfe3de;
+    --amber:#9a6a00; --amber-bg:#fdf6e3; --amber-line:#f0dfae;
+    --red:#b3372f; --red-bg:#fdeeec; --red-line:#f2c8c3;
+    --purple:#6a4fb3; --purple-bg:#f1edfa; --purple-line:#d8cdf0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;
+    font-size:14.5px;line-height:1.75;}
+  .page{max-width:1080px;margin:0 auto;padding:36px 28px 60px;}
+  /* ---------- 封面 ---------- */
+  .cover{background:linear-gradient(135deg,#12315e 0%,#1f5fd0 60%,#2f7ae0 100%);
+    color:#fff;border-radius:14px;padding:44px 40px 36px;margin-bottom:28px;}
+  .cover .kicker{font-size:13px;letter-spacing:3px;opacity:.85;margin-bottom:10px;}
+  .cover h1{font-size:30px;margin:0 0 8px;font-weight:700;line-height:1.35;}
+  .cover .sub{font-size:15px;opacity:.92;margin-bottom:22px;}
+  .cover .meta{display:flex;flex-wrap:wrap;gap:10px 26px;font-size:12.5px;opacity:.85;
+    border-top:1px solid rgba(255,255,255,.28);padding-top:16px;}
+  .cover .meta b{font-weight:600;}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0 0;}
+  .kpi{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);
+    border-radius:10px;padding:12px 14px;}
+  .kpi .v{font-size:19px;font-weight:700;line-height:1.3;}
+  .kpi .l{font-size:12px;opacity:.85;margin-top:2px;}
+  /* ---------- 目录 ---------- */
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:18px 22px;margin-bottom:26px;font-size:13.5px;}
+  .toc b{display:block;margin-bottom:8px;color:var(--ink);}
+  .toc a{color:var(--blue);text-decoration:none;margin-right:18px;white-space:nowrap;
+    display:inline-block;line-height:2;}
+  .toc a:hover{text-decoration:underline;}
+  /* ---------- 章节 ---------- */
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:26px 30px;margin-bottom:22px;}
+  h2{font-size:19px;margin:0 0 4px;padding-left:12px;border-left:4px solid var(--blue);}
+  h2 .no{color:var(--ink3);font-size:13px;font-weight:400;margin-left:8px;}
+  h3{font-size:15.5px;margin:22px 0 8px;color:var(--ink);}
+  h4{font-size:14px;margin:16px 0 6px;color:var(--ink2);}
+  p{margin:8px 0;}
+  .lead{background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:10px;
+    padding:14px 18px;margin:12px 0 16px;}
+  .lead b{color:var(--blue);}
+  table{width:100%;border-collapse:collapse;margin:10px 0 14px;font-size:13px;line-height:1.6;}
+  th{background:#f0f4fa;border:1px solid var(--line2);padding:7px 10px;text-align:left;
+    font-weight:600;color:var(--ink2);white-space:nowrap;}
+  td{border:1px solid var(--line);padding:7px 10px;vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfe;}
+  .tag{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;
+    font-weight:600;white-space:nowrap;}
+  .t-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-line);}
+  .t-teal{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line);}
+  .t-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line);}
+  .t-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-line);}
+  .t-purple{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-line);}
+  .note{border-left:4px solid var(--amber);background:var(--amber-bg);
+    padding:10px 16px;border-radius:0 8px 8px 0;margin:12px 0;font-size:13px;}
+  .note b{color:var(--amber);}
+  .law{border-left:4px solid var(--red);background:var(--red-bg);
+    padding:10px 16px;border-radius:0 8px 8px 0;margin:12px 0;font-size:13px;}
+  .law b{color:var(--red);}
+  .ok{border-left:4px solid var(--teal);background:var(--teal-bg);
+    padding:10px 16px;border-radius:0 8px 8px 0;margin:12px 0;font-size:13px;}
+  .ok b{color:var(--teal);}
+  ul,ol{margin:8px 0;padding-left:24px;}
+  li{margin:3px 0;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .mini{border:1px solid var(--line);border-radius:10px;padding:13px 15px;background:#fbfcfe;}
+  .mini h5{margin:0 0 6px;font-size:13.5px;color:var(--blue);}
+  .mini p{font-size:12.8px;margin:2px 0;color:var(--ink2);}
+  .fig{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fbfcfe;
+    margin:14px 0;overflow-x:auto;}
+  .fig .cap{font-size:12.5px;color:var(--ink3);text-align:center;margin-top:6px;}
+  .owner{font-size:12px;color:var(--ink3);margin-top:-4px;margin-bottom:10px;}
+  .owner b{color:var(--teal);font-weight:600;}
+  .roadmap td:first-child{font-weight:700;white-space:nowrap;}
+  .formula{font-family:Consolas,"Courier New",monospace;background:#f0f4fa;
+    border:1px solid var(--line2);border-radius:6px;padding:8px 12px;font-size:13px;
+    margin:8px 0;display:inline-block;}
+  @media print{body{background:#fff;} .page{max-width:100%;} section{break-inside:avoid;}}
+  @media (max-width:760px){.kpis{grid-template-columns:repeat(2,1fr);} .grid2,.grid3{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ================= 封面 ================= -->
+<div class="cover">
+  <div class="kicker">IE ENGINEERING · AI ENABLEMENT BLUEPRINT</div>
+  <h1>AI赋能的IE分析改善效率工具<br>总体蓝图</h1>
+  <div class="sub">以结构化BOL工时数据为地基 · 以「规则引擎 + LLM + RAG」为分析引擎 · 以人机分工守住专业判断 —— BOL持续改善全流程智能化</div>
+  <div class="meta">
+    <span>编制：<b>工业工程IE专家团</b>（主理人 时金贵 汇编）</span>
+    <span>模块设计：<b>毕准时</b>（标准工时）· <b>劳永逸</b>（线平衡与动作经济）· <b>任效高</b>（人效分析）· <b>苏定标</b>（标准作业）</span>
+    <span>版本：<b>v1.1 完整版</b>（参考存档 · 实施以MVP精简版为准）</span>
+    <span>日期：<b>2026-10-21</b></span>
+  </div>
+  <div style="background:#fdf6e3;border:1px solid #f0dfae;border-radius:9px;padding:11px 16px;margin-top:16px;font-size:12.5px;color:#5c4a1f;">
+    <b>⚠ 版本关系说明：</b>本文档为<b>完整版蓝图（参考存档）</b>，含审批/核算/认证/仪表盘等重模块，仅供P2以后按需扩展参考。<b>当前实施以《AI赋能IE改善效率工具-MVP精简版蓝图》为准</b>——只保留视频分解、增值分析、平衡诊断、建议清单、前后对比等6项核心能力。
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">2~4h → ≤5min</div><div class="l">单工位增值/非增值分析耗时</div></div>
+    <div class="kpi"><div class="v">2~3天 → ≤30min</div><div class="l">全线平衡诊断（山积图+瓶颈榜）</div></div>
+    <div class="kpi"><div class="v">1~2天 → ≤10min</div><div class="l">改善建议清单生成</div></div>
+    <div class="kpi"><div class="v">≈12个月</div><div class="l">工具投资回收期（示例测算）</div></div>
+  </div>
+</div>
+
+<!-- ================= 目录 ================= -->
+<div class="toc">
+  <b>目录</b>
+  <a href="#s0">0 执行摘要</a>
+  <a href="#s1">1 现状诊断与设计原则</a>
+  <a href="#s2">2 总体架构</a>
+  <a href="#s3">3 模块一：BOL工时数据底座</a>
+  <a href="#s4">4 模块二：智能分析引擎</a>
+  <a href="#s5">5 模块三：效益核算与跟踪体系</a>
+  <a href="#s6">6 模块四：实施闭环与知识固化</a>
+  <a href="#s7">7 跨模块接口与单一数据源</a>
+  <a href="#s8">8 AI技术路线与成本控制</a>
+  <a href="#s9">9 实施路线图（12个月）</a>
+  <a href="#s10">10 投资与ROI汇总</a>
+  <a href="#s11">11 风险与应对</a>
+  <a href="#s12">12 下一步行动清单</a>
+</div>
+
+<!-- ================= 0 执行摘要 ================= -->
+<section id="s0">
+  <h2>0. 执行摘要<span class="no">结论先行</span></h2>
+  <div class="lead">
+    <b>工具定位：</b>一款「AI辅助、人机分工」的BOL持续改善智能平台。核心理念是<b>让AI做“全量、快速、量化”的分析员，让人做“例外、风险、裁决”的审核官</b>——AI负责算数、比对、检索、成文；人负责模糊情形裁决、风险把关、经验反哺。
+  </div>
+  <h3>0.1 三个核心结论</h3>
+  <p><b>① 成本可控的AI路线（回应“AI分析视频动作分解成本高”的关切）：</b>工具主线坚持「人拆AI校」——人工完成动作分解（结构化录入模板+动素速查+AI规则校验），AI视频自动分解仅作为远期试点（准入门槛：与人工标注偏差&lt;10%且双手识别准确率&gt;95%）。核心分析全部走确定性规则引擎，LLM仅做建议文案生成与案例检索，<b>单条建议成本约$0.005~0.02，每条产线每年LLM费用仅几十到几百元</b>（设月度token熔断上限封顶）。</p>
+  <p><b>② 分析效率的数量级提升：</b>单工位增值/非增值分析从2~4小时降至≤5分钟；全线平衡诊断从2~3天降至≤30分钟；改善建议清单生成≤10分钟；单工位BOL更新从4~6小时降至≤2小时。</p>
+  <p><b>③ 直击“ME/IE人员流动大”的组织痛点：</b>资深IE的分析判断经验被固化为三类资产——可配置规则表（VA/NVA归类+浪费触发器+ECRSA手法映射库）、结构化案例库（含负面案例集，RAG检索）、SOP模板库与判断树；配套新人8步向导（不可跳步+每步质检关卡）与五级认证体系，<b>新人独立达标周期从18~24个月压缩至≤12个月</b>。</p>
+  <h3>0.2 预期收益（示例测算，10条产线/5名IE）</h3>
+  <table>
+    <tr><th style="width:26%">项目</th><th>数值</th><th style="width:44%">说明</th></tr>
+    <tr><td>一次性投入</td><td>约54万元（P1约10~12人月 + P2约6~8人月）</td><td>P3视频AI试点独立立项，设增量闸门</td></tr>
+    <tr><td>年运维成本</td><td>约8万元（开发费×15%/年 + 0.2 FTE数据治理 + LLM费用可忽略）</td><td>LLM每线每年几十~几百元</td></tr>
+    <tr><td>年收益</td><td>约71万元（Soft约2.4万/线/年 + Hard约4.7万/线/年）</td><td>Hard按全线年化工时节省4%、70%落地率保守折减</td></tr>
+    <tr><td><b>回收期 / 首年ROI</b></td><td><b>约12个月 / 约102%</b></td><td>悲观情景22个月、乐观情景7个月仍可行</td></tr>
+  </table>
+</section>
+
+<!-- ================= 1 现状诊断 ================= -->
+<section id="s1">
+  <h2>1. 现状诊断与设计原则</h2>
+  <div class="owner">责任成员：<b>时金贵（主理人）</b>基于全员产出的综合诊断</div>
+  <p>公司现有BOL改善8步流程（拍摄视频→动作分解→更新工时→增值非增值分析→动作分析与ECRS计划→瓶颈工位操作分析→制定措施与跟踪→更新BOL）暴露五个结构性问题，每个问题对应一条设计原则：</p>
+  <table>
+    <tr><th style="width:22%">现状问题</th><th style="width:38%">具体表现</th><th>工具设计原则（应对）</th></tr>
+    <tr><td>专业人员流动大</td><td>分析判断经验随人流失，新人18~24个月才能独立作业</td><td><b>经验资产化</b>：规则表/案例库/SOP模板库三类资产沉淀 + 新人向导 + 分级认证</td></tr>
+    <tr><td>量产项目没时间深度改善</td><td>工程师被新项目占用，分析改善让位于救火</td><td><b>算数画图全自动</b>：VA/NVA归类、浪费识别、山积图、瓶颈榜等确定性计算全部工具化，工程师只做评审与裁决</td></tr>
+    <tr><td>专业技术门槛高</td><td>动素分析、ECRS、操作分析依赖资深IE个人能力</td><td><b>经验显性化</b>：映射表/触发器/判断树把“老师傅的套路”写成可执行规则与可配置参数</td></tr>
+    <tr><td>AI应用成本敏感</td><td>视频AI动作分解单价高、精度不稳，大规模用不起</td><td><b>成本分层</b>：规则引擎（零边际成本）承担定量分析，LLM（边际成本极低）只做文案与检索，视频AI远期试点设ROI闸门</td></tr>
+    <tr><td>数据是命门</td><td>工时数据不准，一切分析结论作废；Excel自由格式难以复用</td><td><b>单一数据源</b>：四层结构化数据底座 + VA归类规则唯一维护点 + 人工终审关卡，LLM禁止产生任何数字</td></tr>
+  </table>
+</section>
+
+<!-- ================= 2 总体架构 ================= -->
+<section id="s2">
+  <h2>2. 总体架构<span class="no">四层一库 + 三道防线</span></h2>
+  <div class="owner">责任成员：<b>时金贵（主理人）</b>汇编 · 毕准时/劳永逸/任效高/苏定标模块合入</div>
+
+  <div class="fig">
+  <svg viewBox="0 0 1000 612" width="100%" style="display:block;margin:0 auto;max-width:1000px;" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,PingFang SC,sans-serif">
+    <defs>
+      <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+        <path d="M0,0 L9,4.5 L0,9 z" fill="#8a97a8"/>
+      </marker>
+      <marker id="arBlue" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+        <path d="M0,0 L9,4.5 L0,9 z" fill="#1f5fd0"/>
+      </marker>
+    </defs>
+    <!-- 使用层 -->
+    <rect x="30" y="10" width="940" height="40" rx="8" fill="#eef4ff" stroke="#c7d8f5"/>
+    <text x="500" y="34" text-anchor="middle" font-size="13" fill="#1a2332" font-weight="600">使用层：IE工程师（视频分解工作台/分析/建议/实施） · IE主管（审核/评审/复测） · 管理层（月度仪表盘） · 班组长/作业者（SOP签认与执行）</text>
+
+    <!-- L4 执行闭环层 -->
+    <rect x="30" y="66" width="940" height="92" rx="8" fill="#f1edfa" stroke="#d8cdf0"/>
+    <text x="42" y="84" font-size="12.5" fill="#6a4fb3" font-weight="700">L4 执行闭环层（关得掉 · 改得稳）</text>
+    <g font-size="12" fill="#1a2332">
+      <rect x="42" y="92" width="172" height="56" rx="6" fill="#ffffff" stroke="#d8cdf0"/><text x="128" y="114" text-anchor="middle" font-weight="600">① 改善任务跟踪</text><text x="128" y="132" text-anchor="middle" font-size="11" fill="#3d4a5c">S1~S10状态机</text><text x="128" y="144" text-anchor="middle" font-size="11" fill="#3d4a5c">逾期三级升级</text>
+      <rect x="226" y="92" width="172" height="56" rx="6" fill="#ffffff" stroke="#d8cdf0"/><text x="312" y="114" text-anchor="middle" font-weight="600">② 两阶段复测验证</text><text x="312" y="132" text-anchor="middle" font-size="11" fill="#3d4a5c">技术≤10工作日</text><text x="312" y="144" text-anchor="middle" font-size="11" fill="#3d4a5c">财务30天转正</text>
+      <rect x="410" y="92" width="172" height="56" rx="6" fill="#ffffff" stroke="#d8cdf0"/><text x="496" y="114" text-anchor="middle" font-weight="600">③ ECN与SOP闭环</text><text x="496" y="132" text-anchor="middle" font-size="11" fill="#3d4a5c">版本配对硬拦截</text><text x="496" y="144" text-anchor="middle" font-size="11" fill="#3d4a5c">48h签确认认</text>
+      <rect x="594" y="92" width="172" height="56" rx="6" fill="#ffffff" stroke="#d8cdf0"/><text x="680" y="114" text-anchor="middle" font-weight="600">④ 效益核算</text><text x="680" y="132" text-anchor="middle" font-size="11" fill="#3d4a5c">ΔST→ΔHC→金额</text><text x="680" y="144" text-anchor="middle" font-size="11" fill="#3d4a5c">Hard/Soft/NWC</text>
+      <rect x="778" y="92" width="180" height="56" rx="6" fill="#ffffff" stroke="#d8cdf0"/><text x="868" y="114" text-anchor="middle" font-weight="600">⑤ 仪表盘与人效月报</text><text x="868" y="132" text-anchor="middle" font-size="11" fill="#3d4a5c">三层视图</text><text x="868" y="144" text-anchor="middle" font-size="11" fill="#3d4a5c">每月1日自动跑批</text>
+    </g>
+
+    <!-- 箭头 L1->L2->L3->L4 -->
+    <line x1="500" y1="58" x2="500" y2="62" stroke="#8a97a8" stroke-width="1.5" marker-end="url(#ar)"/>
+    <line x1="500" y1="164" x2="500" y2="176" stroke="#8a97a8" stroke-width="1.5" marker-end="url(#ar)"/>
+    <text x="512" y="172" font-size="11" fill="#6b7787">分析结果 / 改善建议</text>
+
+    <!-- L3 建议生成层 -->
+    <rect x="30" y="182" width="940" height="86" rx="8" fill="#e8f6f4" stroke="#bfe3de"/>
+    <text x="42" y="200" font-size="12.5" fill="#0e8074" font-weight="700">L3 建议生成层（提得出）</text>
+    <g font-size="12" fill="#1a2332">
+      <rect x="42" y="208" width="285" height="50" rx="6" fill="#ffffff" stroke="#bfe3de"/><text x="184" y="228" text-anchor="middle" font-weight="600">L1 规则打分引擎（确定性计算）</text><text x="184" y="246" text-anchor="middle" font-size="11" fill="#3d4a5c">PI=(T节省×F日循环×S波及)÷D难度÷R风险 —— LLM禁止触碰数字</text>
+      <rect x="345" y="208" width="285" height="50" rx="6" fill="#ffffff" stroke="#bfe3de"/><text x="487" y="228" text-anchor="middle" font-weight="600">L2 LLM建议生成层</text><text x="487" y="246" text-anchor="middle" font-size="11" fill="#3d4a5c">建议书文案+RAG案例检索（数字必须原文引用L1）</text>
+      <rect x="648" y="208" width="310" height="50" rx="6" fill="#ffffff" stroke="#bfe3de"/><text x="803" y="228" text-anchor="middle" font-weight="600">L3 人工评审层</text><text x="803" y="246" text-anchor="middle" font-size="11" fill="#3d4a5c">采纳/修改/驳回（结构化原因）→ 回流校准规则库与案例库</text>
+    </g>
+    <line x1="500" y1="274" x2="500" y2="288" stroke="#8a97a8" stroke-width="1.5" marker-end="url(#ar)"/>
+    <text x="512" y="284" font-size="11" fill="#6b7787">结构化数据 / 触发规则</text>
+
+    <!-- L2 智能分析层 -->
+    <rect x="30" y="294" width="940" height="86" rx="8" fill="#eef4ff" stroke="#c7d8f5"/>
+    <text x="42" y="312" font-size="12.5" fill="#1f5fd0" font-weight="700">L2 智能分析层（看得见）</text>
+    <g font-size="12" fill="#1a2332">
+      <rect x="42" y="320" width="217" height="50" rx="6" fill="#ffffff" stroke="#c7d8f5"/><text x="150" y="340" text-anchor="middle" font-weight="600">① VA/NVA归类引擎</text><text x="150" y="358" text-anchor="middle" font-size="11" fill="#3d4a5c">规则表单一来源+置信度分流</text>
+      <rect x="277" y="320" width="217" height="50" rx="6" fill="#ffffff" stroke="#c7d8f5"/><text x="385" y="340" text-anchor="middle" font-weight="600">② 浪费识别 W1~W10</text><text x="385" y="358" text-anchor="middle" font-size="11" fill="#3d4a5c">量化触发器+证据链</text>
+      <rect x="512" y="320" width="217" height="50" rx="6" fill="#ffffff" stroke="#c7d8f5"/><text x="620" y="340" text-anchor="middle" font-weight="600">③ 平衡诊断</text><text x="620" y="358" text-anchor="middle" font-size="11" fill="#3d4a5c">山积图/瓶颈榜/红黄绿灯</text>
+      <rect x="747" y="320" width="211" height="50" rx="6" fill="#ffffff" stroke="#c7d8f5"/><text x="852" y="340" text-anchor="middle" font-weight="600">④ 操作分析辅助</text><text x="852" y="358" text-anchor="middle" font-size="11" fill="#3d4a5c">双手/流程全自动·人机/联合半自动</text>
+    </g>
+    <line x1="500" y1="386" x2="500" y2="400" stroke="#8a97a8" stroke-width="1.5" marker-end="url(#ar)"/>
+
+    <!-- L1 数据底座层 -->
+    <rect x="30" y="406" width="940" height="86" rx="8" fill="#fdf6e3" stroke="#f0dfae"/>
+    <text x="42" y="424" font-size="12.5" fill="#9a6a00" font-weight="700">L1 数据底座层（地基 · 总入口=视频动作分解工作站）</text>
+    <g font-size="12" fill="#1a2332">
+      <rect x="42" y="432" width="217" height="50" rx="6" fill="#ffffff" stroke="#f0dfae"/><text x="150" y="452" text-anchor="middle" font-weight="600">BOL四表</text><text x="150" y="470" text-anchor="middle" font-size="11" fill="#3d4a5c">产线/工位/作业单元/动作要素</text>
+      <rect x="277" y="432" width="217" height="50" rx="6" fill="#ffffff" stroke="#f0dfae"/><text x="385" y="452" text-anchor="middle" font-weight="600">工位快照（锁定基线）</text><text x="385" y="470" text-anchor="middle" font-size="11" fill="#3d4a5c">VA/NVA占比·ST·瓶颈标记</text>
+      <rect x="512" y="432" width="217" height="50" rx="6" fill="#ffffff" stroke="#f0dfae"/><text x="620" y="452" text-anchor="middle" font-weight="600">标准要素库</text><text x="620" y="470" text-anchor="middle" font-size="11" fill="#3d4a5c">区间估计·新品预估复用</text>
+      <rect x="747" y="432" width="211" height="50" rx="6" fill="#ffffff" stroke="#f0dfae"/><text x="852" y="452" text-anchor="middle" font-weight="600">物料主数据</text><text x="852" y="470" text-anchor="middle" font-size="11" fill="#3d4a5c">重量/供料模式/供应商</text>
+    </g>
+
+    <!-- 回流虚线 -->
+    <path d="M 24 460 L 24 120 L 30 120" stroke="#1f5fd0" stroke-width="1.4" stroke-dasharray="5 4" fill="none" marker-end="url(#arBlue)"/>
+    <text x="8" y="290" font-size="11" fill="#1f5fd0" transform="rotate(-90 8 290)">回流：复测数据→新版BOL · 评审/验证结果→校准规则与案例</text>
+
+    <!-- 贯穿支撑层 -->
+    <rect x="30" y="504" width="940" height="46" rx="8" fill="#f0f4fa" stroke="#cbd5e3"/>
+    <text x="500" y="522" text-anchor="middle" font-size="12" fill="#1a2332" font-weight="600">贯穿支撑：规则库 · 案例库（含负面案例集）· SOP模板库 · 判断树 → RAG检索</text>
+    <text x="500" y="540" text-anchor="middle" font-size="11.5" fill="#3d4a5c">审核关卡 G1~G12（评审关G1~G8 / 实施关G9~G12） · 分级认证 L1~L5 · 版本与审批流（六节点·ECN）</text>
+
+    <!-- 铁律 -->
+    <rect x="30" y="560" width="940" height="42" rx="8" fill="#fdeeec" stroke="#f2c8c3"/>
+    <text x="500" y="578" text-anchor="middle" font-size="12" fill="#b3372f" font-weight="700">三条铁律：LLM禁止产生任何数字（数字只出自规则引擎） · AI建议永远"待审"态、执行前必过人工 · 工时数据不准→分析结论仅标"初诊参考"不得进BOL发版</text>
+    <text x="500" y="594" text-anchor="middle" font-size="11" fill="#b3372f">（铁律二防止"AI说的直接执行"；铁律三防止错误数据污染工时地基）</text>
+  </svg>
+  <div class="cap">图1 · 工具总体架构：四层一库 + 三道防线（规则引擎定量 / LLM定性 / 人工裁决）· 视频动作分解工作站为L1总入口（3.3节）</div>
+  </div>
+
+  <h3>2.1 AI与人工分工总表（全工具边界）</h3>
+  <table>
+    <tr><th style="width:14%">环节</th><th style="width:34%">AI（工具）做什么</th><th style="width:34%">人做什么</th><th>边界依据</th></tr>
+    <tr><td>视频拍摄</td><td>生成拍摄清单与规范卡、视频-工位关联管理</td><td>按规范拍摄；班组长配合</td><td>拍摄质量决定分解质量</td></tr>
+    <tr><td>动作分解录入</td><td><b>视频动作分解工作站</b>（时间线+要素编辑器，见3.3）：结构化模板+动素速查+受控词表+循环识别+浪费/异常快速标记+AI校验（7类规则拦截低级错误）</td><td>IE人员在工作站内完成分解、边界确认与标记；主管10%抽审</td><td>AI视频分解成本高、精度不稳，不作主线；工作站内AI只做辅助</td></tr>
+    <tr><td>VA/NVA归类</td><td>按规则表自动归类+置信度分流（高直接/中提示/低进复核队列）</td><td>低置信度项人工裁决；VA覆盖判定确认</td><td>模糊情形裁决权留人（规则单一来源=分析引擎）</td></tr>
+    <tr><td>浪费识别/平衡诊断</td><td>W1~W10触发器、山积图、瓶颈榜、平衡率、红黄绿灯——全自动</td><td>约束标签维护（工艺/设备/品质约束）</td><td>确定性计算，AI全量快速</td></tr>
+    <tr><td>改善建议生成</td><td>L1规则打分（PI排序）+L2文案生成+RAG案例引用</td><td>人工评审：采纳/修改/驳回（结构化原因）</td><td>建议永远是"建议"，执行前必过人工</td></tr>
+    <tr><td>操作分析</td><td>双手作业/流程图全自动；人机/联合作业半自动（生成框架+待补字段提示）</td><td>补录机器时间/多人协同数据；动作等级抽核</td><td>数据完整度决定自动化率</td></tr>
+    <tr><td>实施跟踪</td><td>状态机驱动、自动派单、逾期三级升级、会签路由</td><td>制定实施计划、现场变更执行、班组长确认</td><td>现场执行不可远程化</td></tr>
+    <tr><td>复测验证</td><td>自动生成前后对照三件套、偏差计算、节约预登记</td><td>双人复测（执行+复核，禁止自证）；S8评审</td><td>复测数据=BOL发版数据，同质量标准</td></tr>
+    <tr><td>发版与变更</td><td>六节点审批流、版本配对系统级拦截、ECN自动生成、签认闭环监控</td><td>IE主管/制造经理批准；宣贯与签认组织</td><td>版本权威性不可让渡</td></tr>
+    <tr><td>效益核算</td><td>四步换算链自动计算、计算书七要素生成、月报跑批</td><td>口径确认清单10项会签；月度&gt;1万元过财务；月报签发</td><td>报数口径必须人审</td></tr>
+  </table>
+</section>
+
+<!-- ================= 3 模块一 ================= -->
+<section id="s3">
+  <h2>3. 模块一：BOL工时数据底座<span class="no">工具的地基</span></h2>
+  <div class="owner">责任成员：<b>毕准时</b>（标准工时专家）· 完整字段级文档：deliverables/BOL数据底座模块设计方案.md（v1.1）</div>
+
+  <div class="lead"><b>设计总纲：</b>「四层一码」数据结构 + 「人拆AI校」主线 + 「三权留人」纪律。VA/NNVA/NVA三分类在数据层原生落字段，是全部上层AI分析的主索引。</div>
+
+  <h3>3.1 数据结构：四层一码</h3>
+  <p>层级与编码规则：<b>产线</b>L01 → <b>工位</b>L01-ST10 → <b>作业单元</b>L01-ST10-OP03 → <b>动作要素</b>L01-ST10-OP03-E02-V2（末位为版本号）。四张核心表：t_line / t_station / t_operation / t_element（要素层为核心表），加工位级快照表 t_station_time_snapshot。</p>
+  <table>
+    <tr><th style="width:20%">字段组</th><th>关键字段（t_element 要素层）</th></tr>
+    <tr><td>标识与分类</td><td>element_type（14类类型码，18动素归并）、va_class（VA/NNVA/NVA，人工可覆盖但必留理由）、va_class_default、va_confidence（归类置信度）、hand（左右手）、therblig（动素）、most_seq（MOST序列，理论值校核）</td></tr>
+    <tr><td>分析支撑（接口新增6字段）</td><td>start_time_offset_ms（双手作业图自动化的开关）、motion_level（动作等级1~5，布局浪费量化）、move_distance_cm（搬运距离档位，搬运浪费量化）、material_id（关联物料主数据，服务W2重复取放识别与M11~M15供应链类改善）</td></tr>
+    <tr><td>工时计算</td><td>observed_time_s、cycles（≥15，CV&gt;0.15须≥25）、outlier_reason（必填）、rating_factor（0.70~1.25，&gt;1.30系统拦截）+rating_basis、normal_time_s（系统算）、allowance_rate+allowance_profile、standard_time_s（系统算）</td></tr>
+    <tr><td>治理字段</td><td>data_source（秒表/MOST/MOD/标准库类推/改善复测）、video_id、status、valid_from/to、ecn_no（发版必带编号）、rule_version（VA规则版本）</td></tr>
+    <tr><td>快照表</td><td>std_time_s / VA占比 / NNVA占比 / NVA占比 / manual_ct_s / machine_ct_s（人机分列）/ bottleneck_flag（瓶颈标记）/ NVA&gt;10%预警旗标 / 基线锁定字段（lock_flag+lock_by，见7.3）</td></tr>
+  </table>
+  <div class="law"><b>三条硬规则（系统强制）：</b>① 工位ST=Σ生效要素ST×频率，系统计算列禁手填；② SOP未固化的工位禁发标准工时；③ 每条动作要素必挂视频或MOST/MOD编码至少其一。</div>
+
+  <h3>3.2 人机协作：让新人做出合格分解（步骤1/2）</h3>
+  <table>
+    <tr><th style="width:30%">方案</th><th>内容</th></tr>
+    <tr><td>视频拍摄规范</td><td>1080p/30fps（快要素60fps）、侧面45°主+正面辅机位、连续≥5个稳定循环、开线30分钟后拍摄、前3秒拍工位信息卡；命名规则 L01_ST10_20250601_SOP3.2_T2；按产线授权访问</td></tr>
+    <tr><td>结构化录入四件套</td><td>①双手双列时间轴模板；②受控词表下拉（14类）；③必填6项+变异单元单列（禁止摊薄）；④界面内嵌动素速查卡片</td></tr>
+    <tr><td>AI校验规则引擎（7类）</td><td>命名规范 / 时间逻辑 / 频率合理性 / 完整性 / VA逻辑 / 横向3σ离群 / MOST理论值比&gt;1.25提示——命中即拦截草稿提交；IE主管10%录像抽审兜底</td></tr>
+    <tr><td>视频AI分解（远期）</td><td>成本高+双手遮挡识别不稳+错误数据污染库，<b>不进主线</b>；试点准入门槛：与人工标注偏差&lt;10%且双手识别准确率&gt;95%，先小范围验证再议</td></tr>
+    <tr><td>视频动作分解工作站（OTRS10对标）</td><td>在系统内直接完成视频分解：时间线+要素编辑器（双击分割/拖拽调边界）、循环次数识别、浪费与异常快速标记、多轴时间线——分解结果直接写入t_element，零二次导入；预留Excel/API外部导入接口。完整规格见3.3节</td></tr>
+  </table>
+
+  <h3>3.3 视频动作分解工作站<span class="no">OTRS10对标 · 步骤1/2的人机协作界面 · L1总入口</span></h3>
+  <div class="lead"><b>定位：</b>工具的第一个界面、数据底座的总入口。<b>设计目标：把OTRS10（日本Broadleaf，与丰田协作开发支持TPS，全球6000+客户、日系整车厂87%覆盖）验证成熟的"视频分解交互"吸收进来，与我们的结构化数据模型和AI校验打通——分解结果直接写入t_element、系统内直接应用，零二次导入；同时预留外部导入接口。</b></div>
+  <p><b>对标结论：</b>OTRS10强在"分解+模拟+输出"的单点工作站（视频分解、多循环分析、山积图/标准作业组合票、改善模拟、比较回放、视频手册、多轴分析），弱在闭环——无VA/NVA规则引擎、无浪费触发器、无ECRSA映射库与PI排序、无G关卡、无ECN受控、无效益核算、无知识资产沉淀。<b>我们的公式 = OTRS10级交互 + 全闭环（L2~L4）。</b></p>
+
+  <h4>功能规格表（OTRS10对标吸收 + 我们的增强）</h4>
+  <table>
+    <tr><th style="width:17%">功能模块</th><th style="width:48%">规格要求</th><th style="width:20%">来源</th><th>阶段</th></tr>
+    <tr><td>视频引擎</td><td>兼容≥92%常见视频格式免转换、多分段文件自动合并、0.03~8倍速播放、局部放大、逐帧步进；帧率自适应（快要素60fps）；视频按产线授权访问</td><td>OTRS10 DAe引擎对标</td><td><span class="tag t-blue">P0</span></td></tr>
+    <tr><td>时间线+要素编辑器</td><td>主时间线（<b>双手双列</b>布局）；<b>双击即分割动作要素</b>；<b>鼠标拖拽调整要素边界</b>（帧级精度+边界吸附）；动作分析与时间分析同步完成；支持撤销/重做与要素合并</td><td>OTRS10核心交互（用户明确要求）</td><td><span class="tag t-blue">P0</span></td></tr>
+    <tr><td>要素快速录入</td><td>受控词表下拉（14类要素类型）、界面内嵌动素速查卡、必填6项、hand/therblig/most_seq带出；6个分析字段（起始时间戳/动作等级/搬运距离/物料ID）按"类型默认值自动带出+人工只改偏离项"</td><td>数据底座3.1接口</td><td><span class="tag t-blue">P0</span></td></tr>
+    <tr><td><b>循环次数识别+多循环分析</b></td><td>自动/手动识别循环边界；单视频支持<b>≥25个循环</b>（满足数据底座"≥15循环、CV&gt;0.15加测至25"规则）；<b>一键抽取BEST/WORST Lap</b>；循环波动图（CT与要素时间波动可视化）</td><td>OTRS10 Cycle分析对标（用户要求）</td><td><span class="tag t-blue">P0</span></td></tr>
+    <tr><td>浪费（ムダ）快速标记</td><td>框选/标注无效动作起止点→<b>自动计时</b>→时间线上<b>橙色显式</b>显示并量化浪费；标记结果一键生成W1~W10浪费证据链</td><td>OTRS10浪费识别对标</td><td><span class="tag t-blue">P0</span></td></tr>
+    <tr><td><b>异常要素标记</b></td><td>异常要素打标（<b>outlier_reason必填</b>：来料异常/作业者技能/设备异常/方法变异/其他）；离群值自动进复核队列，<b>不直接进入ST计算</b>；与AI横向3σ离群校验联动</td><td>我们的增强（衔接数据底座outlier_reason字段）</td><td><span class="tag t-blue">P0</span></td></tr>
+    <tr><td>稼动/准稼动/非稼动自动分类</td><td>分解完成即按VA/NNVA/NVA规则表<b>自动归类+饼图</b>（=OTRS10稼动分析）；高置信度直接归类、中置信度黄标提示、低置信度进人工复核队列</td><td>VA规则引擎（4.1）挂钩</td><td><span class="tag t-blue">P0</span></td></tr>
+    <tr><td><b>数据直写（零二次导入）</b></td><td>分解确认→<b>直接写入t_element</b>（含6个分析字段）→自动触发AI校验7规则→过审后进工位快照；<b>全过程无任何手工转录/导入导出动作</b>；改善案号与element_code双向关联</td><td>我们的核心差异（用户核心诉求）</td><td><span class="tag t-blue">P0</span></td></tr>
+    <tr><td>外部导入接口（预留）</td><td><b>Excel/CSV标准工时直接导入</b>（与新视频对比分析，不必从零开始——服务双轨迁移与存量BOL）；预留REST API供OTRS10/MES/ERP数据接入；导入数据走同一校验规则</td><td>用户明确要求+OTRS10 Excel导入对标</td><td><span class="tag t-blue">P0</span></td></tr>
+    <tr><td>多轴时间线（双手/人机/联合）</td><td>多轴（人/人/双手/多机）时间线对齐编辑；自动生成<b>双手作业图/人机作业图/联合作业图</b>；等待段自动排序（等待最长=配置过剩信号）</td><td>OTRS10 Multi-Axial（Model 501）对标；衔接步骤6</td><td><span class="tag t-amber">P1</span></td></tr>
+    <tr><td>标准作业组合表自动生成</td><td>分解数据→自动生成丰台式<b>标准作业组合票</b>（人机组合、循环时间vs Takt）；同步输出山积图数据（三色VA/NNVA/NVA分段）</td><td>OTRS10对标；衔接平衡诊断</td><td><span class="tag t-amber">P1</span></td></tr>
+    <tr><td>改善模拟</td><td>要素自由重组（支持<b>≥5个视频文件</b>的要素池）；模拟改善后工序并输出<b>预测山积图</b>（模拟列只挂建议清单预期值，<b>绝不回写正式ST</b>）；瓶颈迁移自动预警</td><td>OTRS10改善模拟对标</td><td><span class="tag t-amber">P1</span></td></tr>
+    <tr><td>比较回放</td><td>改善前后/熟练vs新手视频与数据<b>双轨对比播放</b>，差异定位到要素级；支撑新人培训与技术传承</td><td>OTRS10 Comparative Playback对标</td><td><span class="tag t-amber">P1</span></td></tr>
+    <tr><td>视频作业手册</td><td>分解结果→<b>带字幕的视频标准作业</b>+步骤手册，导出PDF/PowerPoint/视频；<b>多语言（日英内置+中文）</b>+多语言<b>合成语音解说</b>（narration）；自动挂接SOP模板库关键控制点</td><td>OTRS10对标；衔接SOP模板库（6.4）与新人培训体系</td><td><span class="tag t-teal">P2</span></td></tr>
+    <tr><td>AI辅助（工作台内）</td><td>VA/NVA自动归类、3σ离群检测、MOST理论值比对、语音解说合成；<b>循环边界智能识别建议</b>（P3试点，受"偏差&lt;10%"闸门约束）；铁律不变：产出仍是"待审数据"，走人工审核硬清单8项后才生效</td><td>我们的AI分工边界</td><td><span class="tag t-amber">P1~P3</span></td></tr>
+  </table>
+
+  <h4>工作站内的AI/人工分工</h4>
+  <table>
+    <tr><th style="width:50%">AI（工具）做</th><th>人做</th></tr>
+    <tr><td>格式兼容/倍速/逐帧/局部放大（引擎能力）；VA/NVA自动归类；3σ离群检测；MOST理论值比对；语音解说合成；循环边界智能识别建议（P3试点）</td><td>要素边界最终确认；异常标记裁决；浪费标记；循环选定（BEST/WORST）；低置信度复核队列裁决；主管10%抽审</td></tr>
+  </table>
+
+  <div class="ok"><b>本工作站验收指标：</b>分解录入≤1小时/工位（1~2年IE可胜任）；边界调整帧级精度；循环识别准确率≥95%（人工抽核）；<b>分解→写入t_element零手工转录</b>；外部导入字段映射成功率≥98%；工作站培训上手≤4小时（对标OTRS10"数小时培训即可上手"）。</div>
+
+  <h3>3.4 工时处理与BOL维护（步骤3/8）</h3>
+  <ul>
+    <li><b>三权留人</b>：评比定值、宽放定值、发版批准三项权力保留人工；AI只做三辅助——观测充分性检查（n公式与CV规则）、评比建议区间（&gt;1.25黄灯&gt;1.30拦截）、三方比对异常检测（vs历史P50 / vs同类工位 / vs理论值，偏差&gt;±15%进人工复核队列留痕）。</li>
+    <li><b>宽放三档预设</b>：生理3~5% + 疲劳（轻4~8% / 中8~12% / 重12%）+ 事务2~5% + 特定实测；单工位偏离档位±2个百分点须IE主管批准。</li>
+    <li><b>版本六节点审批流</b>：IE起草（系统自动生成新旧diff）→ 系统预校验 → IE主管审核（24h）→ ME/制造经理批准（变更&gt;10%或涉人力配置升一级）→ 次日班次生效（紧急项72h补审）→ 版本链全保留可回溯。</li>
+    <li><b>复测触发</b>：ECN / 换型 / 治具变更 / 改善复测 / 有效期到期（3~6个月）/ CT波动报警。</li>
+    <li><b>标准要素库（企业资产）</b>：生效满3个月且复测偏差≤±5%的要素自动生成入库候选，按「类型×对象特征（重量/距离/精度档）×难度」打标签；四个复用场景：新品报价查库加和（必带置信区间）、转产预估、AI异常检测基线、录入实时参考；每季度库健康度报告。</li>
+  </ul>
+
+  <h3>3.5 数据迁移五步法（不冲击日常运作）</h3>
+  <p>冻结模板 → 单线试点 → 历史映射清洗（<b>AI出脏数据清单，人只处理清单</b>）→ 双轨并行1~2个月（差异&gt;±5%工位复测）→ 切换发版，老Excel归档只读。</p>
+
+  <div class="ok"><b>本模块验证指标：</b>数据结构化率&lt;10%→≥95%；单工位更新耗时4~6h→≤2h；AI低级错误拦截率≥80%；生效后30天复测偏差≤±5%；评比依据留存率100%；发版周期≤3工作日；6个月标准库≥200生效要素；AI误报率≤20%。</div>
+</section>
+
+<!-- ================= 4 模块二 ================= -->
+<section id="s4">
+  <h2>4. 模块二：智能分析引擎<span class="no">工具的核心 · 覆盖步骤4/5/6</span></h2>
+  <div class="owner">责任成员：<b>劳永逸</b>（线平衡与动作经济专家）</div>
+
+  <div class="lead"><b>架构定型：</b>「规则引擎定量判定 + LLM定性描述 + 人工审核关卡」三层引擎。<b>所有量化结论（工时/平衡率/优先级分数）只允许出自规则引擎，LLM禁止产生数字</b>——这是防止AI幻觉污染BOL数据的铁律。</div>
+
+  <h3>4.1 增值/非增值分析规则体系（步骤4）</h3>
+  <p>判定总纲：VA=直接改变产品形态/性能/性质（客户愿意付费）；NNVA=不增值但当前工艺必需（只能压缩）；NVA=纯浪费（目标删除）。<b>改善优先序：删NVA→减NNVA→简VA，顺序不可颠倒（删比优重要）。</b></p>
+  <table>
+    <tr><th style="width:26%">要素类型</th><th style="width:12%">默认归类</th><th>判断标准（可执行）</th></tr>
+    <tr><td>装配A / 使用U / 机器自动加工</td><td><span class="tag t-teal">VA</span></td><td>使物料形成组合 / 直接改变形态或性能 / 设备增值动作——只能简化</td></tr>
+    <tr><td>伸手TE / 握取G / 移物TL / 放手RL / 预对PP / 工序间搬运 / 设备装卸料 / 节拍性等待UD</td><td><span class="tag t-amber">NNVA</span></td><td>取放辅助、定位、物流、人机联作必需操作——缩短距离、降动作等级、压缩</td></tr>
+    <tr><td>检验I（规范强制）/ 无依据自设重复检验</td><td><span class="tag t-amber">NNVA</span> / <span class="tag t-red">NVA</span></td><td>有客户/品质体系文件依据=NNVA；无依据=NVA（生效条件写进规则表，模糊项人工复核）</td></tr>
+    <tr><td>寻找SH / 发现F / 选择ST / 思考PN / 持住H / 故延AD / 超宽放休息 / 返工返修 / 同工位往返搬运</td><td><span class="tag t-red">NVA</span></td><td>目视化缺失 / 供料未唯一化 / SOP不完善 / 手当夹具用 / 管理问题 / 不良浪费 / 布局浪费——目标删除</td></tr>
+  </table>
+  <p><b>模糊情形处理：</b>默认归类+置信度+人工复核——高置信度直接归类；中置信度自动归类+显式黄标提示；低置信度不归类、进复核队列。复核结果结构化回流（要素ID/最终归类/裁决理由/裁决人），作为规则库校准数据源。<b>VA/NVA归类规则全工具单一来源</b>：规则表由本引擎维护（可配置、带版本号RV），归类结果回写数据底座要素主表，底座只汇总不计算（架构决策见7.3）。</p>
+
+  <h3>4.2 浪费识别：W1~W10触发器（全部可程序化）</h3>
+  <table>
+    <tr><th style="width:8%">编号</th><th style="width:44%">触发条件（量化）</th><th style="width:16%">浪费类型</th><th>改善方向</th></tr>
+    <tr><td>W1</td><td>持住H累计≥工位工时5%</td><td>动作浪费</td><td>治具代手（M1）</td></tr>
+    <tr><td>W2</td><td>单循环同对象"伸-握-移-放"≥3组</td><td>动作浪费</td><td>合并取放/工具定点（M2/M3）</td></tr>
+    <tr><td>W3</td><td>搬运距离&gt;0.5m或同物往返≥2次</td><td>搬运浪费</td><td>布局重排/滑道化（M10）</td></tr>
+    <tr><td>W4</td><td>迟延+故延合计≥工位工时10%</td><td>等待浪费</td><td>人等机/机等人/平衡等待三路处置</td></tr>
+    <tr><td>W5</td><td>工序间在制品超1节拍量</td><td>库存浪费</td><td>连续流/拉动</td></tr>
+    <tr><td>W6</td><td>返工/返修要素出现</td><td>不良品浪费</td><td>质量溯源（转质量路线）</td></tr>
+    <tr><td>W7</td><td>检验I累计≥15%或同项目重复检验</td><td>过量加工</td><td>检验合并/自动化检测</td></tr>
+    <tr><td>W8</td><td>站CT&gt;TT且频繁换型</td><td>过量生产信号</td><td>SMED（转精益改善路线）</td></tr>
+    <tr><td>W9</td><td>选择ST+寻找SH合计≥8%</td><td>目视化缺失</td><td>定位编码/唯一化供料（M5/M6）</td></tr>
+    <tr><td>W10</td><td>动作等级≥4级要素占工位工时&gt;30%</td><td>布局浪费信号</td><td>料架移入前臂黄金作业域（M4）</td></tr>
+  </table>
+  <p><b>输出物标准格式：</b>工位VA/NVA诊断报告（NVA占比&gt;10%红旗"大窟窿"，目标&lt;5%；双手负荷差&gt;20%黄旗；平衡率&lt;70%红灯 / 70~85%黄灯 / ≥85%绿灯）+ 全线浪费清单（按"损失工时×日循环数"降序，<b>每条浪费必须带量化证据，没有证据的直觉判断不进清单</b>）。</p>
+
+  <h3>4.3 改善机会识别与建议生成（步骤5）</h3>
+  <h4>ECRSA手法映射库（20条，可配置规则表，节选）</h4>
+  <table>
+    <tr><th style="width:7%">编号</th><th style="width:24%">触发</th><th style="width:8%">手法</th><th>典型改善措施</th></tr>
+    <tr><td>M1</td><td>W1持住</td><td>S</td><td>治具/夹具代替手持住</td></tr>
+    <tr><td>M2</td><td>W2重复取放</td><td>C</td><td>合并取放（一次取多件/取放合一）</td></tr>
+    <tr><td>M4</td><td>W10+等级≥4</td><td>R</td><td>料架/治具移入正前方前臂作业域</td></tr>
+    <tr><td>M5/M6</td><td>W9选择/寻找</td><td>S</td><td>供料唯一化 / 定点定位+颜色编码</td></tr>
+    <tr><td>M7</td><td>双手负荷差&gt;20%</td><td>R</td><td>双手对称布局（物料左右分摆）</td></tr>
+    <tr><td>M8</td><td>双手交替空闲</td><td>C</td><td>两件同时作业（双巢/双治具）</td></tr>
+    <tr><td>M11~M15</td><td>包装/容器/来料问题</td><td>S/E</td><td>来料阵列定向、包装开凹槽、容器尺寸匹配、留把手tab、物料端操作前移供应商</td></tr>
+    <tr><td>M17/M18</td><td>人等机/装卸耗时</td><td>R/S</td><td>重叠内外时间、快换治具/双托盘</td></tr>
+    <tr><td>M20</td><td>思考PN高频</td><td>S</td><td>SOP把判断变动作（对照卡/限位）</td></tr>
+  </table>
+  <div class="law"><b>用法顺序铁律（写入引擎排序逻辑）：</b>E→C→R→S→A，先免费的再花钱的；A类（自动化）仅在E/C/R/S全部无解且经工程经济论证（回收期/ROI）后才生成，默认不推。</div>
+
+  <h4>AI建议生成三层机制</h4>
+  <table>
+    <tr><th style="width:16%">层级</th><th>职责</th></tr>
+    <tr><td>L1 规则引擎·量化打分</td><td>全量扫描命中映射库即生成候选建议，计算优先级指数 <span class="formula">PI=(T节省×F日循环×S波及工位数)÷D难度系数÷R风险系数</span>；负责算数、排序、过滤、生成全部量化字段。<b>LLM不得触碰任何数字字段</b></td></tr>
+    <tr><td>L2 LLM·建议生成</td><td>输入=命中规则+量化证据+工位要素明细+RAG检索Top3历史相似案例；输出=结构化建议书（现状描述/根因推断/具体措施/注意事项/同类案例引用），可组合跨规则复合建议。约束：输出中所有数字必须原文引用L1字段，出现L1未提供的数字即校验失败退回重生成</td></tr>
+    <tr><td>L3 人工评审</td><td>工程师对每条建议勾选：采纳/修改后采纳/驳回（驳回必选结构化原因：判断错误/现场不可行/约束冲突/效果存疑）。评审结果两个去向：驳回原因→校准L1规则阈值与映射库；采纳案例+前后数据→进案例库。<b>AI建议永远只是"建议"，执行前必过人工</b></td></tr>
+  </table>
+  <p><b>改善建议清单标准结构（工具输出模板）：</b>建议编号 IMP-工位号-序号 / 工位·作业单元（定位到要素ID集合）/ 现状描述（含量化证据）/ 浪费类型W1~W10 / 手法E-C-R-S-A / 建议措施（含实施要点）/ 预期收益（单循环节省秒数·CT降幅·平衡率贡献·UPH提升）/ 优先级PI分档（P1当周/P2当月/P3规划）/ 预估难度1~5 / 成本档（零成本/低成本/投资类）/ 责任人·期限 / 审核状态 / 实施状态（联动模块四）/ 验证结果（联动模块三）/ 父建议编号（C2子建议继承案例链）。</p>
+
+  <h3>4.4 瓶颈工位操作分析辅助（步骤6）</h3>
+  <table>
+    <tr><th style="width:18%">分析方法</th><th style="width:14%">自动化程度</th><th>自动输出物</th><th style="width:22%">需人工补充</th></tr>
+    <tr><td>双手作业分析</td><td><span class="tag t-teal">全自动</span></td><td>双手作业图（左右分栏时间轴对齐）+双手负荷差%+持住/等待计数+不对称点清单</td><td>动作等级抽核</td></tr>
+    <tr><td>流程分析（程序图）</td><td><span class="tag t-teal">全自动</span></td><td>工位级/全线流程程序图+五符号统计+搬运距离与停滞分析</td><td>无</td></tr>
+    <tr><td>人机操作分析</td><td><span class="tag t-amber">半自动</span></td><td>人机作业图+人/机利用率+人机比N=1+T自动÷T装卸（工程取值×0.85~0.9）+改善四方向提示</td><td>机器自动加工时间、台数、间距</td></tr>
+    <tr><td>联合操作分析</td><td><span class="tag t-amber">半自动</span></td><td>联合作业图（每人一栏）+各人等待段排序（等待最长=配置过剩信号）+并行化机会清单</td><td>多人时间轴对齐、协同循环界定</td></tr>
+  </table>
+  <p><b>平衡诊断：</b>山积图全线逐站堆叠、每柱按VA/NNVA/NVA三色分段（一眼看出瓶颈站可削部分）+TT节拍线；平衡率=Σ各站时间÷(瓶颈站时间×站数)；<b>三图并列</b>（现状→预测→实测）是改善结案报告标准页。<b>瓶颈规则：</b>硬瓶颈=CT&gt;TT或全线CT最高；次瓶颈≥瓶颈90%；关注站≥80%；<b>瓶颈迁移预警</b>——任何改善模拟后自动重算全线，瓶颈转移时强制提示"瓶颈将转移至X站，剩余收益=X站CT−TT"（单站改善无效、全线拉平是铁律）；打约束标签的工位不生成重排类（R）建议，只允许站内简化（S）。</p>
+
+  <div class="ok"><b>本模块验证指标：</b>单工位VA/NVA分析2~4h→≤5分钟（降幅≥90%）；全线平衡诊断2~3天→≤30分钟；建议清单生成≤10分钟；AI归类误判率&lt;5%（超5%触发规则库校准）；建议采纳率首年≥50%、第三年≥70%；单工位分析成本降80%+；平衡率从常见70~75%→≥85%；新工程师上手≤1个月独立完成初诊+建议清单。</div>
+</section>
+
+<!-- ================= 5 模块三 ================= -->
+<section id="s5">
+  <h2>5. 模块三：效益核算与跟踪体系<span class="no">算得清才被认可</span></h2>
+  <div class="owner">责任成员：<b>任效高</b>（OEE与人效分析专家）· 完整文档：deliverables/效益核算与跟踪指标体系模块设计方案.md</div>
+
+  <div class="lead"><b>核心结论：</b>换算链四步走（ΔST秒→ΔHC人→年化金额→Hard/Soft/NWC入账），<b>跳步换算一律无效；Hard/Soft分水岭只有一条——钱是否真进营业利润。</b></div>
+
+  <h3>5.1 效益核算口径</h3>
+  <table>
+    <tr><th style="width:30%">规则</th><th>内容</th></tr>
+    <tr><td>换算公式（节选）</td><td>ΔHC=ΔST线×日产出÷每人日有效工时÷达成率（向下取整）；年化Hard=ΔHC×1,900h×DL全成本费率；UPH提升仅计瓶颈路径节省</td></tr>
+    <tr><td>Hard saving</td><td>减员转岗（手册铁律：仍算Hard）、免加班、免新增产线</td></tr>
+    <tr><td>Soft saving</td><td>产能空着没单、工程师分析工时节省</td></tr>
+    <tr><td>红线不算</td><td>纠错恢复、商务议价——一律不计入节约</td></tr>
+    <tr><td>证据链四件套</td><td>基线快照锁定 → 30天复测（±5%）→ MDL/资源证明 → 四级电子签认（月度&gt;1万元强制过财务，分批滚动提交）——<b>缺一不生成节约记录</b></td></tr>
+    <tr><td>报数纪律</td><td>计算书七要素自动生成；<b>预计值只用于PI排序，对外报数一律用实测节省</b></td></tr>
+  </table>
+
+  <h3>5.2 三层跟踪指标体系</h3>
+  <table>
+    <tr><th style="width:16%">层级</th><th>指标（目标值）</th></tr>
+    <tr><td>工具运营KPI</td><td>单工位分析≤5分钟、全线诊断≤30分钟、清单生成≤10分钟、AI误判率&lt;5%、BOL更新及时率≥90%、复测偏差合格率≥85%、建议-实施转化周期≤45天、数据完整率≥98%</td></tr>
+    <tr><td>改善项目KPI</td><td>实施率≥75%、关闭率≥90%（采纳后12周内）、逾期率≤15%、<b>实际节省验证率85%~110%</b>（&gt;120%说明PI预测失准须复盘、&lt;70%说明实施质量存疑）、Hard节约月度金额、财务验证通过率≥90%</td></tr>
+    <tr><td>产线人效KPI</td><td>当量UPH、平衡率、VA占比、人时产出、单件人工成本；<b>防算法性虚增三排查</b>（真改善/结构变化/口径变化逐项排查）+学习曲线稳定期前后各剔除2周+人效对比必须声明BOL版本</td></tr>
+  </table>
+
+  <h3>5.3 AI工具自身ROI（成本关切的核心回应）</h3>
+  <table>
+    <tr><th style="width:22%">项目</th><th>结论</th></tr>
+    <tr><td>LLM成本</td><td>单条建议6~10K token≈$0.005~0.02；30工位线年4轮全量分析+月报草稿→<b>每线每年几十到几百元</b>；设月度token熔断上限防失控</td></tr>
+    <tr><td>开发成本</td><td>P1约10~12人月、P2约6~8人月、P3视频试点独立立项（设增量闸门）</td></tr>
+    <tr><td>运维成本</td><td>开发费×15%/年 + 0.2 FTE数据治理</td></tr>
+    <tr><td>收益侧A（Soft）</td><td>1条30工位线年省约400h工程师工时×60%再投入有效系数≈2.4万元/线/年</td></tr>
+    <tr><td>收益侧B（Hard为主）</td><td>全线年化工时节省4%→约4.7万元/线/年（已按70%落地率折减）</td></tr>
+    <tr><td><b>示例测算</b></td><td>10条线、5名IE：一次性54万+首年运维8万 vs 年收益约71万 → <b>回收期≈12个月、首年ROI≈102%</b>；悲观22个月/乐观7个月/只上P1约9个月</td></tr>
+  </table>
+
+  <h3>5.4 三层仪表盘与人效月报</h3>
+  <table>
+    <tr><th style="width:16%">视图</th><th style="width:34%">看什么</th><th>告警规则</th></tr>
+    <tr><td>管理层（月）</td><td>年化Hard节约进度、工具ROI、建议漏斗、人效同比</td><td>节约进度&lt;时序80%；连续2月实施率&lt;60%</td></tr>
+    <tr><td>IE主管（周）</td><td>漏斗明细、验证率分布、PI预测MAPE、瓶颈迁移</td><td>逾期&gt;2周；复测偏差&gt;±10%；误判率&gt;8%</td></tr>
+    <tr><td>工程师（日/实时）</td><td>待办（审核/复测/回填）、山积图、BOL版本状态</td><td>数据完整率；快照未锁定即对比</td></tr>
+  </table>
+  <p><b>人效月报自动生成：</b>每月1日跑批——五大数据源自动取数→规则引擎算指标（零token）→八栏初稿（当月/上月/环比/同期/同比/目标/达成率/异常说明）→LLM仅生成异常说明草稿→IE主管审核≤30分钟签发。成本中心三级映射表与财务月结科目对齐；人工环节仅三处，总计≤1h/月/成本中心。</p>
+</section>
+
+<!-- ================= 6 模块四 ================= -->
+<section id="s6">
+  <h2>6. 模块四：实施闭环与知识固化<span class="no">关得掉 · 改得稳 · 留得下</span></h2>
+  <div class="owner">责任成员：<b>苏定标</b>（标准作业专家）</div>
+
+  <h3>6.1 改善措施实施跟踪（步骤7）：10态状态机 + 关闭码</h3>
+  <table>
+    <tr><th style="width:14%">状态</th><th>要点</th><th style="width:34%">时限与逾期升级</th></tr>
+    <tr><td>S1 已采纳待排期 → S2 计划制定 → S3 计划会签（系统按措施类型自动路由：治具/物料/人员/检验/跨工位/停产窗口）</td><td>实施计划10字段缺一不可（措施描述/范围/分步任务/资源/成本档/风险预判/ECN预分类/回退方案/验证日期）</td><td>P1建议≤3工作日、P2≤5、P3≤10；T+2天提醒→T+5天升级IE主管→T+10天升级制造经理+周会通报</td></tr>
+    <tr><td>S4 资源准备 → S5 实施中 → S6 待复测（连续稳定运行≥3个班次后）→ S7 复测验证中（≤5工作日）→ S8 验证评审（24h）</td><td>复测规范：每工位连续≥15个完整循环（CV&gt;0.15加测至25，与BOL数据底座同口径）、上下游各1个受影响工位、白/夜班各采1轮、<b>双人复测（禁止建议提出者单人复核，防自证偏差）</b></td><td>S6超10个工作日启动复测自动提醒，超期5天升级IE主管</td></tr>
+    <tr><td>S9 已关闭 / S10 挂起</td><td>关闭码四分类（见下）；挂起必选结构化原因，≤30天，超30天自动升级制造经理裁决</td><td>—</td></tr>
+  </table>
+  <table>
+    <tr><th style="width:18%">关闭码</th><th style="width:26%">判定</th><th>后续动作</th></tr>
+    <tr><td>C1 达成关闭</td><td>实际收益≥预期80%</td><td>触发BOL发版+ECN流程（步骤8）</td></tr>
+    <tr><td>C2 部分达成关闭</td><td>收益50%~80%</td><td>自动生成子建议回流分析引擎重新分析（继承父建议案例链，RAG整链检索）</td></tr>
+    <tr><td>C3 未达成关闭</td><td>收益&lt;50%</td><td>强制5Why根因：措施缺陷→负面案例入库回流规则库；执行不到位→退回S5重实施。<b>禁止删除记录</b></td></tr>
+    <tr><td>C4 取消关闭</td><td>外部原因（如产品退市）</td><td>IE主管+制造经理双签，原因入库</td></tr>
+  </table>
+  <p><b>核心原则：验证结论无论成败都必须入库</b>——失败案例是知识固化的核心资产，"哪条规则在什么场景下不灵"比成功案例更值钱，这正是应对人员流动的资产。</p>
+
+  <h3>6.2 两阶段复测机制（技术复测与财务复测解耦）</h3>
+  <ul>
+    <li><b>技术复测（S7，实施后≤10工作日）</b>：判定建议达成度 → S8评审通过后系统<b>并行触发</b>：①节约预登记（Hard/Soft初判+预计节省）②ECN/SOP固化（<b>方法先受控，不等30天</b>）——消除"等财务流程才更新SOP→现场30天失控窗口"的风险。</li>
+    <li><b>财务复测（生效30天）</b>：v_post快照 → 节约记录转正（实测回填+四级签认）。两次复测偏差&gt;±10%自动触发SOP一致性审计回看。</li>
+    <li>节约台账增加 record_status 字段（预登记/正式入账/入账失败），<b>Hard累计只认转正后金额</b>，防管理层进度条虚高。</li>
+  </ul>
+
+  <h3>6.3 SOP与ECN变更管理闭环（步骤8联动）</h3>
+  <ul>
+    <li><b>双保险触发</b>：验证通过自动生成SOP变更工单派给SOP owner；BOL发版与SOP版本<b>强制配对</b>——SOP未同步则"ME/制造经理批准"按钮<b>系统级禁用</b>（不是提示，是拦截）。</li>
+    <li><b>ECN三级分类</b>：A类（工艺/设备/人员配置变化）SOP全面改版+离岗培训+实操验证+双批；B类（动作顺序/治具/关键参数）受控页换版+班前会5分钟宣贯+电子签认+首日巡查；C类（图示表述优化）版本记录更新。</li>
+    <li><b>四链合一回溯</b>：每版SOP关联 ECN号/建议编号/BOL版本号/培训记录，任一维度可反查；新版生效同时旧版作废，纸质版100%回收签收。</li>
+    <li><b>签认闭环门禁（G12）</b>：生效后48h签认率&lt;100%→警报推班组长+IE主管；连续2天未闭环→升级制造经理，且该工位后续新建议提交功能自动挂起。</li>
+  </ul>
+
+  <h3>6.4 知识固化与人员流动应对（最大痛点）</h3>
+  <div class="grid3">
+    <div class="mini"><h5>① SOP模板库（三级）</h5><p>L1公司级通用模板 → L2工艺族模板（预置族级关键控制点库，每次建议关闭时系统弹问"是否产生新控制点/防呆点"自动沉淀）→ L3工位实例SOP。新人不用从零想"该标什么★"。</p></div>
+    <div class="mini"><h5>② 作业标准三件套联动</h5><p>SOP作业步骤表外键=BOL动作要素ID，SOP步骤↔标准作业票↔工作要素表三表同源——动作一改，SOP步骤与BOL工时同步更新，从机制上杜绝"SOP和工时两张皮"。</p></div>
+    <div class="mini"><h5>③ 判断树（资深套路显性化）</h5><p>验证不达预期判定树 / 浪费识别→手法推荐树（E/C/R/S/A优先序）/ SOP可执行性诊断树（模糊词扫描）/ 操作分析触发树（何时用哪把刀）——以可配置规则存规则库，月度校准。</p></div>
+  </div>
+  <p><b>新人8步向导</b>：BOL改善8步全流程做成向导，<b>不可跳步</b>（每步有完成标准+引导卡片+输入模板+质检关卡+RAG自动匹配Top3相似案例）；分解结果与历史匹配度&lt;80%强制复核；认证达标（L3）后解锁专家模式。<b>五级认证</b>：L1见习（只读）→L2助理（导师复核）→<b>L3独立（独立完成≥5个闭环+验证达成率≥70%，目标入职1~2年达成）</b>→L4资深（可任G关卡审核人）→L5专家（规则库修订权）。作业者侧多能工矩阵：SOP变更培训记录自动更新矩阵，A类变更后1星人员自动进再培训队列。</p>
+
+  <h3>6.5 防错设计：G9~G12实施关 + 防"AI直接执行"五层控制</h3>
+  <table>
+    <tr><th style="width:14%">关卡</th><th>触发条件</th><th style="width:34%">强制动作</th></tr>
+    <tr><td>G9 SOP影响判定</td><td>建议涉及作业方法/顺序/工具变化</td><td>必须填结构化SOP影响评估（方法变/顺序变/工具变/均不变）才能提交实施</td></tr>
+    <tr><td>G10 人因安全红线</td><td>措施引入弯腰/扭转/高举或触碰安全装置</td><td>强制人因复核（与评审关G5同域不同时点：G5方案设计时拦，G10实施前拦）</td></tr>
+    <tr><td>G11 培训资源确认</td><td>A/B类ECN发布前</td><td>确认宣贯窗口已排定，否则发布冻结</td></tr>
+    <tr><td>G12 签认闭环</td><td>SOP新版生效后48h</td><td>签认率&lt;100%→警报+挂起该工位新建议提交</td></tr>
+  </table>
+  <p><b>五层控制：</b>①系统级无捷径——所有AI建议默认"待审"态，界面不存在"直接执行"按钮，采纳必须具名电子签认；②关卡硬拦截（G1~G12任一命中，实施入口系统级禁用）；③置信度&lt;70%强制升一级审核；④审核人资质绑定（G关卡须L4+认证，防"新手审新手"）；⑤月度抽查≥10%采纳记录做符合性复核，走过场纳入认证降级评估。</p>
+
+  <div class="ok"><b>本模块验证指标：</b>建议关闭周期60~90天→≤30天（Hard入账周期≤60天，两口径分开报）；关闭率≥85%；验证达成率≥80%；SOP更新及时率≥98%；培训签认闭环率≥95%；SOP-现场一致率≥95%（季度审计）；<b>新人独立达标周期18~24个月→≤12个月</b>；知识复用率≥60%；单点知识风险（单一维护人条目占比）≤10%。</div>
+</section>
+
+<!-- ================= 7 跨模块接口 ================= -->
+<section id="s7">
+  <h2>7. 跨模块接口与单一数据源<span class="no">汇编集成</span></h2>
+  <div class="owner">责任成员：<b>时金贵（主理人）</b>汇总各成员接口协调结论</div>
+
+  <h3>7.1 BOL改善8步 × 模块映射（数据流全景）</h3>
+  <table>
+    <tr><th style="width:6%">步骤</th><th style="width:30%">流程环节</th><th style="width:22%">主责模块</th><th>AI/工具角色</th></tr>
+    <tr><td>1</td><td>按工位拍摄作业视频</td><td>数据底座</td><td>拍摄清单与规范卡生成、视频-工位关联管理</td></tr>
+    <tr><td>2</td><td>视频动作分解（要素级）</td><td>数据底座</td><td>结构化录入模板+动素速查+AI校验7规则拦截；<b>人工分解（AI视频分解远期试点）</b></td></tr>
+    <tr><td>3</td><td>更新BOL工时数据</td><td>数据底座</td><td>ST系统计算禁手填；评比/宽放人工定值+AI异常检测；六节点审批</td></tr>
+    <tr><td>4</td><td>增值/非增值分析</td><td>分析引擎</td><td>规则表自动归类+置信度分流+浪费W1~W10识别+诊断报告</td></tr>
+    <tr><td>5</td><td>动作分析与改善计划</td><td>分析引擎</td><td>L1 PI打分+L2 LLM建议书+RAG案例引用→建议清单</td></tr>
+    <tr><td>6</td><td>瓶颈工位操作分析</td><td>分析引擎</td><td>双手/流程全自动，人机/联合半自动；山积图三图并列；瓶颈迁移预警</td></tr>
+    <tr><td>7</td><td>措施实施与跟踪</td><td>实施闭环</td><td>S1~S10状态机+自动派单+逾期升级+两阶段复测</td></tr>
+    <tr><td>8</td><td>更新优化后BOL</td><td>数据底座×实施闭环</td><td>改善复测发版（ECN单列）+SOP版本配对硬拦截+效益核算入账</td></tr>
+  </table>
+
+  <h3>7.2 已闭环的跨模块接口（成员双边确认）</h3>
+  <table>
+    <tr><th style="width:30%">接口</th><th>结论</th></tr>
+    <tr><td>VA/NVA归类规则单一来源</td><td>规则表归属=智能分析引擎（可配置+版本号RV+change_log+affected_station_recalc三管控字段）；14类默认映射作初始基线一次性导入；归类结果含置信度回写数据底座要素主表；底座只汇总+NVA&gt;10%预警不计算；模糊项人工复核只发生一次、复核后置信度重置；规则变更审批与BOL发版同级</td></tr>
+    <tr><td>规则表结构</td><td>四列：要素类型/默认归类/生效条件/置信度。三处生效条件：E60检验"规定检验项→VA否则NNVA"、E100等待"节拍设计缓冲→NNVA否则NVA"、E95预对保持NVA（改善导向）</td></tr>
+    <tr><td>要素层6个分析字段</td><td>start_time_offset_ms / motion_level / move_distance_cm / material_id / va_class_default / va_confidence——"类型默认值自动带出+人工只改偏离项"，单要素+10~20秒，不阻塞P1</td></tr>
+    <tr><td>选站逻辑</td><td>操作分析优先工位=瓶颈榜（CT降序）×（CT−TT可削减空间）×NVA&gt;10%警报旗标，三信号加权</td></tr>
+    <tr><td>模拟与正式数据分离</td><td>预测山积图只挂建议清单预期值做模拟列，<b>绝不回写正式ST</b>；正式工时只走复测审批流；工位ST=Σ生效要素ST×频率系统计算</td></tr>
+    <tr><td>G关卡体系统一编号</td><td>评审关G1~G8（建议评审阶段）+实施关G9~G12（实施前/ECN阶段），两组管理不重复审</td></tr>
+    <tr><td>C2/C3回流通道</td><td>子建议继承父建议案例链（RAG整链检索）；负面案例单独建集合作"反例警示"双向检索；回流走规则库月度校准通道</td></tr>
+    <tr><td>KPI回灌PI参数（轻量校准）</td><td>实际节省验证率→校准L1的T节省估算系数（持续&lt;85%下调/&gt;110%上调）；PI预测MAPE→校准难度D与风险R权重；PI参数校准不触发快照重算，与VA规则"重量变更"分级管控</td></tr>
+    <tr><td>验证结果字段数据源</td><td>必须来自复测后新版BOL（改善案号关联范围内新旧版差值，系统自动计算），禁止人工手填；复测期叠加ECN导致的工时变化必须剔除——<b>只有挂改善案号的差值计入验证结果</b>，非改善变更走ECN分离核算，防验证率污染</td></tr>
+    <tr><td>建议状态机×KPI口径映射</td><td>实施率分母=进入S1、实施完成=S6、关闭=S9（C1~C4全计）；挂起S10冻结天数；C3退回不重复计数；驳回态在评审阶段处理不进实施闭环</td></tr>
+    <tr><td>SOP模糊词扫描×W9联动</td><td>模糊词（适当/小心/注意/尽量/迅速）=思考PN动素的文本层证据；工位PN高频且SOP命中模糊词时，M20建议置信度升为"确认"；词表初始版由苏定标SOP规范口径定，引擎侧可配置维护</td></tr>
+  </table>
+
+  <h3>7.3 待毕准时确认的4项接口（已按整合原则定稿，标注待确认）</h3>
+  <div class="note"><b>说明：</b>毕准时在回复本轮确认时触发API频率限制（429，今日17:00重置）。以下4项已由主理人按各成员方案中的整合原则定稿写入本蓝图，待其恢复后确认；均为字段/口径级细节，不影响整体架构。</div>
+  <table>
+    <tr><th style="width:6%">#</th><th style="width:26%">事项</th><th>定稿设计（待确认）</th></tr>
+    <tr><td>1</td><td>复测循环数口径取齐</td><td>复测数据=BOL发版数据、同一质量标准，故采用数据底座口径：<b>每工位连续≥15个完整循环，节拍CV&gt;0.15时加测至≥25</b>（苏定标原方案≥10/15自动对齐至此）</td></tr>
+    <tr><td>2</td><td>SOP-要素表外键落地</td><td>数据底座<b>新增 t_sop_step 表</b>（sop_id / step_no / element_code 外键 / 步骤内容 / 关键控制点标记 / 版本 / 状态），实现SOP步骤↔标准作业票↔工作要素表三表同源联动</td></tr>
+    <tr><td>3</td><td>"改善复测发版"ECN单列</td><td>在六节点审批流中单列该ECN类型；发版包强制包含：新版BOL数据+改善前后对照表+<b>SOP变更草案（未同步则拦截发版）</b></td></tr>
+    <tr><td>4</td><td>快照表基线锁定字段</td><td>t_station_time_snapshot 增加 lock_flag + lock_by：改善实施前锁定快照作核算基线，锁定后不可修改、只能新增版本——与版本管理机制无冲突</td></tr>
+  </table>
+</section>
+
+<!-- ================= 8 技术路线 ================= -->
+<section id="s8">
+  <h2>8. AI技术路线与成本控制</h2>
+  <div class="owner">责任成员：<b>时金贵（主理人）</b>基于各模块AI需求汇编</div>
+
+  <h3>8.1 技术组合：三层AI能力，按成本分层</h3>
+  <table>
+    <tr><th style="width:20%">层</th><th style="width:26%">技术</th><th>职责与成本特征</th></tr>
+    <tr><td>定量层（主力）</td><td>确定性规则引擎（可配置规则表）</td><td>VA/NVA归类、浪费触发器、山积图/平衡率、PI打分、效益换算、月报指标——零边际成本，结果可复现、可审计</td></tr>
+    <tr><td>文案层（辅助）</td><td>企业级LLM API（或私有化部署）</td><td>仅做建议书自然语言生成、异常说明草稿、RAG检索增强——单次调用$0.005~0.02级，月度token熔断上限封顶</td></tr>
+    <tr><td>检索层（增强）</td><td>RAG（案例库+规则库+SOP模板库+负面案例集）</td><td>按{浪费类型+要素描述+产品特征}检索Top3相似案例作few-shot；新工程师的建议书自带"老工程师的案例引用"；负面案例集提供反例警示</td></tr>
+    <tr><td>流程层（骨架）</td><td>工作流引擎（状态机+审批路由+签认）</td><td>S1~S10状态机、六节点审批、ECN流程、会签矩阵、逾期升级——非AI但决定工具落地</td></tr>
+  </table>
+
+  <h3>8.2 防幻觉与防误用铁律</h3>
+  <ul>
+    <li><b>LLM禁止产生数字</b>：所有量化结论只出自规则引擎；LLM输出中的数字必须原文引用L1字段，出现未提供的数字即校验失败退回重生成。</li>
+    <li><b>AI建议永远"待审"态</b>：界面无"直接执行"按钮；采纳必须具名电子签认；G1~G12任一命中，实施入口系统级禁用。</li>
+    <li><b>工时不准→结论降级</b>：数据底座未校验通过的工位，分析输出只标"初诊参考"，不得进BOL发版。</li>
+    <li><b>预测失准自动校准</b>：验证率与MAPE两个KPI月度回灌PI参数（轻量校准），归类规则变更才走重量变更流程（版本号+快照重算+审批）。</li>
+  </ul>
+
+  <h3>8.3 部署与数据安全建议</h3>
+  <ul>
+    <li>工时数据与SOP是公司核心资产——建议<b>内网/私有化部署优先</b>；LLM调用走企业级API并对敏感字段脱敏，或本地小模型承担分类任务、云端大模型仅承担文案任务。</li>
+    <li>视频文件按产线授权访问；所有操作留痕（谁、何时、基于什么判断），支撑审计与认证评估。</li>
+    <li>规则表/映射库/词表全部做成<b>可配置</b>而非硬编码，支撑月度校准闭环持续更新。</li>
+  </ul>
+</section>
+
+<!-- ================= 9 路线图 ================= -->
+<section id="s9">
+  <h2>9. 实施路线图（12个月）</h2>
+  <div class="owner">责任成员：<b>时金贵（主理人）</b>合并毕准时P0~P3、劳永逸P1~P3、苏定标P0~P2 三套分期</div>
+  <table class="roadmap">
+    <tr><th style="width:13%">阶段</th><th style="width:9%">月份</th><th style="width:14%">主题</th><th>关键交付</th><th style="width:22%">退出准则</th></tr>
+    <tr><td>P0 地基与闭环骨架</td><td>M1~M2</td><td>数据先行+关得掉</td><td>BOL四表结构冻结+14类受控词表；VA规则表RV1.0；S1~S10状态机+复测规范；<b>视频动作分解工作站v1</b>（时间线+要素编辑器+循环识别+浪费/异常标记+数据直写+外部导入接口）+AI校验7规则；选定1条试点产线（20~40工位）</td><td>试点线≥5工位结构化录入完成；<b>分解录入≤1h/工位验证通过</b>；校验引擎拦截测试通过；双轨迁移启动</td></tr>
+    <tr><td>P1 看得见+改得稳</td><td>M3~M6</td><td>分析自动化+变更受控</td><td>VA/NVA归类/浪费W1~W10/山积图/瓶颈榜/流程图全自动；ECN三级+版本配对硬拦截+48h签认闭环；双轨迁移完成、老Excel归档</td><td>单工位分析≤5分钟；结构化率≥95%；SOP配对拦截实测生效；快照锁定上线</td></tr>
+    <tr><td>P2 提得出+留得下</td><td>M6~M9</td><td>建议生成+知识固化</td><td>L1 PI打分+L2 LLM建议生成+RAG案例库冷启动；建议清单+三图对比+双手作业图全自动；SOP模板库+新人8步向导+五级认证；三层仪表盘+人效月报自动生成</td><td>建议采纳率≥40%（爬坡期）；知识复用率≥40%；月报自动签发跑通；新人L2→L3路径验证</td></tr>
+    <tr><td>P3 算得准+远期试点</td><td>M9~M12</td><td>高级分析+ROI闸门</td><td>人机/联合作业分析（半自动）；标准要素库区间估计（补预测山积图置信区间）；视频AI动作分解单工位试点（先过偏差&lt;10%闸门再议推广）；效益核算全量入账</td><td>人机分析上线；视频试点评估报告；首年ROI复盘，决定P3推广与否</td></tr>
+  </table>
+  <div class="note"><b>分期原则：</b>①P1不上LLM——规则确定性高、开发成本最低、当月见效；②P2放量后再提质（建议质量依赖案例库积累）；③视频AI分解始终设ROI闸门，不与主线绑定；④每个阶段结束做增量闸门评审（参考任效高"只上P1回收期约9个月"情景，P2独立决策）。</div>
+</section>
+
+<!-- ================= 10 ROI ================= -->
+<section id="s10">
+  <h2>10. 投资与ROI汇总</h2>
+  <div class="owner">责任成员：<b>任效高</b>（OEE与人效分析专家）</div>
+  <table>
+    <tr><th style="width:30%">情景</th><th style="width:20%">回收期</th><th>说明</th></tr>
+    <tr><td>基准（10条线、5名IE、全模块）</td><td><b>约12个月</b></td><td>一次性54万+首年运维8万 vs 年收益约71万，首年ROI≈102%</td></tr>
+    <tr><td>悲观（收益打对折、上线延期）</td><td>约22个月</td><td>仍具可行性</td></tr>
+    <tr><td>乐观（改善收益超预期）</td><td>约7个月</td><td>—</td></tr>
+    <tr><td>保守起步（只上P0+P1，P2设增量闸门）</td><td>约9个月</td><td>推荐路径：P1先拿"看得见"的确定性收益，P2视数据积累再投</td></tr>
+  </table>
+  <p><b>成本结构提示：</b>成本大头是开发与运维人力，LLM费用在"规则引擎为主+文案短结构化输出+月度熔断"架构下可忽略（每线每年几十~几百元）——这是本工具与"全流程视频AI分析"路线在成本上的本质区别。</p>
+</section>
+
+<!-- ================= 11 风险 ================= -->
+<section id="s11">
+  <h2>11. 风险与应对</h2>
+  <table>
+    <tr><th style="width:24%">风险</th><th style="width:8%">等级</th><th>应对措施</th></tr>
+    <tr><td>AI误判导致错误改善</td><td><span class="tag t-red">高</span></td><td>G1~G12关卡+置信度分流+月度校准+负面案例集反例警示+月度抽查≥10%采纳记录</td></tr>
+    <tr><td>人员流动致知识继续流失</td><td><span class="tag t-red">高</span></td><td>规则/案例/SOP模板三资产+新人向导+分级认证+双人维护（单点知识风险≤10%）</td></tr>
+    <tr><td>结构化录入推行阻力</td><td><span class="tag t-amber">中</span></td><td>双轨迁移不冲击运作+默认值自动带出（单要素+10~20秒）+主管抽审+P1当月见效建立信心</td></tr>
+    <tr><td>改善后现场执行走样</td><td><span class="tag t-amber">中</span></td><td>ECN三级+版本配对系统级拦截+48h签认闭环+SOP-现场一致率季度审计</td></tr>
+    <tr><td>瓶颈迁移致单站改善无效</td><td><span class="tag t-amber">中</span></td><td>瓶颈迁移预警+全线自动重算+三图对比验证</td></tr>
+    <tr><td>复测期叠加ECN污染验证数据</td><td><span class="tag t-amber">中</span></td><td>只有挂改善案号的差值计入验证结果，非改善变更走ECN分离核算</td></tr>
+    <tr><td>LLM成本失控</td><td><span class="tag t-teal">低</span></td><td>规则引擎承担定量分析+月度token熔断上限+文案短结构化输出</td></tr>
+    <tr><td>建议采纳率低</td><td><span class="tag t-amber">中</span></td><td>PI量化排序（高频小改善优先）+案例引用增强说服力+每周15分钟实施站会+关闭码分档防烂尾</td></tr>
+  </table>
+</section>
+
+<!-- ================= 12 行动清单 ================= -->
+<section id="s12">
+  <h2>12. 下一步行动清单</h2>
+  <div class="owner">责任成员：<b>时金贵（主理人）</b>签发</div>
+  <table>
+    <tr><th style="width:6%">#</th><th style="width:14%">时限</th><th style="width:34%">行动</th><th>责任/产出</th></tr>
+    <tr><td>1</td><td>本周</td><td>成立工具推进小组</td><td>IE主管（负责人）+IT负责人+1名资深IE（知识工程师）+1名试点线班长</td></tr>
+    <tr><td>2</td><td>2周内</td><td>冻结BOL数据结构v1+14类受控词表</td><td>IT+资深IE；字段直接采用数据底座方案第3章落库</td></tr>
+    <tr><td>3</td><td>1个月内</td><td>资深IE经验萃取：访谈+历史改善批量回溯</td><td>建立映射库RV1.0+案例库冷启动（每条带前后对照三件套，缺对照不进库）</td></tr>
+    <tr><td>4</td><td>1个月内</td><td>选定1条试点产线（20~40工位、瓶颈明显、班长配合度高）</td><td>IE主管；落地视频拍摄规范与命名规则</td></tr>
+    <tr><td>5</td><td>M1~M2</td><td>P0开发：工作流引擎（S1~S10+六节点审批）+<b>视频动作分解工作站v1</b>+AI校验7规则</td><td>IT；退出准则见路线图P0</td></tr>
+    <tr><td>6</td><td>并行</td><td>确认7.3节4项待定接口</td><td>毕准时恢复后确认（今日17:00后或手动重试）；已按整合原则定稿，不影响P0启动</td></tr>
+    <tr><td>7</td><td>M3</td><td>P1开发启动+双轨迁移启动</td><td>IT+IE主管；月度增量闸门评审机制同步建立</td></tr>
+    <tr><td>8</td><td>持续</td><td>治理机制：token月度熔断上限+月度校准评审会（规则/案例/PI参数三线）</td><td>IE主管；形成"预测→实测→校准"闭环</td></tr>
+    <tr><td>9</td><td>P0期末</td><td><b>OTRS10对标验收</b>：申请OTRS10演示版（或经KDDI中国申请演示），按3.3节规格逐项验收分解工作台原型</td><td>IT+资深IE；交互基准不达标不上线</td></tr>
+  </table>
+  <div class="lead" style="margin-top:18px;"><b>一句话总结：</b>用结构化数据把"老师傅的判断"变成"可配置的规则"，用规则引擎把"最耗时的算数画图"交给机器，用LLM+RAG把"建议书的文案"自动化，用G关卡和认证体系把"最终裁决权"留在可靠的人手里——这就是本工具的蓝图，也是应对人员流动与成本约束的务实路线。</div>
+</section>
+
+<!-- ================= 13 行业对标 ================= -->
+<section id="s13">
+  <h2>13. 行业软件对标与选型建议<span class="no">2026-10-21 检索汇编</span></h2>
+  <div class="owner">责任成员：<b>时金贵（主理人）</b>直接调研汇编 · 信息来源：各厂商官网及公开渠道，价格以商务谈判为准</div>
+
+  <div class="lead"><b>结论先行：</b>行业中存在三类成熟软件，分别覆盖我们8步流程的不同"点"，<b>但没有任何一款完整覆盖"数据底座→分析→建议→实施→核算→知识固化"闭环</b>。最关键的两块能力（VA/NVA规则引擎、ECRSA映射库、PI优先级排序）是市场空白，必须自建——这正是本工具的壁垒所在。</div>
+
+  <h3>13.1 三大类成熟软件对标</h3>
+  <h4>① PMTS/工时测定类（覆盖步骤1-3：测得准）</h4>
+  <table>
+    <tr><th style="width:16%">产品</th><th style="width:18%">厂商</th><th style="width:34%">核心能力</th><th>价格模式 / 对我们的意义</th></tr>
+    <tr><td>TiCon</td><td>MTM Solutions（德，MTM协会官方）</td><td>MTM全系（MTM-1/UAS/MEK/SD/LOG/VI）+Time Study+EAWS人因+Balancing线平衡+Work Instructions；SaaS/SAP插件/Teamcenter集成；2026年3月上线AI助手TiConaut</td><td>Base €990/许可/年、标准€1,490/年、探索套餐€5,990/180天——MOST/MODAPTS理论值校核的现成外挂（服务most_seq字段），可申请30天SaaS试用</td></tr>
+    <tr><td><b>OTRS10</b>（视频分解工作站基准）</td><td>Broadleaf（日，与丰田协作开发支持TPS）</td><td>视频分解（时间线+要素编辑器+逐帧）、多循环分析（一键抽取BEST/WORST Lap）、浪费（ムダ）标记、山积图/标准作业组合票、改善模拟（要素自由重组）、比较回放、视频作业手册（多语言+合成语音解说）、多轴分析（动素/人机/双手/联合，Model 501）；日英中标准语言；Mobile OTRS+OTRS+AI插件；6000+客户（日系整车厂87%覆盖）、KDDI中国20+据点本地支持、订阅制</td><td>订阅制（未公开）——<b>本工具视频分解工作站的功能基准（3.3节）</b>；强于分解/模拟/输出单点，缺VA规则引擎/G关卡/ECN受控/效益核算/知识资产；建议申请演示版做交互对标，非整体替代</td></tr>
+    <tr><td>UMT Plus</td><td>Laubrass（德）</td><td>秒表+工作抽样+MOST体系、Excel报表强集成</td><td>报价制——理论值校核备选</td></tr>
+    <tr><td>Proplanner</td><td>Advantive（美，2023年收购）</td><td>测时（实时/视频）+PMTS（MTM-UAS/MEK/MTM-1/MODAPTS/Basic+Maxi MOST）+5种人因评估+线平衡（千任务/百型号）+人机图+浪费分析+MES/PLM集成；分析师计时，无AI</td><td>企业报价——与我们L1/L2理念最接近的"点状套件"，但无AI、无改善闭环、无中文生态</td></tr>
+    <tr><td>Timer Pro / AVIX / Yamazo Studio</td><td>ACSCO / AVIX / Yamazo</td><td>视频时间动作+线平衡+Yamazumi+ERP链接+视频转培训 / 视频辅助分析→标准发布全流程 / 离线视频时间研究+Yamazumi图+VA三分类+报告导出</td><td>报价制 / 报价制 / 免费demo——交互原型与"视频→VA分类→山积图"工作流参考，Yamazo离线模式契合数据安全</td></tr>
+  </table>
+  <h4>② AI视频动作分解类（步骤2的AI化：你关注的"高成本"环节）</h4>
+  <table>
+    <tr><th style="width:16%">产品</th><th style="width:18%">厂商</th><th style="width:34%">核心能力</th><th>价格模式 / 对我们的意义</th></tr>
+    <tr><td>Kaizen Copilot</td><td>Retrocausal（美，2019）</td><td>手机拍单循环视频→AI时间研究→自动拆分VA/NVA；线平衡（优先图/Yamazumi/takt人员配置）、REBA/RULA/NIOSH人因、作业指导、P-FMEA、spaghetti图；ISO 27001、AWS、人脸模糊</td><td><b>AWS Marketplace标价$100,000/工作站/年</b>——能力最接近"AI自动分解"，但价格直接印证你的成本判断；其模式本质仍是"AI生成+工程师确认"，可作P3试点的对标基准线</td></tr>
+    <tr><td>Invisible AI</td><td>Invisible AI（美，2018）</td><td>自研3D深度相机+NVIDIA Jetson边缘设备，每循环持续测量；瓶颈/吞吐追踪、质量追溯到具体循环、人因数据推送；完全本地部署、ISO 27001</td><td>未公开——大批量装配线的"持续测量"路线，架构定位与我们不同（面向无人化持续监测）</td></tr>
+    <tr><td>MTM官方AI测定 / TiConaut</td><td>MTM Solutions</td><td>AI从视频/流程描述生成MTM基准时间（需MTM专家）</td><td>未公开——说明PMTS+AI结合仍需方法专家把关，支持我们"AI初稿+人工审核"定位</td></tr>
+    <tr><td>学术佐证</td><td>MDPI《Applied Sciences》2025</td><td>CNN姿态估计+MTM-2动作分类：受控环境8919个动作实例准确率≈100%、推理1µs/样本</td><td>技术可行性成立，但现场泛化（遮挡/光照/非标准工位）仍是商用瓶颈——支持"试点闸门"设计</td></tr>
+  </table>
+  <h4>③ 改善跟踪与数字作业指导类（步骤7-8+知识固化：跟得住、传得下）</h4>
+  <table>
+    <tr><th style="width:16%">产品</th><th style="width:18%">厂商</th><th style="width:34%">核心能力</th><th>价格模式 / 对我们的意义</th></tr>
+    <tr><td>KaiNexus</td><td>美（2009）</td><td>想法捕获+A3/PDSA/DMAIC+日常管理（huddle/leader standard work/Gemba）+X-Matrix战略部署+知识库；2025年10月上线AI想法优先级排序；SOC 2</td><td>报价制——L4跟踪的成熟参照，但无IE数据模型（要素级/VA/NVA），<b>借鉴其闭环设计而非采购</b></td></tr>
+    <tr><td>iObeya</td><td>日</td><td>数字Obeya/层级会议/视觉管理（200+模板）</td><td>€3,780/房间/年——例会机制可借鉴</td></tr>
+    <tr><td>L2L / SwipeGuide</td><td>美（SwipeGuide 2024年并入L2L）</td><td>数字作业指导+技能矩阵+审计+实时OEE（PLC/SCADA连接）</td><td>报价制——签认闭环（G11/G12）与多能工矩阵的设计参照</td></tr>
+    <tr><td>Opcenter / Tulip / Poka / Dozuki / VKS</td><td>Siemens / Tulip / Poka / Dozuki / VKS</td><td>MES内嵌受控发布+工程变更联动 / no-code条件步骤+执行记录 / 步骤级执行证据+技能 / 视觉化SOP+版本控制</td><td>报价制——SOP版本配对、执行确认的设计参照</td></tr>
+    <tr><td>鼎捷MES / 赛意S-MOM</td><td>鼎捷数智 / 赛意信息</td><td>工时采集、标准工时回推、人员技能、电子看板、安灯；鼎捷依托雅典娜工业互联网平台</td><td>鼎捷约30~80万——国内生态集成选项，但属"工时采集"而非"IE分析"</td></tr>
+  </table>
+
+  <h3>13.2 两个关键决策的市场印证</h3>
+  <table>
+    <tr><th style="width:26%">蓝图决策</th><th>市场印证</th></tr>
+    <tr><td>"人拆AI校"（AI视频分解不进主线）</td><td>AI分解商用价格约<b>$10万/工作站/年</b>（Retrocausal），比本工具一次性54万覆盖10条线贵一个数量级；且商用AI分解仍需人工审核兜底——与我们"人工分解+AI校验"殊途同归且成本低得多</td></tr>
+    <tr><td>"规则引擎为主、LLM为辅"</td><td>市场两极恰是TiCon（纯规则引擎、€990起）与Retrocausal（重AI、$100K）——本工具取中：定量走规则引擎（TiCon路线）、文案走LLM（Retrocausal路线的最小化版）</td></tr>
+  </table>
+
+  <h3>13.3 选型建议：主体自建，只外购"点能力"</h3>
+  <table>
+    <tr><th style="width:8%">#</th><th style="width:30%">建议</th><th>说明</th><th style="width:16%">责任/时限</th></tr>
+    <tr><td>1</td><td><b>主体自建，不整体外购</b></td><td>数据底座+分析引擎+状态机+核算——市场空白即壁垒；外购产品均无法承载我们的要素级数据模型、VA归类单一来源与G1~G12关卡体系</td><td>主理人（已决策）</td></tr>
+    <tr><td>2</td><td>外购评估①：PMTS理论值校核</td><td>申请TiCon 30天SaaS试用（€990/年起）或Yamazo Studio免费demo，验证MOST校核效果与交互；若性价比不足，规则库自建即可（most_seq字段已预留）</td><td>IT+资深IE，2周内</td></tr>
+    <tr><td>3</td><td>外购评估②：视频AI分解对标</td><td>P3阶段引入Retrocausal/Invisible AI做单工位对标测试——正好作为我们"与人工偏差&lt;10%才推广"闸门的基准线；先谈试点价、不谈年费</td><td>IE主管，P3期</td></tr>
+    <tr><td>4</td><td>借鉴不采购</td><td>KaiNexus的改善闭环设计、L2L的签认与技能矩阵、Opcenter的版本配对机制——作为设计参照已融入本蓝图第6章</td><td>主理人（已完成）</td></tr>
+    <tr><td>5</td><td>方法认证投入（隐性成本）</td><td>若走MTM/MOST校核路线，需1~2人参加MTM中国/MODAPTS认证培训——这是TiCon生态的隐性成本，P1期评估必要性</td><td>IE主管，P1期</td></tr>
+  </table>
+  <p><b>关于OTRS10的采购评估结论：</b>OTRS10（日本Broadleaf，与丰田协作开发支持TPS）是全球装机量最大的视频分解工作站（6000+客户、日系整车厂87%覆盖），已正式支持中文并经KDDI中国提供20+据点本地支持、推出订阅制，其AI插件OTRS+AI也已上市——说明"AI辅助分解"正在成为行业标配方向。但它是单点工作站：产出止于标准作业组合票与视频手册，<b>不覆盖VA/NVA规则引擎、W1~W10触发器、ECRSA映射库、PI排序、G1~G12关卡、ECN受控、效益核算与知识资产沉淀</b>——即本蓝图L2~L4全部。建议：①分解工作站按OTRS10交互基准<b>自建</b>（3.3节），保证"分解结果系统内直写、零二次导入"这一核心诉求；②P0期末申请OTRS10演示版逐项对标验收；③P3视频AI试点时，可同时评估OTRS+AI作为备选引擎（仍受"与人工偏差&lt;10%"闸门约束）。</p>
+  <div class="note"><b>一句话定位：</b>市面上"测得准"（TiCon/Proplanner）、"分得快"（Retrocausal）、"分解强"（OTRS10）、"跟得住"（KaiNexus）的成熟工具都不少，但<b>"把资深IE的分析逻辑变成可配置规则、让普通工程师按套路出活"的闭环工具是空白</b>——这正是本工具对标市场后的差异化卡位。</div>
+</section>
+
+<!-- 页脚 -->
+<div style="text-align:center;color:#6b7787;font-size:12px;padding:10px 0 30px;">
+  工业工程IE专家团 · AI赋能的IE分析改善效率工具总体蓝图 v1.0 · 2026-10-21<br>
+  模块详细设计见deliverables目录：BOL数据底座模块设计方案.md（v1.1）· 效益核算与跟踪指标体系模块设计方案.md
+</div>
+
+</div>
+</body>
+</html>

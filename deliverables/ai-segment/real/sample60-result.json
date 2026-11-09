@@ -1,0 +1,274 @@
+{
+  "video": "D:\\Application\\IE_Improvement_Platform\\deliverables\\ai-segment\\real\\sample60.mp4",
+  "tag": "sample60",
+  "startedAt": "2026-10-25T10:50:35.180Z",
+  "steps": [
+    "[console] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "页面就绪：PA10 · v1 · 现有要素 0 条",
+    "视频载入：1920x1080 · 60.07s",
+    "已点击「开始分析」，等待完成…",
+    "  0s · 尚未分析",
+    "  16s · 尚未分析",
+    "  31s · 尚未分析",
+    "  47s · 尚未分析",
+    "  63s · 尚未分析",
+    "  78s · 尚未分析",
+    "  94s · 尚未分析",
+    "  109s · 尚未分析",
+    "  125s · 尚未分析",
+    "  140s · 尚未分析",
+    "  156s · 尚未分析",
+    "  172s · 尚未分析",
+    "  187s · 尚未分析",
+    "分析结束：耗时 191s，候选 25 条",
+    "分层 高14/中0/低11 · 手别 L0/R24/B1 · 覆盖 12.4s (20.6%)"
+  ],
+  "videoMeta": {
+    "duration": 60.07,
+    "w": 1920,
+    "h": 1080
+  },
+  "countText": "纳入 14 / 共 25 条 · 12.4s",
+  "rows": 25,
+  "emptyText": "",
+  "elapsedSec": 191,
+  "candidates": [
+    {
+      "id": "C1",
+      "hand": "R",
+      "span": "0.0–0.8s",
+      "dur": "0.8s",
+      "conf": "1.00 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C2",
+      "hand": "R",
+      "span": "1.7–2.4s",
+      "dur": "0.7s",
+      "conf": "1.00 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C3",
+      "hand": "R",
+      "span": "2.6–2.8s",
+      "dur": "0.2s",
+      "conf": "0.99 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C4",
+      "hand": "R",
+      "span": "3.6–4.2s",
+      "dur": "0.6s",
+      "conf": "0.99 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C5",
+      "hand": "R",
+      "span": "5.1–6.0s",
+      "dur": "0.9s",
+      "conf": "0.99 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C6",
+      "hand": "R",
+      "span": "6.9–7.7s",
+      "dur": "0.8s",
+      "conf": "0.99 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C7",
+      "hand": "R",
+      "span": "8.3–9.3s",
+      "dur": "1s",
+      "conf": "1.00 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C8",
+      "hand": "R",
+      "span": "10.0–10.2s",
+      "dur": "0.2s",
+      "conf": "0.99 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C9",
+      "hand": "R",
+      "span": "10.7–14.3s",
+      "dur": "3.6s",
+      "conf": "0.99 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C10",
+      "hand": "B",
+      "span": "11.4–11.5s",
+      "dur": "0.1s",
+      "conf": "0.97 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C11",
+      "hand": "R",
+      "span": "24.0–24.1s",
+      "dur": "0.1s",
+      "conf": "0.99 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C12",
+      "hand": "R",
+      "span": "27.7–27.8s",
+      "dur": "0.1s",
+      "conf": "0.88 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C13",
+      "hand": "R",
+      "span": "29.1–29.6s",
+      "dur": "0.5s",
+      "conf": "0.96 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C14",
+      "hand": "R",
+      "span": "30.9–31.3s",
+      "dur": "0.4s",
+      "conf": "0.98 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C15",
+      "hand": "R",
+      "span": "34.8–35.1s",
+      "dur": "0.3s",
+      "conf": "0.97 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C16",
+      "hand": "R",
+      "span": "35.9–36.3s",
+      "dur": "0.4s",
+      "conf": "0.99 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C17",
+      "hand": "R",
+      "span": "36.9–37.7s",
+      "dur": "0.8s",
+      "conf": "0.99 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C18",
+      "hand": "R",
+      "span": "39.4–40.6s",
+      "dur": "1.2s",
+      "conf": "0.98 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C19",
+      "hand": "R",
+      "span": "47.4–47.6s",
+      "dur": "0.2s",
+      "conf": "0.99 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C20",
+      "hand": "R",
+      "span": "47.8–47.9s",
+      "dur": "0.1s",
+      "conf": "0.99 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C21",
+      "hand": "R",
+      "span": "50.9–51.0s",
+      "dur": "0.1s",
+      "conf": "0.97 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C22",
+      "hand": "R",
+      "span": "51.7–51.8s",
+      "dur": "0.1s",
+      "conf": "0.97 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C23",
+      "hand": "R",
+      "span": "54.1–54.2s",
+      "dur": "0.1s",
+      "conf": "0.99 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    },
+    {
+      "id": "C24",
+      "hand": "R",
+      "span": "54.7–55.1s",
+      "dur": "0.4s",
+      "conf": "0.98 · 高",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C25",
+      "hand": "R",
+      "span": "59.8–59.9s",
+      "dur": "0.1s",
+      "conf": "1.00 · 低（时长过短）",
+      "tier": "low",
+      "include": false
+    }
+  ],
+  "tiers": {
+    "high": 14,
+    "mid": 0,
+    "low": 11
+  },
+  "hands": {
+    "L": 0,
+    "R": 24,
+    "B": 1
+  },
+  "includedDuration": 12.4,
+  "coveragePct": 20.6
+}

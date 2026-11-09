@@ -1,0 +1,116 @@
+/* ============================================================
+ * tokens.css · 柔和工业风（Soft Industrial）设计令牌 v3.56
+ * ------------------------------------------------------------
+ * 方向：车间／搪瓷钢／工程图纸的工业语言，去掉硬冷边—>
+ *   · 底色：石灰岩暖灰（替代原冷蓝灰 #f6f8fb）
+ *   · 主色：钢青 enamel steel（替代原饱和蓝 #1f5fd0）
+ *   · 点缀：氧化铜 copper（设备铭牌／警示牌）
+ *   · 纹理：20px 图纸网格 + 极轻噪点
+ *   · 圆角：机加工小圆角（5/8/12/16），不做大圆软糖
+ *
+ * 兼容：保留 v3.0~v3.55 全部旧变量名（--blue / --teal / --amber / --red ...），
+ *       旧指向钢青／松绿／琥珀／砖红，实现"改一处、全站换肤"。
+ * ============================================================ */
+:root {
+  /* —— 石灰岩暖灰基底 —— */
+  --stone-50:  #FBFAF7;
+  --stone-100: #F4F2ED;
+  --stone-200: #EAE6DE;
+  --stone-300: #DAD4C8;
+  --stone-400: #BDB5A6;
+  --stone-500: #948C7C;
+
+  /* —— 石墨墨色 —— */
+  --ink:  #23282C;
+  --ink2: #4B545A;
+  --ink3: #7B8489;
+  --ink4: #A6ADB1;
+
+  /* —— 主色 · 搪瓷钢青 —— */
+  --steel:      #2F5D6C;
+  --steel-700:  #23464F;
+  --steel-600:  #27505C;
+  --steel-400:  #4C7F8D;
+  --steel-bg:   #E7EFF1;
+  --steel-line: #C2D7DC;
+
+  /* —— 点缀 · 氧化铜 —— */
+  --copper:      #B0703C;
+  --copper-600:  #8F5A30;
+  --copper-bg:   #F8EEE3;
+  --copper-line: #E4CBAE;
+
+  /* —— 顶面 · 深色钢板（顶栏／登录氛围板） —— */
+  --plate:      #1E272D;
+  --plate-2:    #26323A;
+  --plate-line: rgba(255, 255, 255, 0.14);
+
+  /* —— 语义色 —— */
+  --teal:  #2E7D6B;  --teal-bg:  #E6F1ED;  --teal-line:  #BDD8D0;
+  --amber: #9A6A1F;  --amber-bg: #FBF2E2;  --amber-line: #E8D4AB;
+  --red:   #A5403A;  --red-bg:   #FAECEA;  --red-line:   #E8C5C1;
+
+  /* —— 旧变量兼容映射（勿删：legacy.css 与各页面大量引用） —— */
+  --blue:      var(--steel);
+  --blue-bg:   var(--steel-bg);
+  --blue-line: var(--steel-line);
+
+  --bg:   #F1EFE9;   /* 页面底 */
+  --card: #FCFBF8;   /* 卡片面 */
+  --card-solid: #FFFFFF;
+  --line:  #DFDAD0;
+  --line2: #C7C0B3;
+
+  /* —— 字体 —— */
+  --font-sans: "IBM Plex Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  --font-disp: "Barlow Condensed", "Oswald", "DIN Alternate", "Impact", var(--font-sans);
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace;
+
+  /* —— 尺度 —— */
+  --r-xs: 4px;
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 22px;
+  --sp-6: 30px;
+
+  /* —— 阴影（柔，不用硬黑） —— */
+  --sh-1: 0 1px 2px rgba(35, 40, 44, 0.05);
+  --sh-2: 0 1px 3px rgba(35, 40, 44, 0.06), 0 6px 18px -10px rgba(35, 40, 44, 0.16);
+  --sh-3: 0 2px 8px rgba(35, 40, 44, 0.07), 0 22px 48px -24px rgba(35, 40, 44, 0.30);
+  --sh-inset: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+
+  /* —— 工业纹理 —— */
+  --grid-line: rgba(47, 93, 108, 0.055);
+  --grid-line-strong: rgba(47, 93, 108, 0.085);
+  --tex-grid:
+    repeating-linear-gradient(0deg, transparent 0 19px, var(--grid-line) 19px 20px),
+    repeating-linear-gradient(90deg, transparent 0 19px, var(--grid-line) 19px 20px);
+  --tex-hatch: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.24) 0 3px, transparent 3px 6px);
+  --tex-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.42'/%3E%3C/svg%3E");
+
+  /* —— 动效 —— */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur: 0.16s;
+  --dur-long: 0.42s;
+
+  /* —— 布局常量（与 JS/TSX 中的硬编码保持一致，勿单边修改） —— */
+  --topbar-h: 48px;
+  --sider-w: 248px;
+  --panel-w: 272px;
+}
+
+/* 尊重系统降低动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

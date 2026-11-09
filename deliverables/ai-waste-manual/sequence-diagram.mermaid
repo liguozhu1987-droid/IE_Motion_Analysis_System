@@ -1,0 +1,37 @@
+sequenceDiagram
+    participant U as IE工程师
+    participant WB as WorkbenchPage
+    participant API as AiWasteStationController
+    participant SVC as AiWasteService
+    participant ANA as AnalysisService
+    participant LLM as LlmGatewayService
+    participant VAL as checkWastePayload
+    participant DB as t_ai_waste_*
+    participant PAGE as AiWastePage
+    U->>WB: 点击「AI自动识别浪费」(submitted 态可点)
+    WB->>API: POST generate-manual
+    API->>SVC: generate(stationId, userId, 'manual')
+    SVC->>SVC: assertEnabled()（ai_enabled 关→503）
+    SVC->>ANA: analyzeStationAtVersion(station, version)
+    ANA-->>SVC: 当前版本全量要素
+    SVC->>SVC: loadBySource：manual&outlier_flag=0→elements/ct；outlier_flag=1→outliers
+    SVC->>SVC: lastBatchOf(['done','done_empty'],'manual')→幂等200；['running']→409 AI_WASTE_IN_PROGRESS
+    SVC->>DB: 建/复用 batch(element_source='manual', prompt_version='WV2', running)
+    SVC->>LLM: chat(系统提示词, WV2用户提示词含异常点段)
+    LLM-->>SVC: findings+issues JSON（解析失败重试1次）
+    SVC->>SVC: extractJsonObject→剥数字→rawFindings/rawIssues
+    SVC->>VAL: checkWastePayload(raws, {elements: manual子集, ct, whitelist})
+    VAL-->>SVC: 校验后条目（outlier seq 引用被 W1.3 拦截）
+    SVC->>SVC: scoreIssues：est_save_s/priority/tier 服务端算
+    SVC->>DB: 事务落库 findings/issues → batch done
+    SVC-->>API: payload(含 element_source/ct/summary)
+    API-->>WB: 200
+    WB->>WB: toast「识别完成：N 个浪费点 / M 条建议」+ blur 回 body
+    U->>WB: 点「前往浪费识别 →」
+    WB->>PAGE: hash #/ai-waste/:id?source=manual
+    PAGE->>API: GET latest?source=manual
+    API->>SVC: latest(stationId, 'manual')
+    SVC->>DB: lastBatchOf(source='manual') + findings/issues
+    SVC->>ANA: loadBySource 复算 CT
+    SVC-->>PAGE: batch + findings + issues + summary
+    PAGE-->>U: 来源徽标 + 摘要卡 + 浪费点表 + 问题卡（确认/忽略）

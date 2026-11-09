@@ -1,0 +1,13 @@
+{
+  "_说明": "AI 分解真值标注模板（片段级，不逐帧精标）。复制本文件为 ground-truth-<station>.json 后填写 segments。video_name 与导出候选 JSON 中的 video_name 对应同一视频。type 从这 6 类里选：等待/移物/目检/拿取/装配/其他（与候选表一致，人工看视频逐段填起止与类型即可）。",
+  "_标注方法": "1) 用任意播放器（推荐慢放 0.5x）逐段看视频；2) 每个完整动作要素记 start_ms/end_ms（毫秒）/type/可选 note；3) 边界 = 动作开始与结束的瞬间，拿不准就取静止点；4) 标 30~60s 代表片段即可（不必全片），段数建议 ≥20。",
+  "station_id": "L01-ST01",
+  "video_name": "SH-FA9-A12-PA10-1.mp4",
+  "labeler": "填写标注人姓名",
+  "labeled_at": "2026-10-26",
+  "segments": [
+    { "start_ms": 20000, "end_ms": 23500, "type": "拿取", "note": "右手拿起扫码枪" },
+    { "start_ms": 23500, "end_ms": 27200, "type": "使用", "note": "扫码（标准库无『使用』时归『其他』并在 note 说明）" },
+    { "start_ms": 27200, "end_ms": 31000, "type": "移物", "note": "放回支架" }
+  ]
+}

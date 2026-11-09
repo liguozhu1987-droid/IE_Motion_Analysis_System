@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IE 动作分解 / 动作分析软件 · 行业架构分析报告</title>
+<style>
+  :root{
+    --bg:#ffffff; --ink:#0f172a; --ink-2:#475569; --ink-3:#64748b;
+    --line:#e2e8f0; --line-2:#cbd5e1;
+    --band-1:#e0f2fe; --band-1b:#0284c7;
+    --band-2:#dcfce7; --band-2b:#16a34a;
+    --band-3:#fef9c3; --band-3b:#ca8a04;
+    --band-4:#ffedd5; --band-4b:#ea580c;
+    --band-5:#ede9fe; --band-5b:#7c3aed;
+    --gov:#f1f5f9;  --gov-b:#64748b;
+    --warn:#fff7ed; --warn-b:#fb923c;
+    --key:#ecfdf5;  --key-b:#059669;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:15px;line-height:1.75;}
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 32px 80px;}
+  h1{font-size:28px;margin:0 0 6px;letter-spacing:-.3px;}
+  .sub{color:var(--ink-3);font-size:13px;margin-bottom:28px;}
+  h2{font-size:21px;margin:52px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--line-2);}
+  h3{font-size:17px;margin:30px 0 10px;color:var(--ink);}
+  h4{font-size:15px;margin:20px 0 8px;color:var(--ink-2);}
+  p{margin:10px 0;}
+  table{border-collapse:collapse;width:100%;margin:14px 0 20px;font-size:13.5px;background:#fff;}
+  th,td{border:1px solid var(--line);padding:9px 11px;vertical-align:top;text-align:left;}
+  th{background:#f8fafc;font-weight:600;color:var(--ink-2);white-space:nowrap;}
+  td.c,th.c{text-align:center;}
+  tbody tr:nth-child(even){background:#fafbfc;}
+  code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px;
+    font-family:"SFMono-Regular",Consolas,monospace;}
+  .fig{border:1px solid var(--line);border-radius:10px;padding:16px;margin:18px 0 8px;background:#fff;overflow-x:auto;}
+  .fig-t{font-size:13px;color:var(--ink-3);margin:6px 2px 22px;}
+  .note{background:var(--key);border-left:4px solid var(--key-b);padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0;font-size:13.5px;}
+  .gap{background:var(--warn);border-left:4px solid var(--warn-b);padding:12px 16px;margin:16px 0;border-radius:0 6px 6px 0;font-size:13.5px;}
+  pre.mermaid{background:#fff;font-size:12.5px;}
+  ul,ol{margin:10px 0;padding-left:22px;}
+  li{margin:5px 0;}
+  .tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:11.5px;font-weight:600;
+    border:1px solid currentColor;line-height:1.6;}
+  .p0{color:#dc2626}.p1{color:#ea580c}.p2{color:#0891b2}
+  .src{color:var(--ink-3);font-size:12px;}
+  @media print{body{font-size:11px}.wrap{padding:0}h2{page-break-after:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>IE 动作分解 / 动作分析软件 · 行业架构分析报告</h1>
+<div class="sub">
+  范围：MTM · MOST · MODAPTS · 视频动作研究 · AI 自动分解五条技术路线 ｜ 样本：5 款 ｜ 编制日期：2026-10-27<br>
+  落地对象：离散制造现场「视频 + 标准工时」动作分析系统（本项目）
+</div>
+
+<!-- ============ 摘要 ============ -->
+<h2>0. 摘要与样本说明</h2>
+
+<h3>0.1 样本选取</h3>
+<p>动作分解 / 动作分析软件行业高度分散（MTM 系、MOST 系、MODAPTS 系、视频系、AI 传感系），本次按「<strong>方法体系代表性 × 装机通用性 × 对中国离散制造业的可迁移性</strong>」三个维度，锁定下列 5 款：</p>
+
+<table>
+<thead><tr><th>#</th><th>产品</th><th>厂商 / 归属</th><th>方法体系</th><th>技术路线定位</th></tr></thead>
+<tbody>
+<tr><td class="c">1</td><td><strong>TiCon 4</strong>（TiCon / TiCon.io）</td><td>MTM ASSOCIATION e.V.（德国）软件中心</td><td>MTM-1 / MTM-2 / UAS / MEK / HWD / Visual Inspection</td><td>MTM 官方平台 · 中央数据库 · PLM 深集成</td></tr>
+<tr><td class="c">2</td><td><strong>MOST Work Measurement System</strong><br>（含 StandardsPro）</td><td>H.B. Maynard → Accenture / Advantive</td><td>BasicMOST / MiniMOST / MaxiMOST / AdminMOST</td><td>序列模型派 · 标准数据分层管理</td></tr>
+<tr><td class="c">3</td><td><strong>MODAPTS</strong>（Modapts Plus / Online + 行业变体）</td><td>国际 MODAPTS 协会 &amp; 各授权方</td><td>21 码模块体系 · 1 MOD = 0.129 s</td><td>模块派 · 极简落地 · 行业码表可插拔</td></tr>
+<tr><td class="c">4</td><td><strong>AviX Suite</strong>（Solme AB，瑞典）</td><td>Solme AB / Solme Deutschland 等</td><td>视频 + MTM-UAS / MTM-SAM / 秒表</td><td>视频动作研究 · 五类损失颜色分类</td></tr>
+<tr><td class="c">5</td><td><strong>Motion-Mining®</strong>（MotionMiners GmbH）</td><td>MotionMiners（德国）</td><td>可穿戴 IMU + 室内定位 + ML 活动识别</td><td>AI 自动分解 · 全量长周期过程挖掘</td></tr>
+</tbody>
+</table>
+
+<p class="src">扩展观察（未入选主样本但同样常见）：Proplanner Assembly Planner / ProTime Estimation（多 PTS 并存，北美装配业）、REFA / Umt Plus（德语区标准工时）、Drishti（视频 AI 工位分析）。</p>
+
+<h3>0.2 五条技术路线的方法学差异（决定架构走向）</h3>
+<table>
+<thead><tr><th>路线</th><th>基本单元</th><th>时间单位</th><th>一次典型分析的粒度</th><th>对架构的直接影响</th></tr></thead>
+<tbody>
+<tr><td>MTM（TiCon）</td><td>动素（伸手/握取/移动/定位…）</td><td>TMU，1 TMU = 0.036 s</td><td>逐动素，精细但慢</td><td>需要「可复用元素系统 + 多层公式」来摊薄成本</td></tr>
+<tr><td>MOST</td><td>序列模型（ABG-ABP-A 等）</td><td>TMU</td><td>按动作序列，速度约为 MTM-1 的 10 倍</td><td>需要「序列模型库 + 分层人工模型 roll-up」</td></tr>
+<tr><td>MODAPTS</td><td>21 个码（身体部位字母 + MOD 数）</td><td>MOD，1 MOD = 0.129 s</td><td>最粗、最快，可心算</td><td>架构最轻，易于纸/表/软件三形态并存</td></tr>
+<tr><td>视频（AviX）</td><td>视频元素（绑定时间码）</td><td>0.01 s 级</td><td>逐元素，可回溯到帧</td><td>需要「视频-时间码-元素」三元绑定与播放器内核</td></tr>
+<tr><td>AI 传感（Motion-Mining）</td><td>自动识别的动作类别</td><td>秒 / 指标</td><td>全量、2–3 周长周期</td><td>需要「ML 活动识别 + 指标库 + 合规匿名化」</td></tr>
+</tbody>
+</table>
+
+<!-- ============ 一、架构总览 ============ -->
+<h2>一、架构总览</h2>
+
+<h3>1.1 共性分层架构（五层 + 一柱）</h3>
+
+<p>尽管方法体系不同，5 款软件在架构上高度收敛为同一骨架：<strong>采集 → 方法编码 → 中央数据 → 分析 → 交付集成</strong>，并由一条纵向的「治理与合规」柱贯穿。差别在于每一层的<strong>厚度与重心</strong>。</p>
+
+<div class="fig">
+<svg viewBox="0 0 1200 660" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L0,6.4 L7.5,3.2 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="660" fill="#ffffff"/>
+
+  <!-- L5 -->
+  <rect x="40" y="30" width="820" height="96" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.6"/>
+  <text x="58" y="56" font-size="14" font-weight="700" fill="#5b21b6">L5 交付与集成层　Deliver &amp; Integrate</text>
+  <g font-size="12.5" fill="#1e293b">
+    <rect x="58" y="68" width="176" height="42" rx="6" fill="#fff" stroke="#c4b5fd"/><text x="146" y="86" text-anchor="middle">SOP / 电子作业指导书</text><text x="146" y="102" text-anchor="middle" font-size="11" fill="#64748b">视频片段 + 时间码</text>
+    <rect x="246" y="68" width="128" height="42" rx="6" fill="#fff" stroke="#c4b5fd"/><text x="310" y="94" text-anchor="middle">报表 / 看板</text>
+    <rect x="386" y="68" width="196" height="42" rx="6" fill="#fff" stroke="#c4b5fd"/><text x="484" y="86" text-anchor="middle">ERP / SAP / Teamcenter</text><text x="484" y="102" text-anchor="middle" font-size="11" fill="#64748b">MES / WMS</text>
+    <rect x="594" y="68" width="128" height="42" rx="6" fill="#fff" stroke="#c4b5fd"/><text x="658" y="94" text-anchor="middle">移动端采集 App</text>
+    <rect x="734" y="68" width="110" height="42" rx="6" fill="#fff" stroke="#c4b5fd"/><text x="789" y="94" text-anchor="middle">成本核算 / 报价</text>
+  </g>
+
+  <!-- L4 -->
+  <rect x="40" y="146" width="820" height="96" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="1.6"/>
+  <text x="58" y="172" font-size="14" font-weight="700" fill="#9a3412">L4 分析层　Analysis &amp; Diagnosis</text>
+  <g font-size="12.5" fill="#1e293b">
+    <rect x="58" y="184" width="150" height="42" rx="6" fill="#fff" stroke="#fdba74"/><text x="133" y="210" text-anchor="middle">VA / NVA 归类</text>
+    <rect x="220" y="184" width="150" height="42" rx="6" fill="#fff" stroke="#fdba74"/><text x="295" y="210" text-anchor="middle">浪费 / 损失识别</text>
+    <rect x="382" y="184" width="150" height="42" rx="6" fill="#fff" stroke="#fdba74"/><text x="457" y="210" text-anchor="middle">线平衡 / 节拍</text>
+    <rect x="544" y="184" width="150" height="42" rx="6" fill="#fff" stroke="#fdba74"/><text x="619" y="210" text-anchor="middle">人因工效评估</text>
+    <rect x="706" y="184" width="138" height="42" rx="6" fill="#fff" stroke="#fdba74"/><text x="775" y="210" text-anchor="middle">产能 / 成本核算</text>
+  </g>
+
+  <!-- L3 -->
+  <rect x="40" y="262" width="820" height="96" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.6"/>
+  <text x="58" y="288" font-size="14" font-weight="700" fill="#854d0e">L3 数据层　Central Standard Data</text>
+  <g font-size="12.5" fill="#1e293b">
+    <rect x="58" y="300" width="150" height="42" rx="6" fill="#fff" stroke="#fde047"/><text x="133" y="326" text-anchor="middle">中央标准数据库</text>
+    <rect x="220" y="300" width="150" height="42" rx="6" fill="#fff" stroke="#fde047"/><text x="295" y="326" text-anchor="middle">标准要素块 / 元素库</text>
+    <rect x="382" y="300" width="150" height="42" rx="6" fill="#fff" stroke="#fde047"/><text x="457" y="326" text-anchor="middle">时间公式 / 码表库</text>
+    <rect x="544" y="300" width="150" height="42" rx="6" fill="#fff" stroke="#fde047"/><text x="619" y="326" text-anchor="middle">版本与变更（ECO）</text>
+    <rect x="706" y="300" width="138" height="42" rx="6" fill="#fff" stroke="#fde047"/><text x="775" y="326" text-anchor="middle">宽放系数 / 参数</text>
+  </g>
+
+  <!-- L2 -->
+  <rect x="40" y="378" width="820" height="96" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="58" y="404" font-size="14" font-weight="700" fill="#15803d">L2 方法层　PTS 编码引擎（各派分野所在）</text>
+  <g font-size="12.5" fill="#1e293b">
+    <rect x="58" y="416" width="150" height="42" rx="6" fill="#fff" stroke="#86efac"/><text x="133" y="436" text-anchor="middle">MTM 家族</text><text x="133" y="451" text-anchor="middle" font-size="11" fill="#64748b">1 / 2 / UAS / MEK</text>
+    <rect x="220" y="416" width="150" height="42" rx="6" fill="#fff" stroke="#86efac"/><text x="295" y="436" text-anchor="middle">MOST 序列模型</text><text x="295" y="451" text-anchor="middle" font-size="11" fill="#64748b">ABG-ABP-A 等</text>
+    <rect x="382" y="416" width="150" height="42" rx="6" fill="#fff" stroke="#86efac"/><text x="457" y="436" text-anchor="middle">MODAPTS 21 码</text><text x="457" y="451" text-anchor="middle" font-size="11" fill="#64748b">1 MOD = 0.129s</text>
+    <rect x="544" y="416" width="150" height="42" rx="6" fill="#fff" stroke="#86efac"/><text x="619" y="436" text-anchor="middle">视频元素分类</text><text x="619" y="451" text-anchor="middle" font-size="11" fill="#64748b">AviX 五类</text>
+    <rect x="706" y="416" width="138" height="42" rx="6" fill="#fff" stroke="#86efac"/><text x="775" y="436" text-anchor="middle">ML 动作识别</text><text x="775" y="451" text-anchor="middle" font-size="11" fill="#64748b">&gt;60 动作序列</text>
+  </g>
+
+  <!-- L1 -->
+  <rect x="40" y="494" width="820" height="96" rx="10" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.6"/>
+  <text x="58" y="520" font-size="14" font-weight="700" fill="#075985">L1 采集层　Capture</text>
+  <g font-size="12.5" fill="#1e293b">
+    <rect x="58" y="532" width="150" height="42" rx="6" fill="#fff" stroke="#7dd3fc"/><text x="133" y="558" text-anchor="middle">视频 / 头戴摄像</text>
+    <rect x="220" y="532" width="150" height="42" rx="6" fill="#fff" stroke="#7dd3fc"/><text x="295" y="558" text-anchor="middle">可穿戴 IMU</text>
+    <rect x="382" y="532" width="150" height="42" rx="6" fill="#fff" stroke="#7dd3fc"/><text x="457" y="558" text-anchor="middle">蓝牙信标 / GPS</text>
+    <rect x="544" y="532" width="150" height="42" rx="6" fill="#fff" stroke="#7dd3fc"/><text x="619" y="558" text-anchor="middle">码表时间研究</text>
+    <rect x="706" y="532" width="138" height="42" rx="6" fill="#fff" stroke="#7dd3fc"/><text x="775" y="558" text-anchor="middle">CAD / BOM 导入</text>
+  </g>
+
+  <!-- governance column -->
+  <rect x="884" y="30" width="280" height="560" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+  <text x="1024" y="58" font-size="14" font-weight="700" fill="#334155" text-anchor="middle">贯穿柱 · 治理与合规</text>
+  <g font-size="12.5" fill="#1e293b">
+    <rect x="902" y="76" width="244" height="38" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1024" y="100" text-anchor="middle">权限 / 角色 / 租户隔离</text>
+    <rect x="902" y="126" width="244" height="38" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1024" y="150" text-anchor="middle">审计日志（输入与更改全记录）</text>
+    <rect x="902" y="176" width="244" height="38" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1024" y="200" text-anchor="middle">多语言 / 多站点 / 多工厂</text>
+    <rect x="902" y="226" width="244" height="38" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1024" y="250" text-anchor="middle">方法认证（MTM / Blue Card）</text>
+    <rect x="902" y="276" width="244" height="38" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1024" y="300" text-anchor="middle">版本封存 / 变更留痕</text>
+    <rect x="902" y="326" width="244" height="38" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1024" y="350" text-anchor="middle">数据保护（匿名化 / GDPR）</text>
+    <rect x="902" y="376" width="244" height="38" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1024" y="400" text-anchor="middle">标准时间口径统一</text>
+    <rect x="902" y="426" width="244" height="38" rx="6" fill="#fff" stroke="#cbd5e1"/><text x="1024" y="450" text-anchor="middle">人工审核 / 待审状态机</text>
+  </g>
+  <text x="1024" y="500" font-size="12" fill="#64748b" text-anchor="middle">这一柱的厚薄，决定了</text>
+  <text x="1024" y="518" font-size="12" fill="#64748b" text-anchor="middle">数据能否被审计、被复用、被信任</text>
+
+  <!-- up arrows -->
+  <path d="M450 484 L450 494" stroke="#475569" stroke-width="1.6" marker-end="url(#ar)"/>
+  <path d="M450 368 L450 378" stroke="#475569" stroke-width="1.6" marker-end="url(#ar)"/>
+  <path d="M450 252 L450 262" stroke="#475569" stroke-width="1.6" marker-end="url(#ar)"/>
+  <path d="M450 136 L450 146" stroke="#475569" stroke-width="1.6" marker-end="url(#ar)"/>
+</svg>
+</div>
+<div class="fig-t">图 1　动作分解 / 动作分析软件的通用五层架构（共性骨架）。差异不在「有没有这五层」，而在每一层的实现重心。</div>
+
+<h3>1.2 各软件的架构重心差异（同一骨架，不同厚度）</h3>
+
+<table>
+<thead><tr><th>产品</th><th>L1 采集</th><th>L2 方法（核心竞争力）</th><th>L3 数据</th><th>L4 分析</th><th>L5 交付集成</th><th>架构一句话概括</th></tr></thead>
+<tbody>
+<tr><td><strong>TiCon 4</strong></td><td>码表 + TS App + 视频（可选）</td><td>MTM 全家族；<strong>可复用元素系统 + 多层公式</strong></td><td><strong>中央数据库（最厚）</strong>，多语言、变更全记录</td><td>Takt 线平衡 + EAWS 人因 + ProKon 设计端</td><td>SAP / Teamcenter 深集成 + SOP + Cost</td><td>以「中央标准数据库」为单一真相源的企业级平台</td></tr>
+<tr><td><strong>MOST 体系</strong></td><td>现场观察 + 视频辅助</td><td><strong>序列模型 + 索引化参数</strong>（速度 10×）</td><td>分层人工模型：子操作→操作→岗位→部门</td><td>标准数据开发 + 产能/成本建模</td><td>ERP / MES 集成 + 预置主标准库</td><td>以「分层标准数据模型」实现一处改、全局生效</td></tr>
+<tr><td><strong>MODAPTS</strong></td><td>现场观察 / 纸本 / 表格</td><td><strong>21 码极简语言</strong>，可心算</td><td>轻：码表 + 行业码表（可插拔）</td><td>基础 VA/NVA 与线平衡</td><td>报表为主，行业变体（MODSEW / GSD）自带款式管理</td><td>以「最低学习成本 + 行业可插拔码表」换取普及率</td></tr>
+<tr><td><strong>AviX Suite</strong></td><td><strong>视频为第一载体</strong>，逐帧 0.01 s</td><td>视频元素 + MTM-UAS/SAM + 秒表</td><td>元素-时间码-视频三元绑定</td><td><strong>五类损失颜色分类</strong> + Resource Balance 拖放平衡 + SMED</td><td>Shopfloor Viewer 电子作业指导书 + FMEA/控制计划</td><td>以「视频 + 可视化分类」把 IE 分析变成人人可用的改进工具</td></tr>
+<tr><td><strong>Motion-Mining</strong></td><td><strong>可穿戴 IMU + Beacon + GPS</strong>，2–3 周</td><td><strong>ML 自动动作识别</strong>（&gt;60 类）</td><td>过程指标库（100+ KPI）+ 数字过程地图</td><td>自动瓶颈/等待/路径/工效评估；热力图</td><td>WMS/ERP/MES 可选对接；咨询 + 授权双模式</td><td>以「传感 + AI」跳过人工编码，换全量与客观性</td></tr>
+</tbody>
+</table>
+
+<div class="fig">
+<pre class="mermaid">
+graph TD
+    CAP["L1 采集层<br/>视频 / IMU / 码表 / CAD"]
+    MTD["L2 方法层<br/>PTS 编码引擎"]
+    DAT["L3 中央标准数据库"]
+    ANA["L4 分析层<br/>VA-NVA / 浪费 / 平衡 / 人因"]
+    DEL["L5 交付层<br/>SOP / 成本 / ERP-MES"]
+    CAP --> MTD --> DAT --> ANA --> DEL
+
+    MTD -->|"MTM 官方实现"| T["TiCon 4<br/>重心：中央库 + PLM 集成"]
+    MTD -->|"序列模型"| S["StandardsPro / MOST<br/>重心：分层标准数据"]
+    MTD -->|"21 码"| D["MODAPTS<br/>重心：极简 + 行业变体"]
+    MTD -->|"视频元素"| A["AviX Suite<br/>重心：视频 + 五类损失"]
+    CAP -->|"传感数据直入分析"| N["Motion-Mining MPI<br/>重心：ML 自动识别"]
+    DEL ==>|"复测结果回流"| DAT
+</pre>
+</div>
+<div class="fig-t">图 2　五款软件在同一骨架上的分叉：方法层与采集层的不同选择，决定了各自的架构重心。</div>
+
+<!-- ============ 二、模块清单 ============ -->
+<h2>二、模块清单与设计亮点</h2>
+
+<h3>2.1 TiCon 4（MTM ASSOCIATION）</h3>
+<table>
+<thead><tr><th style="width:16%">模块</th><th style="width:20%">功能定位</th><th style="width:34%">核心能力</th><th style="width:30%">设计亮点</th></tr></thead>
+<tbody>
+<tr><td><strong>TiCon Base</strong></td><td>方法数据与时间计算底座</td><td>MTM-1、MTM-2、UAS、MEK、Visual Inspection、MOS（Office）、Logistic；通用元素系统、公式与多层计算；工法描述、工时、文档、图片统一管理</td><td><strong>「可复用元素系统」</strong>是全局杠杆：所有其他模块共享同一数据基础，避免重复建模</td></tr>
+<tr><td><strong>TiCon Takt / Balancing</strong></td><td>线平衡与节拍设计</td><td>拖放式把工作内容在工人/工位间迁移；在线计算负荷与效率并实时更新；标准 / 混合 / 最大化线平衡三种模式；可指定工序（AVO）顺序依赖</td><td>把「平衡」做成可视化操作而非计算题；最大化线平衡专门解决多变体数据爆炸</td></tr>
+<tr><td><strong>TiCon Process Design</strong></td><td>过程建模与工艺设计</td><td>Process Monitor 图形化建模、过程记录与优化</td><td>把时间数据上升到「过程结构」层，支撑工艺规划</td></tr>
+<tr><td><strong>TiCon Time Study (TS)</strong></td><td>实测时间研究（REFA 口径）</td><td>编辑/管理/评估时间研究；iOS / Android / Windows App 现场采集</td><td><strong>PTS 预测 ↔ 实测校核</strong>的双通道，是标准时间可信度的来源</td></tr>
+<tr><td><strong>TiCon EAWS</strong></td><td>人因工效风险评估</td><td>人类工效评估工作表；与 Base / Balance 联动；4.08 起支持外骨骼分析</td><td>工时与人因共用方法数据，无需二次建模</td></tr>
+<tr><td><strong>TiCon HWD</strong></td><td>手工搬运作业过程模块</td><td>MTM-HWD 过程模块系统</td><td>搬运类作业模块化，降低分析门槛</td></tr>
+<tr><td><strong>TiCon ProKon</strong></td><td>设计阶段薄弱点识别</td><td>产品设计阶段识别/评估装配薄弱环节，设定优化目标与衡量</td><td><strong>把改善窗口前移到设计端（DFA）</strong>，这是最大杠杆点</td></tr>
+<tr><td><strong>TiCon Cost</strong></td><td>成本核算与报价</td><td>基于标准工时的报价；贯穿产品生命周期与变更管理</td><td>工时 → 成本直通，让 IE 结果进入财务语言</td></tr>
+<tr><td><strong>Planungscockpit</strong></td><td>规划驾驶舱</td><td>规划状态与指标总览</td><td>管理层视角入口</td></tr>
+<tr><td><strong>for SAP / Teamcenter</strong></td><td>系统集成</td><td>与 SAP、Siemens Teamcenter 深度集成，中央库多语言管理</td><td>工时数据进入企业主流程，而非孤岛</td></tr>
+</tbody>
+</table>
+
+<h3>2.2 MOST Work Measurement System（H.B. Maynard → Accenture / Advantive）</h3>
+<table>
+<thead><tr><th style="width:16%">模块 / 层次</th><th style="width:20%">功能定位</th><th style="width:34%">核心能力</th><th style="width:30%">设计亮点</th></tr></thead>
+<tbody>
+<tr><td><strong>BasicMOST</strong></td><td>通用手工搬运核心系统</td><td>通用移动序列 A-B-G-A-B-P-A；索引化参数（A 距离、B 身体动作、G 取得控制、P 放置）</td><td>应用速度约为 MTM-2 的 10 倍；不依赖软件也可用</td></tr>
+<tr><td><strong>MiniMOST</strong></td><td>短周期高重复精密作业</td><td>单 TMU 级精度，典型周期 ≤ 10 s，上限约 1.6 min</td><td>电子精细装配的 MTM-1 等价替代</td></tr>
+<tr><td><strong>MaxiMOST</strong></td><td>长周期非重复 / 重型作业</td><td>含 Manual Crane、Power Crane、Truck Sequence；周期从 &lt;2 min 到数小时</td><td>覆盖维修、重型装配、复杂物流</td></tr>
+<tr><td><strong>AdminMOST</strong><br>（原 ClericalMOST）</td><td>行政 / 办公作业</td><td>行政任务序列模型，已更新至现代办公场景</td><td>从车间延伸到办公室，扩大标准覆盖面</td></tr>
+<tr><td><strong>受控移动 / 工具使用序列</strong></td><td>机器操作与工具作业</td><td>A-B-G-M-X-I-A（受控移动）、A-B-G-A-B-P-U-A-B-P-A（工具使用）；工具动作含 F 紧固 / L 松开 / C 切割 / S 表面处理 / M 测量 / R 记录</td><td><strong>一套字母语言统一「人-机-工具」三类动作</strong>，这是 MOST 的方法学核心资产</td></tr>
+<tr><td><strong>StandardsPro</strong><br>（原 Maynard 软件平台）</td><td>标准数据管理与建模</td><td>内置 MOST 计算逻辑与序列模型库；分层人工模型（子操作→操作→岗位→部门）；预置跨行业主标准库</td><td><strong>分层 roll-up 模型</strong>是实现「一处改、全局生效 + 变更留痕」的架构基础</td></tr>
+<tr><td><strong>认证与培训体系</strong></td><td>能力保障</td><td>分级认证（Blue Card）、有效期 4 年、复训与再认证</td><td>把「人的因素」纳入体系：跨分析员一致性靠制度而非靠工具</td></tr>
+</tbody>
+</table>
+
+<h3>2.3 MODAPTS（Modular Arrangement of Predetermined Time Standards）</h3>
+<table>
+<thead><tr><th style="width:16%">模块</th><th style="width:20%">功能定位</th><th style="width:34%">核心能力</th><th style="width:30%">设计亮点</th></tr></thead>
+<tbody>
+<tr><td><strong>21 码体系</strong></td><td>动作编码语言</td><td>字母表示身体部位/动作类型（Move 移动、Get 抓握、Put 放置、Body 身体动作等），数字表示 MOD 数；1 MOD = 0.129 s</td><td><strong>21 个码覆盖全部作业</strong>，是所有 PTS 中码表最小、学习曲线最平缓的</td></tr>
+<tr><td><strong>时间换算引擎</strong></td><td>标准时间计算</td><td>MOD 求和 × 0.129 s，可手工/表格/软件完成</td><td>心算即可完成一轮分析，现场可用性强</td></tr>
+<tr><td><strong>Modapts Plus / Online</strong></td><td>软件化实现</td><td>编码输入、时间累加、报表输出</td><td>纸本 / 表格 / 软件三形态并存，落地门槛极低</td></tr>
+<tr><td><strong>行业变体</strong><br>MODSEW / GSD / Pro SMV</td><td>行业定制码表</td><td>缝制/服装/制鞋行业专属码表；MODSEW 允许用户自定义码；按款式（style）管理操作组</td><td><strong>「通用方法 + 行业码表」的可插拔范式</strong>，是 MODAPTS 在细分行业渗透率高的关键</td></tr>
+<tr><td><strong>协会认证体系</strong></td><td>能力保障</td><td>非营利国际 MODAPTS 协会统一培训、讲师与实操认证</td><td>体系稳定、口径统一</td></tr>
+</tbody>
+</table>
+
+<h3>2.4 AviX Suite（Solme AB）</h3>
+<table>
+<thead><tr><th style="width:16%">模块</th><th style="width:20%">功能定位</th><th style="width:34%">核心能力</th><th style="width:30%">设计亮点</th></tr></thead>
+<tbody>
+<tr><td><strong>AviX Method</strong></td><td>视频时间动作分析核心</td><td>支持秒表或 MTM-UAS / MTM-SAM；视频可下钻到 0.01 s；元素分类与颜色标注；作业说明（SOP）自动生成</td><td><strong>五类颜色分类</strong>：增值 / 浪费 / 等待空闲 / 返工 / 非生产性；配合「作业性 / 非作业性 / 准备」三态，开箱即用</td></tr>
+<tr><td><strong>AviX Resource Balance</strong></td><td>产线平衡与仿真</td><td>现代线平衡：模拟、创建、优化产线；支持变体与变体混合；可叠加机器/人力等资源</td><td>拖放迁移任务时<strong>实时刷新各工位 VA/NVA 与效率</strong>，把平衡变成交互式探索</td></tr>
+<tr><td><strong>AviX SMED</strong></td><td>快速换型</td><td>内部 / 外部作业分离，压缩换型时间</td><td>把 SMED 方法论内建为结构化流程，而非模板文档</td></tr>
+<tr><td><strong>Shopfloor Viewer</strong></td><td>数字化作业指导</td><td>Web 端作业指导书；扫码按型号+工位取用；图文/视频/受控文档/交互 3D；按日期/系列/序列号生效</td><td><strong>分析结果直达工位</strong>，闭合「分析→执行」最后一环</td></tr>
+<tr><td><strong>FMEA + 控制计划</strong></td><td>质量风险前置</td><td>PFMEA 与控制计划联动</td><td>与工时/方法数据同源，避免多套主数据</td></tr>
+<tr><td><strong>标准时间与宽放计算</strong></td><td>标准工时口径</td><td>多循环采样、均值、标准差、容差与作业补充（宽放）</td><td>统计口径内置，保证跨分析员一致</td></tr>
+</tbody>
+</table>
+
+<h3>2.5 Motion-Mining®（MotionMiners GmbH）</h3>
+<table>
+<thead><tr><th style="width:16%">模块</th><th style="width:20%">功能定位</th><th style="width:34%">核心能力</th><th style="width:30%">设计亮点</th></tr></thead>
+<tbody>
+<tr><td><strong>可穿戴采集硬件</strong></td><td>匿名化数据源</td><td>腕部 + 腰带传感器采集动作、活动、姿态；工业车辆装 logger 记录利用率、空/满载行程、货叉位置</td><td><strong>硬件即数据源</strong>，不依赖现场 IT 与视频布线</td></tr>
+<tr><td><strong>定位层</strong></td><td>室内外位置绑定</td><td>Bluetooth Beacon（室内）+ GPS（室外），把活动归属到具体位置</td><td>无需改造厂房基础设施</td></tr>
+<tr><td><strong>MPI 平台</strong><br>（MotionMiners Process Intelligence）</td><td>AI 分析与可视化</td><td>机器学习按动作模式识别基础活动（行走、驾驶、弯腰等）并归入过程步骤；交互式看板、热力图、路径分析、工效评估；100+ 过程指标的数字过程地图</td><td><strong>「过程挖掘」替代「人工编码」</strong>：2–3 周即得全量客观数据</td></tr>
+<tr><td><strong>工效评估模块</strong></td><td>人因负荷量化</td><td>区分 60+ 动作序列；弯腰、搬运、举升、持握、过顶作业纳入负荷评估；振动与重复性一并计入</td><td><strong>统计有效性 + 隐私合规双约束</strong>：负荷评估只用均值，且至少 2 条数据轨</td></tr>
+<tr><td><strong>系统对接</strong></td><td>上下文增强</td><td>可选对接 WMS / ERP / MES，把动作数据与订单、物料流、设备过程关联</td><td>Plug &amp; Play：默认零集成，需要时再增强</td></tr>
+<tr><td><strong>商业模式</strong></td><td>交付方式</td><td>咨询项目制（数周出分析报告）／授权自分析（License）</td><td>降低首次采用门槛，先项目后平台</td></tr>
+</tbody>
+</table>
+
+<!-- ============ 三、四环节能力分析 ============ -->
+<h2>三、四环节能力分析</h2>
+<p>四个环节构成 IE 改善的完整闭环：<strong>动作分析 → 浪费识别 → 措施制定 → 闭环管理</strong>。下表先给出总览，再逐环节展开各软件的架构支撑方式。</p>
+
+<table>
+<thead><tr><th style="width:12%">环节</th><th>TiCon 4</th><th>MOST 体系</th><th>MODAPTS</th><th>AviX Suite</th><th>Motion-Mining</th></tr></thead>
+<tbody>
+<tr><td><strong>① IE 动作分析</strong></td><td>Base 多层公式 + UAS/MEK 分场景；TS 实测通道</td><td>序列模型 + 索引参数，10× 速度</td><td>21 码极简，可心算</td><td>视频 0.01 s 逐帧，元素-时间码绑定</td><td>ML 自动识别 &gt;60 类动作，无编码</td></tr>
+<tr><td><strong>② 浪费识别</strong></td><td>靠 MTM 编码语义判有效性；EAWS 补人因风险</td><td>序列暴露多余 Get/Put 与不必要距离</td><td>MOD 数排序，最大项即改善靶点</td><td><strong>五类颜色 + 三态</strong>，开箱即用</td><td><strong>100+ KPI 自动定位</strong>搜索/等待/路径/负荷</td></tr>
+<tr><td><strong>③ 措施制定</strong></td><td>Takt 现状/未来态对比；ProKon 设计端前移；Cost 出报价</td><td>纸面阶段快速比选；自动化投资 ROI 基线</td><td>码表级动作替换建议</td><td>提案级<strong>节约时间即时模拟</strong> + 自动 SOP</td><td>量化潜力测算（案例：医药物流 23 万欧/年）</td></tr>
+<tr><td><strong>④ 闭环管理</strong></td><td>中央库变更全记录 + 版本/变体管理；偏差 &gt;5% 触发原因分析</td><td>分层模型一处改全局生效；4 年复训保口径</td><td>较薄，多依赖企业自身制度</td><td>Shopfloor Viewer 推送新标准；指导书随变更同步</td><td>项目制前后对比；跨厂址 KPI 可比</td></tr>
+</tbody>
+</table>
+
+<h3>3.1 环节一 · IE 动作分析：从「怎么记」到「怎么存」</h3>
+
+<h4>共性架构</h4>
+<ul>
+  <li><strong>元素树模型</strong>：工作循环 → 操作 → 动作元素，三级结构是全部 5 款的共同数据骨架。</li>
+  <li><strong>方法描述与时间值分离</strong>：方法 = 编码序列（MTM 码 / MOST 序列 / MODAPTS 码 / 视频元素），时间 = 查表或公式计算的<strong>产物</strong>。这是最关键的一条架构经验——TiCon 与 Proplanner 因此能同时支持 MTM-1 / MTM-2 / UAS / MEK / MOST / MODAPTS 并允许企业「并行过渡」。</li>
+  <li><strong>宽放与标准时间计算</strong>：正常时间 × (1 + 宽放) = 标准时间，宽放（个人/疲劳/延迟）独立参数化。</li>
+</ul>
+
+<h4>各软件的支撑方式</h4>
+<table>
+<thead><tr><th style="width:14%">产品</th><th style="width:30%">用什么模块支撑</th><th style="width:28%">关键架构设计</th><th style="width:28%">可直接借走的机制</th></tr></thead>
+<tbody>
+<tr><td>TiCon 4</td><td>Base（元素系统 + 多层公式）+ Time Study</td><td>公式可嵌套引用，元素可参数化复用；TS 提供 REFA 实测对照</td><td><strong>「标准要素块」复用机制</strong>——把已验证的动作序列存为块，下次直接引用</td></tr>
+<tr><td>MOST</td><td>序列模型库 + StandardsPro 分层模型</td><td>子操作→操作→岗位→部门四级 roll-up</td><td><strong>分层引用</strong>：改动只改一处，上层自动汇总</td></tr>
+<tr><td>MODAPTS</td><td>21 码 + 行业码表</td><td>码表与引擎解耦，行业变体可插拔</td><td><strong>码表可配置化</strong>：不动引擎就能适配新工艺/新行业</td></tr>
+<tr><td>AviX</td><td>Method 模块 + 视频播放器内核</td><td>元素绑定起止时间码，可回溯到帧</td><td><strong>证据帧</strong>：每条要素可一键跳回视频佐证（本项目已有 ROI/证据帧，方向一致）</td></tr>
+<tr><td>Motion-Mining</td><td>IMU 硬件 + MPI 的 ML 识别</td><td>跳过编码，直接从传感数据识别动作类别</td><td><strong>自动分解 + 置信度</strong>：AI 出初稿，人工只做校正</td></tr>
+</tbody>
+</table>
+
+<div class="note">
+<strong>对本系统最有价值的一条：</strong>TiCon Base 的「可复用元素系统」与 MOST 的「分层标准数据模型」都指向同一件事——<strong>不要让 IE 每次都从零拆动作</strong>。本系统目前每个工位版本独立存储要素，缺少跨工位/跨版本可复用的「标准要素块」，这是 ROI 最高的补齐项。
+</div>
+
+<h3>3.2 环节二 · 浪费识别：双维度分类法</h3>
+
+<h4>共性架构</h4>
+<p>浪费识别在数据上是一个<strong>「元素打标签 → 聚合统计」</strong>的过程：先在每个动作元素上挂属性（是否增值、属于哪类损失），再按工位/产线/工厂维度 roll-up。真正决定能力上限的是<strong>标签体系的设计</strong>。</p>
+
+<h4>两种标签体系对比</h4>
+<table>
+<thead><tr><th style="width:16%">维度</th><th style="width:26%">动素经济性<br/>（VA / RNVA / NVA）</th><th style="width:26%">损失根因<br/>（Loss Type）</th><th style="width:32%">为什么必须并存</th></tr></thead>
+<tbody>
+<tr><td>回答的问题</td><td>这个动作本身值不值得做</td><td>这个浪费为什么会发生</td><td rowspan="5">前者用于<strong>算改善空间</strong>（NVA 秒数即可压缩上限），后者用于<strong>定措施类型</strong>（等待→排产/供料；寻找→定置/5S；返工→防错/标准作业）。<br/><br/>本项目已在要素层落地动素三分法（VA 9 / RNVA 5 / NVA 4），<strong>缺的是「损失根因」维度</strong>——两个维度正交，不能互相替代。</td></tr>
+<tr><td>典型取值</td><td>有效 9 类 / 辅助 5 类 / 无效 4 类</td><td>等待、寻找/选择、多余搬运、返工、过度加工、多余动作</td></tr>
+<tr><td>行业实现</td><td>AviX 五类颜色（VA / Waste / Waiting-Idle / Rework / Unproductive）</td><td>Motion-Mining 的 100+ 过程指标（搜索时间、等待时间、行走距离、弯腰次数）</td></tr>
+<tr><td>输出视图</td><td>VA 占比、平衡率、瓶颈工位</td><td>损失帕累托图、改善优先队列</td></tr>
+<tr><td>本项目现状</td><td>✅ 已有（动素三分法）</td><td>⚠️ 缺失，需新增 <code>loss_type</code></td></tr>
+</tbody>
+</table>
+
+<h4>借鉴点：AviX 的「三态 + 五类」</h4>
+<ul>
+  <li><strong>三态（活动性质）</strong>：作业性（Operational）/ 非作业性（Non-Operational）/ 准备（Preparation）——先在<strong>大类上</strong>把「生产活动时间」和「非生产时间」切开，避免把准备时间混进节拍。</li>
+  <li><strong>五类（损失类型）</strong>：增值 / 浪费 / 等待空闲 / 返工 / 非生产性——颜色编码，现场一眼看懂。</li>
+  <li><strong>关键价值</strong>：颜色分类在<strong>拖放平衡时实时刷新</strong>，让「改善动作」和「看效果」在同一界面完成，不用来回切页。</li>
+</ul>
+
+<h3>3.3 环节三 · 改善措施制定：ECRS + 承诺值</h3>
+
+<h4>共性架构</h4>
+<p>措施制定 = <strong>ECRS 四象限</strong>（Eliminate 取消 / Combine 合并 / Rearrange 重排 / Simplify 简化）+ <strong>方法再设计</strong> + <strong>重算标准时间</strong>，差额即预期收益。5 款软件的差异在于「比选」和「量化」的成熟度。</p>
+
+<table>
+<thead><tr><th style="width:14%">产品</th><th style="width:30%">方案比选机制</th><th style="width:28%">收益量化</th><th style="width:28%">值得抄的点</th></tr></thead>
+<tbody>
+<tr><td>TiCon 4</td><td>Takt 模块可「冻结现状」并生成未来态方案，做并列比较；最大化线平衡按变体自动判定工序是否需要</td><td>Cost 模块直出成本/报价</td><td><strong>「冻结现状 → 未来态 → 并列比」</strong>三步式；对应本项目已有的 <code>/stations/:id/retest</code> + <code>/compare</code>，可复用为「方案对比视图」</td></tr>
+<tr><td>MOST</td><td>纸面阶段即可建立多方案并比较，速度优势让「多比几版」变得可行</td><td>为自动化投资提供被替代工时基线</td><td><strong>降低比选成本</strong>本身就能提升方案质量</td></tr>
+<tr><td>MODAPTS</td><td>码表级动作替换（如 M4G1→M2G1）</td><td>MOD 数差额 × 0.129 s</td><td><strong>最轻量的量化</strong>，适合现场快速迭代</td></tr>
+<tr><td>AviX</td><td>Resource Balance 拖放试算，实时看各工位 VA/NVA 变化</td><td>对每个改善提案<strong>直接模拟节约时间</strong>，支撑投资决策</td><td><strong>即时模拟</strong>：拖拽即出数，无需另建模型</td></tr>
+<tr><td>Motion-Mining</td><td>情景推演（布局/路径/ staffing）</td><td>量化潜力（公开案例：拣货+包装年省约 23 万欧）</td><td><strong>用绝对金额而非百分比汇报</strong>，易获管理层批准</td></tr>
+</tbody>
+</table>
+
+<h3>3.3.1 措施的结构化字段（行业收敛结果）</h3>
+<table>
+<thead><tr><th style="width:22%">字段</th><th style="width:26%">取值 / 口径</th><th style="width:26%">作用</th><th style="width:26%">本项目现状</th></tr></thead>
+<tbody>
+<tr><td><code>ecrs_type</code></td><td>E 取消 / C 合并 / R 重排 / S 简化</td><td>措施归类，便于统计改善手段分布</td><td>⚠️ 缺失</td></tr>
+<tr><td><code>measure_type</code></td><td>工装夹具 / 布局 / 标准作业 / 培训 / 自动化 / 供料</td><td>决定责任部门与预算科目</td><td>⚠️ 缺失</td></tr>
+<tr><td><code>expected_saving_s</code></td><td>承诺节约秒数（重算标准时间差值）</td><td>闭环校核的基准</td><td>部分（收益参数侧有）</td></tr>
+<tr><td><code>owner</code> / <code>due_date</code></td><td>责任人 + 期限</td><td>闭环管理抓手</td><td>⚠️ 缺失</td></tr>
+<tr><td><code>verify_method</code></td><td>复测 / 抽样 / 连续 N 天 KPI</td><td>避免「口头完成」</td><td>⚠️ 缺失</td></tr>
+<tr><td><code>before_version</code> / <code>after_version</code></td><td>工位版本号</td><td>前后对比可追溯</td><td>✅ 已有 version 机制</td></tr>
+<tr><td><code>actual_saving_s</code></td><td>复测后回填</td><td>承诺 vs 实测校核</td><td>⚠️ 缺失</td></tr>
+</tbody>
+</table>
+
+<h3>3.4 环节四 · 措施闭环管理：四个硬性判据</h3>
+
+<p>5 款软件中，闭环能力最强的是 TiCon（中央库 + 变更全记录 + 版本/变体管理）与 AviX（分析结果→作业指导书→工位执行）。把它们的做法抽象出来，闭环必须同时满足四个判据：</p>
+
+<table>
+<thead><tr><th style="width:8%">#</th><th style="width:20%">判据</th><th style="width:36%">行业实现</th><th style="width:36%">本项目落地方式</th></tr></thead>
+<tbody>
+<tr><td class="c">1</td><td><strong>有承诺值</strong></td><td>TiCon Cost 出成本基准；Motion-Mining 出绝对金额</td><td><code>t_improvement.expected_saving_s</code> + 按 <code>/config/benefit-params</code> 折算金额</td></tr>
+<tr><td class="c">2</td><td><strong>有验证方法</strong></td><td>AviX 用复测视频比对；REFA 用抽样观察</td><td><code>verify_method</code> 字段，绑定 <code>POST /stations/:id/retest</code></td></tr>
+<tr><td class="c">3</td><td><strong>有复测数据</strong></td><td>TiCon Time Study ↔ Base 双向校核</td><td>复测生成新版本 → <code>/stations/:id/compare?v1&amp;v2</code></td></tr>
+<tr><td class="c">4</td><td><strong>有偏差处置</strong></td><td>REFA / MTM 通行规则：<strong>实测与标准偏差 &gt;5% 触发原因分析</strong></td><td>新增校核逻辑：偏差 &gt; 阈值（可配置，默认 5%）→ 标记 <code>DEVIATION</code> → 强制填写原因 → 回写 <code>t_audit_log</code></td></tr>
+</tbody>
+</table>
+
+<div class="fig">
+<pre class="mermaid">
+graph LR
+    A["① 动作分析<br/>视频 / 传感 → 元素 + PTS 时间"]
+    B["② 浪费识别<br/>动素经济性 × 损失根因"]
+    C["③ 措施制定<br/>ECRS + 承诺节约 + 责任人/期限"]
+    D["④ 闭环管理<br/>实施 → 复测 → 偏差校核"]
+    E["标准时间库<br/>版本化 + 审计"]
+    A --> B --> C --> D
+    D -.->|"偏差 > 5% 触发原因分析"| B
+    D --> E
+    E --> A
+</pre>
+</div>
+<div class="fig-t">图 3　IE 改善四环节闭环（含偏差回环与标准时间库回流）。</div>
+
+<!-- ============ 四、借鉴建议 ============ -->
+<h2>四、最佳实践借鉴与落地建议</h2>
+<p class="src">落地对象：本项目（离散制造现场「视频 + 标准工时」动作分析系统）。现状依据：<code>AGENT必读.md</code> 第 5 节 API 契约与 <code>scripts/migrate.ts</code> 表结构。</p>
+
+<h3>4.1 可复用最佳实践清单</h3>
+<table>
+<thead><tr><th style="width:6%">#</th><th style="width:24%">最佳实践</th><th style="width:16%">来源</th><th style="width:28%">做法</th><th style="width:26%">本项目映射</th></tr></thead>
+<tbody>
+<tr><td class="c">BP1</td><td><strong>标准要素块复用</strong></td><td>TiCon Base / MOST StandardsPro</td><td>把已验证的动作序列存为可引用块，跨产品/工位复用，改一处全局生效</td><td>新增 <code>t_standard_element</code> + 引用计数（<span class="tag p0">P0</span>）</td></tr>
+<tr><td class="c">BP2</td><td><strong>方法描述与时间值分离</strong></td><td>TiCon / Proplanner（多 PTS 并存）</td><td>存编码序列，时间由服务端按生效码表重算，换体系不推倒重来</td><td>本项目已有「LLM 禁产数字、服务端重算」铁律，<strong>继续保持</strong></td></tr>
+<tr><td class="c">BP3</td><td><strong>五类损失颜色分类</strong></td><td>AviX Method</td><td>增值 / 浪费 / 等待空闲 / 返工 / 非生产性，颜色编码</td><td>要素层新增 <code>loss_type</code>（<span class="tag p1">P1</span>）</td></tr>
+<tr><td class="c">BP4</td><td><strong>三态活动性质</strong></td><td>AviX Method</td><td>作业性 / 非作业性 / 准备，先切大类再判增值</td><td>要素层新增 <code>activity_nature</code>（<span class="tag p1">P1</span>）</td></tr>
+<tr><td class="c">BP5</td><td><strong>ECRS 结构化措施</strong></td><td>行业通用</td><td>每条措施带类型、承诺值、责任人、期限、验证方法</td><td><code>t_improvement</code> 扩字段（<span class="tag p0">P0</span>）</td></tr>
+<tr><td class="c">BP6</td><td><strong>偏差 &gt;5% 触发原因分析</strong></td><td>REFA / MTM 通行规则</td><td>标准时间 vs 实测自动校核，超限强制填原因并留痕</td><td>compare 增加 <code>commit_vs_actual</code>（<span class="tag p0">P0</span>）</td></tr>
+<tr><td class="c">BP7</td><td><strong>分层模型 + 变更影响面</strong></td><td>MOST StandardsPro</td><td>改动一处，自动算出影响哪些工位/产线的 CT、平衡率、成本</td><td>基于标准块引用计数做影响面分析（<span class="tag p2">P2</span>）</td></tr>
+<tr><td class="c">BP8</td><td><strong>分析结果自动生成作业指导书</strong></td><td>AviX Shopfloor Viewer / Proplanner</td><td>视频片段 + 时间码 + 动作要点 → 电子 SOP 推送工位</td><td>已有 <code>sop_steps</code> + HOI，补导出件（<span class="tag p1">P1</span>）</td></tr>
+<tr><td class="c">BP9</td><td><strong>采集端匿名化与合规</strong></td><td>Motion-Mining（GDPR/DSGVO）</td><td>数据匿名/假名化、只出均值、留存期受控</td><td>视频人脸脱敏 + 留存策略（<span class="tag p2">P2</span>）</td></tr>
+<tr><td class="c">BP10</td><td><strong>AI 只做建议层，人工确认后落库</strong></td><td>本项目已有，行业少见</td><td>AI 产出恒为「待审」，人工审核后转正</td><td><strong>保持并对外作为差异化卖点</strong></td></tr>
+<tr><td class="c">BP11</td><td><strong>移动端现场采集</strong></td><td>TiCon TS App / Proplanner</td><td>App 端拍摄/计时直传，减少搬运环节</td><td>待规划（<span class="tag p2">P2</span>）</td></tr>
+</tbody>
+</table>
+
+<h3>4.2 落地优先级</h3>
+<table>
+<thead><tr><th style="width:6%">优先级</th><th style="width:22%">事项</th><th style="width:30%">要做什么</th><th style="width:22%">完成判据</th><th style="width:20%">依赖 / 备注</th></tr></thead>
+<tbody>
+<tr>
+  <td class="c"><span class="tag p0">P0</span></td>
+  <td><strong>标准要素块（Standard Element Block）</strong></td>
+  <td>新建 <code>t_standard_element</code>（动作序列模板 / PTS 编码 / 时间值 / 适用条件 / 引用计数）；工作台提供「存为标准块」「从标准块插入」；AI 分解结果允许沉淀为标准块</td>
+  <td>同一标准块被 ≥3 个工位引用；修改标准块后引用工位的 CT 自动重算并留痕</td>
+  <td>依赖现有 <code>motion_standard</code> 词表与服务端重算通道；需走 <code>npm run migrate:prod</code></td>
+</tr>
+<tr>
+  <td class="c"><span class="tag p0">P0</span></td>
+  <td><strong>改善措施结构化</strong></td>
+  <td><code>t_improvement</code> 增加 <code>ecrs_type</code> / <code>measure_type</code> / <code>expected_saving_s</code> / <code>owner</code> / <code>due_date</code> / <code>verify_method</code> / <code>actual_saving_s</code></td>
+  <td>新采纳的建议 100% 带 ECRS 类型与承诺值；看板可按 ECRS 分类统计</td>
+  <td>需同步 <code>/suggestions/adopt</code> DTO 与前端表单；保持双线（ai/manual）独立</td>
+</tr>
+<tr>
+  <td class="c"><span class="tag p0">P0</span></td>
+  <td><strong>承诺 vs 实测校核</strong></td>
+  <td>在 <code>/stations/:id/compare</code> 增加 <code>commit_vs_actual</code>；偏差 &gt; 阈值（默认 5%，可在设置中心配置）标记 <code>DEVIATION</code>；未填原因不允许关闭建议</td>
+  <td>复测后自动生成偏差列表；超阈工位置顶提示并阻断「已完成」流转</td>
+  <td>阈值纳入 <code>t_rule_set</code> 版本管理，遵循「规则改 JSON 须 publish 升 rv」</td>
+</tr>
+<tr>
+  <td class="c"><span class="tag p1">P1</span></td>
+  <td><strong>要素双维度标签</strong></td>
+  <td><code>activity_nature</code>（作业/非作业/准备）+ <code>loss_type</code>（等待/寻找/多余搬运/返工/过度加工/多余动作）；分析接口同时输出「按动素」与「按损失」两张视图</td>
+  <td>AnalysisPage 可切换两张视图；损失帕累托可导出</td>
+  <td>与已有 VA/RNVA/NVA 三分法正交，不覆盖原字段</td>
+</tr>
+<tr>
+  <td class="c"><span class="tag p1">P1</span></td>
+  <td><strong>SOP / 作业指导书导出</strong></td>
+  <td>基于 <code>sop_steps</code> + 视频时间码生成一页式作业指导书（含关键动作帧），支持打印与扫码取用</td>
+  <td>任取一工位可导出带时间码的 PDF/HTML 指导书</td>
+  <td>复用现有 <code>/improvements/:id/report</code> 的打印链路</td>
+</tr>
+<tr>
+  <td class="c"><span class="tag p1">P1</span></td>
+  <td><strong>AI-人工差异视图与置信度</strong></td>
+  <td>输出 <code>coverage</code>（AI 覆盖要素数 / 总要素数）与 <code>agreement</code>（人工与 AI 一致率）；列表页展示，低置信度优先复核</td>
+  <td>PA10 那类 136 条 AI 要素场景可一眼看出需人工复核的范围</td>
+  <td>依赖双线隔离（v3.45/v3.46）已落地的 <code>source</code> 字段</td>
+</tr>
+<tr>
+  <td class="c"><span class="tag p2">P2</span></td>
+  <td><strong>姿势负荷评分</strong></td>
+  <td>基于已有 ROI + 关节点数据，增加简易 EAWS / REBA 子集评分，作为改善优先级排序权重之一</td>
+  <td>工位列表可显示负荷等级（红/黄/绿）</td>
+  <td>需现场验证阈值，标注「待现场验证」</td>
+</tr>
+<tr>
+  <td class="c"><span class="tag p2">P2</span></td>
+  <td><strong>变更影响面分析</strong></td>
+  <td>标准块 / 要素时间变更 → 自动算出受影响的工位、产线 CT、平衡率、成本</td>
+  <td>提交变更时弹出影响清单</td>
+  <td>依赖 BP1</td>
+</tr>
+<tr>
+  <td class="c"><span class="tag p2">P2</span></td>
+  <td><strong>采集端脱敏与留存</strong></td>
+  <td>视频入库可选人脸模糊；设置留存期自动清理；操作全审计</td>
+  <td>留存策略可配置且到期自动清理</td>
+  <td>涉合规，需人工确认后再实施</td>
+</tr>
+</tbody>
+</table>
+
+<h3>4.3 关键数据流（映射到本项目实际表与端点）</h3>
+
+<div class="fig">
+<pre class="mermaid">
+graph TD
+    V["视频上传 / 采集"] --> ST["t_station<br/>version 封存 → 新增"]
+    ST --> SEG["分解双线"]
+    SEG -->|"人工"| WBK["工作台 WorkbenchPage"]
+    SEG -->|"AI"| AIP["AI 独立页 ai-segment"]
+    WBK --> EL["t_element<br/>source = manual"]
+    AIP --> EL2["t_element<br/>source = ai_assisted / mixed"]
+    EL --> VAL["POST /elements/validate<br/>V1-V3 校验（干跑）"]
+    EL2 --> VAL
+    VAL --> SUB["POST /elements/submit<br/>双线隔离守卫：含 AI 要素须带回 ≥ 原条数，否则 409"]
+    SUB --> AN["GET /stations/:id/analysis<br/>metrics / wastes / outliers"]
+    AN --> GEN["POST /suggestions/generate<br/>规则引擎 + LLM（禁产数字）"]
+    AN --> AWI["ai-waste 线<br/>t_ai_waste_batch / finding / issue"]
+    AWI --> SET["settle → t_improvement source = ai"]
+    GEN --> ADO["POST /suggestions/adopt<br/>红线未确认 422"]
+    ADO --> IMP["t_improvement<br/>status 状态机"]
+    SET --> IMP
+    IMP --> RT["POST /stations/:id/retest<br/>version + 1"]
+    RT --> CMP["GET /stations/:id/compare<br/>v1 vs v2"]
+    CMP --> CHK["承诺 vs 实测校核<br/>偏差 > 5% → 原因分析"]
+    CHK --> AUD["t_audit_log"]
+    CHK -.->|"未达标回流"| AN
+    STD["t_standard_element<br/>【新增】标准要素块"] -.->|"复用插入"| EL
+    STD -.->|"改一处、全局生效"| AN
+</pre>
+</div>
+<div class="fig-t">图 4　本项目落地数据流：既有链路（实线）+ 建议新增（虚线）。</div>
+
+<h4>数据流三段拆解</h4>
+<table>
+<thead><tr><th style="width:10%">段</th><th style="width:24%">入口</th><th style="width:32%">落库与校验</th><th style="width:34%">关键约束（来自项目铁律）</th></tr></thead>
+<tbody>
+<tr><td><strong>分解段</strong></td><td>视频上传 / 移动端采集 → 工作台或 AI 独立页</td><td><code>t_station</code>（版本封存）→ <code>t_element</code>（<code>source</code> 三值）</td><td>AI 自动分解必须是<strong>并列独立页</strong>（v3.34 铁律）；<code>source</code> 三元式须 <code>as const</code> 否则 tsc 报 string 推错</td></tr>
+<tr><td><strong>分析段</strong></td><td><code>/elements/validate</code> → <code>/elements/submit</code> → <code>/analysis</code> → <code>/suggestions/generate</code></td><td>建议<strong>不落库</strong>，需 <code>/adopt</code> 才生成 <code>t_improvement</code></td><td><strong>LLM 禁产数字</strong>（服务端重算）；<code>eliminate_basis</code> ≥ 8 字；AI 建议永远「待审」；CMC 全程 SELECT-only</td></tr>
+<tr><td><strong>闭环段</strong></td><td><code>/improvements/:id/status</code> 流转 → <code>/stations/:id/retest</code> → <code>/compare</code></td><td>复测生成新版本并封存旧版；对比数据 + <code>t_audit_log</code></td><td><strong>新增</strong>：承诺值 → 实测值校核，偏差 &gt; 阈值阻断关闭</td></tr>
+</tbody>
+</table>
+
+<h3>4.3.1 建议的表结构增量</h3>
+<table>
+<thead><tr><th style="width:22%">表 / 字段</th><th style="width:16%">类型</th><th style="width:34%">说明</th><th style="width:28%">对应最佳实践</th></tr></thead>
+<tbody>
+<tr><td><code>t_standard_element</code>（新表）</td><td>—</td><td>标准要素块：动作序列模板、PTS 编码、基准时间、适用条件（距离/重量/精度）、版本、引用计数、tenant_id</td><td>BP1</td></tr>
+<tr><td><code>t_element.activity_nature</code></td><td>enum</td><td>operational / non_operational / preparation</td><td>BP4</td></tr>
+<tr><td><code>t_element.loss_type</code></td><td>enum nullable</td><td>waiting / searching / excess_move / rework / over_process / excess_motion</td><td>BP3</td></tr>
+<tr><td><code>t_element.std_block_id</code></td><td>uuid nullable</td><td>来源标准块，支撑引用计数与影响面分析</td><td>BP1 / BP7</td></tr>
+<tr><td><code>t_improvement.ecrs_type</code></td><td>enum</td><td>E / C / R / S</td><td>BP5</td></tr>
+<tr><td><code>t_improvement.measure_type</code></td><td>enum</td><td>tooling / layout / standard_work / training / automation / feeding</td><td>BP5</td></tr>
+<tr><td><code>t_improvement.expected_saving_s</code></td><td>decimal</td><td>承诺节约秒数</td><td>BP6</td></tr>
+<tr><td><code>t_improvement.actual_saving_s</code></td><td>decimal nullable</td><td>复测后回填</td><td>BP6</td></tr>
+<tr><td><code>t_improvement.owner_user_id</code> / <code>due_date</code> / <code>verify_method</code></td><td>—</td><td>闭环抓手</td><td>BP5</td></tr>
+</tbody>
+</table>
+
+<h3>4.4 具体改进建议（按可执行度排序）</h3>
+<ol>
+  <li><strong>把「要素」从「工位私有数据」升级为「可复用资产」。</strong>在工作台每条要素上加「存为标准块」，在创建要素时提供「从标准块插入」。标准块带适用条件（对象/距离/重量/精度），插入时按条件自动匹配时间值。这是 TiCon Base 与 MOST 主标准库的共同做法，能把重复分解工作量压掉一大块。</li>
+  <li><strong>给每条要素补两个标签：<code>activity_nature</code> + <code>loss_type</code>。</strong>只加字段、不改现有 VA/RNVA/NVA 逻辑，成本低。加完即可在 AnalysisPage 出「损失帕累托图」，直接回答「浪费主要在哪」，而目前只能回答「动作不经济在哪」。</li>
+  <li><strong>把「建议」做成有承诺值的契约，而不是一段文字。</strong>adopt 时强制填 ECRS 类型 + 承诺节约秒数 + 责任人 + 期限 + 验证方法。缺项不给采纳（或标记为「草稿级建议」）。</li>
+  <li><strong>打通「承诺 → 复测 → 校核」。</strong>复测生成新版本后，自动把该工位关联的、状态为「已实施待验证」的建议逐条比对：承诺 vs 实测。偏差 &gt; 5%（可配置）的建议不允许流转到「已完成」，必须先填偏差原因。这条规则在 REFA/MTM 体系里是标准做法，是让标准时间「活」起来的关键。</li>
+  <li><strong>让 AI 与人工的差异显式化。</strong>输出 <code>coverage</code> 与 <code>agreement</code> 两个指标。IE 打开 AI 结果时，第一眼看到的是「这 136 条里有 41 条置信度低，优先复核这 41 条」，而不是面对 136 条无从下手。这正是 Motion-Mining 用自动识别抢时间、又不放弃人工复核的思路。</li>
+  <li><strong>SOP 导出件带上时间码。</strong>v3.44 已有 <code>sop_steps</code> 与 HOI，差的是「一键导出」。产出物含：动作序列、每步起始时间码、关键动作视频帧、注意事项。现场扫码即可看，等于把 AviX Shopfloor Viewer 的核心价值搬进本系统。</li>
+  <li><strong>把人因负荷纳入改善优先级排序。</strong>有了 ROI 与关节点，做简易 EAWS/REBA 子集评分并不难。做法：工位级红/黄/绿，仅作为排序权重与提示，<strong>不替代专业人因评估</strong>，界面显式标注「待现场验证」。</li>
+  <li><strong>采集端的合规前置。</strong>视频涉及员工影像，建议提供入库脱敏选项与留存期配置，操作全审计。Motion-Mining 把「匿名化 + GDPR 合规」做成核心卖点，说明这在落地时是真痛点，不是纸面功夫。</li>
+</ol>
+
+<h3>4.5 人工审核点（不可由 AI 替代）</h3>
+<table>
+<thead><tr><th style="width:26%">环节</th><th style="width:38%">必须人工确认的内容</th><th style="width:36%">不确认的后果</th></tr></thead>
+<tbody>
+<tr><td>AI 分解结果转正</td><td>AI 要素恒为「待审」，需 IE 逐条或批量确认后才入正式版本</td><td>错误动素进入标准时间，污染后续所有测算</td></tr>
+<tr><td>VA / RNVA / NVA 归类</td><td>尤其 RNVA（辅助）与 NVA（无效）的边界，需工艺与 IE 共同确认</td><td>改善空间被高估或低估，措施失焦</td></tr>
+<tr><td>改善措施采纳</td><td>ECRS 承诺值、责任人、期限、验证方法</td><td>无法闭环，改善沦为台账</td></tr>
+<tr><td>偏差原因判定</td><td>实测与承诺偏差 &gt; 阈值时的原因归类（方法未落实 / 估偏 / 外部干扰）</td><td>标准时间失去校准机会，长期失真</td></tr>
+<tr><td>人因风险结论</td><td>任何涉及安全/劳损的放行性结论</td><td>合规与人员伤害风险</td></tr>
+</tbody>
+</table>
+
+<div class="gap">
+<strong>数据缺口与局限声明（AIE 可追溯性底线）</strong>
+<ul>
+  <li><strong>未做实机验证</strong>：本报告为桌面调研，功能描述基于厂商官网、培训课程与授权代理的公开资料（检索时间 2026-10-27），<strong>未进行软件安装、实测与基准对比</strong>。</li>
+  <li><strong>版本与归属可能变动</strong>：TiCon 已从 TiCon 4 演进到云端形态（TiCon.io），H.B. Maynard 经 Accenture 后并入 Advantive 体系，MODAPTS 由多国授权方各自实现。具体模块名、许可方式与价格以厂商官方最新信息为准，<strong>本报告不含 TCO 对比</strong>。</li>
+  <li><strong>缺少同场景基准数据</strong>：传感路线（Motion-Mining）与视频路线在「动作识别准确率、单工位分析耗时、成本」三项上<strong>没有同场景对照测试</strong>，本报告的路线判断为方法学推断，非实测结论。</li>
+  <li><strong>涉及现场参数的部分需现场验证</strong>：姿势负荷评分阈值、宽放系数、收益参数等<strong>一律标注为「待现场验证」</strong>，禁止直接采用行业标杆值充当本厂标准。</li>
+  <li><strong>落地建议中的工作量未评估</strong>：P0/P1/P2 优先级为<strong>价值与依赖排序</strong>，非工期承诺，实施前需另行拆解估算。</li>
+</ul>
+</div>
+
+<p class="src">报告结束 · 主要资料来源：MTM 中国官网及 TiCon 课程资料、H.B. Maynard / Accenture 培训页面、Solme AB（avixsuite.com）与授权代理页面、MotionMiners 官网产品与博客、公开 PMTS 方法学资料，以及本项目 <code>AGENT必读.md</code> 与 <code>app/api/scripts/migrate.ts</code>。</p>
+
+</div>
+
+<script type="module">
+  try {
+    const mermaidMod = await import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs');
+    const mermaid = mermaidMod.default;
+    mermaid.initialize({ startOnLoad: true, theme: 'base',
+      themeVariables: { fontFamily: '-apple-system,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif',
+                         primaryColor:'#f8fafc', primaryTextColor:'#0f172a',
+                         primaryBorderColor:'#94a3b8', lineColor:'#64748b' } });
+  } catch (e) {
+    // CDN 不可用时保留 mermaid 源码文本，不影响阅读
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,360 @@
+[
+  {
+    "step": "login",
+    "apiNon2xx": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "notes": [],
+    "loginPage": {
+      "heading": "操作员登录 / OPERATOR SIGN-IN 登录作业台 账号由管理员统一开通，登录后可查看授权范围内的工位分析 用户名 密码 显示 登 录 忘记密码 本地账号连续输错 5 次将锁定 15 分钟；统一身份账号由 Keycloak 策略控制 本地账号首次登录必须修改初始密码（至少 8 位，含字母和数字）；统一身份账号",
+      "inputs": 2,
+      "oidcHidden": true
+    },
+    "loginResult": {
+      "hash": "#/dashboard",
+      "hasRefreshToken": true,
+      "navText": "综合看板 产线总览 改善任务 视频库 主数据 动作标准库 系统管理 ▾ 帮助",
+      "bodyText": "IE IE改善效率平台 综合看板 产线总览 改善任务 视频库 主数据 动作标准库 系统管理 ▾ 帮助 系 系统管理员 全集团 ▾ 退出 大区 / 公司 / 产线 ⇤ ▸ China 1司/2位 点击区域/公司 = 筛选 点击产线 = 进产线总览 综合看板 📖 首次使用或想了解各模块操作？打开《系统使用帮助》，含核心概念、功能指引与常见问题。 打开帮助中心 LEVEL 1 · MULTI-DIME"
+    },
+    "screenshot": "ro-01-login.png"
+  },
+  {
+    "step": "dashboard",
+    "apiNon2xx": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "notes": [],
+    "dash": {
+      "kpis": [
+        "1 大区",
+        "1 公司",
+        "2 产线",
+        "2 工位",
+        "51.1% 平均 VA 占比",
+        "100% 平均平衡率",
+        "4 待实施建议",
+        "0 已验证建议"
+      ],
+      "distLists": 4,
+      "distRows": [
+        "China 2 工位 1 公司 · 2 线 · VA 51.1%",
+        "装配 2 工位 2 线 · VA 51.1%",
+        "待补充 2 工位 2 线 · VA 51.1%",
+        "量产改善 4 项 待实施 4 · 已完成 0 · 已验证 0 · 预估节省 21s"
+      ],
+      "tables": [
+        {
+          "rows": 1,
+          "head": "公司 大区 产线 工位 平衡率 VA 待办 "
+        },
+        {
+          "rows": 2,
+          "head": "产线 公司 大区 工艺 产品 工位 平衡率 VA 瓶颈 待实施 更新时间 "
+        }
+      ],
+      "lineCardTitle": "产线汇总（按平衡率升序 · 2 条）",
+      "filterItems": 5,
+      "empty": false
+    },
+    "filterTest": {
+      "loading": false,
+      "resetVisible": true,
+      "kpiText": "1 大区 1 公司 2 产线 2 工位 51.1% 平均 VA 占比 100% 平均平衡率 4 待实施建议 0 已验证建议",
+      "empty": false
+    },
+    "layout": {
+      "overflowX": 0,
+      "badBoxes": [],
+      "boxes": {
+        ".shell": {
+          "left": 0,
+          "right": 1440,
+          "w": 1440,
+          "h": 1116,
+          "visible": true
+        },
+        ".container": {
+          "left": 248,
+          "right": 1168,
+          "w": 920,
+          "h": 1082,
+          "visible": true
+        },
+        ".page-head": {
+          "left": 270,
+          "right": 1146,
+          "w": 876,
+          "h": 57,
+          "visible": true
+        },
+        ".filter-bar": {
+          "left": 270,
+          "right": 1146,
+          "w": 876,
+          "h": 48,
+          "visible": true
+        }
+      }
+    },
+    "errorBanner": [],
+    "screenshot": "ro-02-dashboard.png"
+  },
+  {
+    "step": "workbench",
+    "apiNon2xx": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "notes": [],
+    "wb": {
+      "topbarStats": "3 要素 9.78s 预览 CT 40s TT 70.6% VA 占比",
+      "stage": true,
+      "video": false,
+      "dropPlaceholder": "▶ 载入工位视频开始分解 MP4/MOV/WebM 浏览器直接播放 · AVI/MKV/FLV 等自动转码 · 建议 30fps 以上、固定机位 点击选择文件",
+      "inspector": "▶ 收起 批量评定 已逐要素评定 · 手改 3 个 · 点此修改 ▾ 未选择要素 在时间线上点选要素块进行编辑，或直接在监看区记录动作。 工位速览（草稿 3 条） VA 6.9s RNVA 0s NVA 2.88s 预览 CT 9.78s ",
+      "timelineStrip": true,
+      "tabs": [
+        "时间线",
+        "清单 3"
+      ],
+      "timelineBlocks": 3,
+      "legend": "VA 6.9s RNVA 0s NVA 2.88s",
+      "deliverBar": "交付参数 循环 CV 新片段 s V3 达标",
+      "errorBanner": []
+    },
+    "listTab": {
+      "active": [
+        "清单 3"
+      ],
+      "rows": 3,
+      "firstRow": "1 右手 移物 取前壳 00:00:00.000 00:00:03.200 3.2 3.68 VA — 编辑删除"
+    },
+    "layout": {
+      "overflowX": 0,
+      "badBoxes": [],
+      "boxes": {
+        ".shell": {
+          "left": 0,
+          "right": 1440,
+          "w": 1440,
+          "h": 852,
+          "visible": true
+        },
+        ".container": {
+          "left": 248,
+          "right": 1440,
+          "w": 1192,
+          "h": 807,
+          "visible": true
+        },
+        ".wb-main": {
+          "left": 258,
+          "right": 1430,
+          "w": 1172,
+          "h": 547,
+          "visible": true
+        },
+        ".wb-inspector": {
+          "left": 1150,
+          "right": 1430,
+          "w": 280,
+          "h": 547,
+          "visible": true
+        },
+        ".wb-stage": {
+          "left": 258,
+          "right": 1138,
+          "w": 880,
+          "h": 547,
+          "visible": true
+        },
+        ".wb-tlstrip": {
+          "left": 258,
+          "right": 1430,
+          "w": 1172,
+          "h": 154,
+          "visible": true
+        }
+      }
+    },
+    "screenshot": "ro-03-workbench.png / ro-04-workbench-list.png"
+  },
+  {
+    "step": "analysis",
+    "apiNon2xx": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "notes": [],
+    "analysis": {
+      "title": "UI 回归前置工位 · 分析结果",
+      "cards": [
+        "VA / RNVA / NVA RNVA = Required Non-Value Added（必要非增值）",
+        "山积图（全线）",
+        "6类浪费清单（带证据 · 4 条）",
+        "动作分析明细（3 个生效要素）",
+        "待复核队列（低置信度 0 条）",
+        "异常要素（0 条，不进ST/山积图）",
+        "双手作业图",
+        "瓶颈榜（Top 5，按 CT−TT 降序）",
+        "改善建议（本工位 0 条）"
+      ],
+      "empties": [],
+      "errorBanner": [],
+      "tableRows": [
+        3,
+        4,
+        3,
+        1,
+        1
+      ]
+    },
+    "layout": {
+      "overflowX": 0,
+      "badBoxes": [],
+      "boxes": {
+        ".shell": {
+          "left": 0,
+          "right": 1440,
+          "w": 1440,
+          "h": 2130,
+          "visible": true
+        },
+        ".container": {
+          "left": 248,
+          "right": 1168,
+          "w": 920,
+          "h": 2085,
+          "visible": true
+        },
+        ".page-head": {
+          "left": 270,
+          "right": 1146,
+          "w": 876,
+          "h": 45,
+          "visible": true
+        }
+      }
+    },
+    "screenshot": "ro-05-analysis.png"
+  },
+  {
+    "step": "compare",
+    "apiNon2xx": [
+      "409 GET /api/stations/L01-ST11/compare",
+      "409 GET /api/stations/L01-ST11/compare"
+    ],
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 409 (Conflict)",
+      "Failed to load resource: the server responded with a status of 409 (Conflict)"
+    ],
+    "pageErrors": [],
+    "notes": [],
+    "compare": {
+      "title": "改善前后对比",
+      "body": "IE IE改善效率平台 综合看板 产线总览 改善任务 视频库 主数据 动作标准库 系统管理 ▾ 帮助 系 系统管理员 全集团 ▾ 退出 对象浏览 ⇤ CHINA 默认租户（本部） 2 产线 · 2 工位 集团视图 → ▸ Beijing BJFA1 100% 待4 1 ▾ 示例装配线 L01 100% 1 装配 · 待补充 已分解 1/1 UI 回归前置工位 9.8s + 新建工位 综合看板 › 产线总览 › L01 › UI 回归前置工位 › 改善对比 分解工作台 AI 自动分解 分析结果 改善对比 AI 建议 浪费识别 改善前后对比 ← 工位清单 该工位尚无复测版本（只有v1），无法对比。",
+      "empty": true,
+      "errorBanner": []
+    },
+    "screenshot": "ro-06-compare.png"
+  },
+  {
+    "step": "suggestions",
+    "apiNon2xx": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "notes": [],
+    "suggest": {
+      "title": "AI 改善建议",
+      "body": "IE IE改善效率平台 综合看板 产线总览 改善任务 视频库 主数据 动作标准库 系统管理 ▾ 帮助 系 系统管理员 全集团 ▾ 退出 对象浏览 ⇤ CHINA 默认租户（本部） 2 产线 · 2 工位 集团视图 → ▾ Beijing BJFA1 100% 待4 1 装配 · 待补充 已分解 1/1 框架组装 53.2s ▾ 示例装配线 L01 100% 1 装配 · 待补充 已分解 1/1 UI 回归前置工位 9.8s + 新建工位 综合看板 › 产线总览 › L01 › UI 回归前置工位 › AI 建议 分解工作台 AI 自动分解 分析结果 改善对比 AI 建议 浪费识别 AI 改善建议 全量 AI 生成的改善建议永远处于「待审」状态，采纳后才进入改善任务 · 待审 0 · 已决策 0 · 规则引擎候选（操作级、批量勾选）见「分析结果」页 AI 生成建议 全量线（AI+手工） AI",
+      "emptyCards": [
+        "该工位还没有 AI 建议批次：点击右上角「AI 生成建议」，AI 将基于当前版本的要素分析与浪费识别结果生成待审建议。 （建议生成的输入 = 当前版本全量要素 + 浪费证据；输出经 R1 结构 / R2 业务 / R3 交叉三轮确定性校验后"
+      ],
+      "errorBanner": []
+    },
+    "layout": {
+      "overflowX": 0,
+      "badBoxes": [],
+      "boxes": {
+        ".shell": {
+          "left": 0,
+          "right": 1440,
+          "w": 1440,
+          "h": 852,
+          "visible": true
+        },
+        ".container": {
+          "left": 248,
+          "right": 1440,
+          "w": 1192,
+          "h": 267,
+          "visible": true
+        },
+        ".page-head": {
+          "left": 270,
+          "right": 1418,
+          "w": 1148,
+          "h": 39,
+          "visible": true
+        }
+      }
+    },
+    "screenshot": "ro-07-ai-suggestions.png"
+  },
+  {
+    "step": "settings",
+    "apiNon2xx": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "notes": [],
+    "settings": {
+      "title": "设置中心",
+      "tabs": [
+        "收益参数 全线费率/日产量/落地率",
+        "规则库 查看与发布生效规则"
+      ],
+      "cards": [
+        "收益参数（按产线一条）"
+      ],
+      "tables": [
+        1
+      ],
+      "errorBanner": []
+    },
+    "rulesTab": {
+      "heading": [
+        "规则集（6 组生效）",
+        "VA 归类规则 · 生效内容"
+      ],
+      "body": "IE IE改善效率平台 综合看板 产线总览 改善任务 视频库 主数据 动作标准库 系统管理 ▾ 帮助 系 系统管理员 全集团 ▾ 退出 对象浏览 ⇤ CHINA 默认租户（本部） 2 产线 · 2 工位 集团视图 → ▾ Beijing BJFA1 100% 待4 1 装配 · 待补充 已分解 1/1 框架组装 53.2s ▸ 示例装配线 L01 100% 1 + 新建工位 综合看板 › 设置中心 设置中心 收益参数与规则库的唯一入口（发布即生效、版本可追溯；公式与口径由规则集统一管理） 收益参数 全线费率/日产量",
+      "cards": 2,
+      "errorBanner": []
+    },
+    "layout": {
+      "overflowX": 0,
+      "badBoxes": [],
+      "boxes": {
+        ".shell": {
+          "left": 0,
+          "right": 1440,
+          "w": 1440,
+          "h": 4137,
+          "visible": true
+        },
+        ".container": {
+          "left": 248,
+          "right": 1440,
+          "w": 1192,
+          "h": 4102,
+          "visible": true
+        },
+        ".page-head": {
+          "left": 270,
+          "right": 1418,
+          "w": 1148,
+          "h": 39,
+          "visible": true
+        }
+      }
+    },
+    "screenshot": "ro-08-settings.png / ro-09-settings-rules.png"
+  }
+]

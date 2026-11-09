@@ -1,0 +1,115 @@
+{
+  "video": "D:\\Application\\IE_Improvement_Platform\\deliverables\\ai-segment\\real\\hevc15.mp4",
+  "tag": "aiw-regression",
+  "startedAt": "2026-10-26T03:03:33.642Z",
+  "steps": [
+    "[console] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[console] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "页面就绪：PA10 · v1 · 现有要素 136 条",
+    "视频载入：1920x1080 · 15.08s",
+    "已点击「开始分析」，等待完成…",
+    "  0s · 尚未分析",
+    "分析结束：耗时 16s，候选 7 条",
+    "分层 高0/中7/低0 · 手别 L2/R1/B4 · 覆盖 14.8s (98.1%)"
+  ],
+  "videoMeta": {
+    "duration": 15.08,
+    "w": 1920,
+    "h": 1080
+  },
+  "countText": "纳入 7 / 共 7 条 · 14.8s",
+  "rows": 7,
+  "emptyText": "",
+  "elapsedSec": 16,
+  "candidates": [
+    {
+      "id": "C1",
+      "hand": "R",
+      "span": "0.0–0.5s",
+      "dur": "0.5s",
+      "conf": "0.75 · 中（边界为微停顿合并，建议核对｜中等位移(净3%/路径5%)）",
+      "tier": "mid",
+      "include": true,
+      "type": "拿取",
+      "desc": "拿取[对象于：][位置：][距离：]"
+    },
+    {
+      "id": "C2",
+      "hand": "L",
+      "span": "0.5–2.7s",
+      "dur": "2.2s",
+      "conf": "0.75 · 中（边界为微停顿合并，建议核对｜长时(2.2s)低幅）",
+      "tier": "mid",
+      "include": true,
+      "type": "目检",
+      "desc": "目检[对象：][属性：]"
+    },
+    {
+      "id": "C3",
+      "hand": "B",
+      "span": "2.7–6.0s",
+      "dur": "3.3s",
+      "conf": "0.75 · 中（边界为微停顿合并，建议核对，手别待确认｜质心位移 6% 画面）",
+      "tier": "mid",
+      "include": true,
+      "type": "移物",
+      "desc": "移物[对象：][距离：]"
+    },
+    {
+      "id": "C4",
+      "hand": "L",
+      "span": "6.0–8.2s",
+      "dur": "2.2s",
+      "conf": "0.75 · 中（边界为微停顿合并，建议核对｜长时(2.2s)低幅）",
+      "tier": "mid",
+      "include": true,
+      "type": "目检",
+      "desc": "目检[对象：][属性：]"
+    },
+    {
+      "id": "C5",
+      "hand": "B",
+      "span": "8.2–10.7s",
+      "dur": "2.5s",
+      "conf": "0.75 · 中（边界为微停顿合并，建议核对，手别待确认｜长时(2.5s)低幅）",
+      "tier": "mid",
+      "include": true,
+      "type": "目检",
+      "desc": "目检[对象：][属性：]"
+    },
+    {
+      "id": "C6",
+      "hand": "B",
+      "span": "10.7–14.4s",
+      "dur": "3.7s",
+      "conf": "0.75 · 中（边界为微停顿合并，建议核对，手别待确认｜质心位移 5% 画面）",
+      "tier": "mid",
+      "include": true,
+      "type": "移物",
+      "desc": "移物[对象：][距离：]"
+    },
+    {
+      "id": "C7",
+      "hand": "B",
+      "span": "14.4–14.8s",
+      "dur": "0.4s",
+      "conf": "0.75 · 中（边界为微停顿合并，建议核对，手别待确认｜中等位移(净4%/路径5%)）",
+      "tier": "mid",
+      "include": true,
+      "type": "拿取",
+      "desc": "拿取[对象于：][位置：][距离：]"
+    }
+  ],
+  "tiers": {
+    "high": 0,
+    "mid": 7,
+    "low": 0
+  },
+  "hands": {
+    "L": 2,
+    "R": 1,
+    "B": 4
+  },
+  "includedDuration": 14.8,
+  "coveragePct": 98.1
+}

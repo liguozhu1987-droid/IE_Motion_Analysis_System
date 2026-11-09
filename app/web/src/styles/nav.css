@@ -1,0 +1,67 @@
+/************************************************************
+ * nav.css · 导航层分层（工厂 → 产线 → 工位 的对象树与上下文面板）
+ * 由 legacy.css 于 v3.60 机械拆分而来（类名零变更，仅换文件）
+ ************************************************************/
+/* ================= v3.6 导航层分层（工厂 → 产线 → 工位） ================= */
+
+/* 左侧：工厂上下文 */
+.sider-factory { padding: 10px 12px 10px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #fbfcfe, #fff); }
+.sf-region { font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: var(--ink3); text-transform: uppercase; }
+.sf-company { font-size: 13.5px; font-weight: 700; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sf-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink3); margin-top: 3px; }
+.sf-link { margin-left: auto; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+/* 左侧：产线筛选 */
+.sider-search { position: relative; padding: 8px 10px 2px; }
+.sider-search input { width: 100%; padding: 5px 24px 5px 10px; font-size: 12px; border-radius: 8px; }
+.ss-clear {
+  position: absolute; right: 14px; top: 12px; width: 18px; height: 18px; border: none; border-radius: 50%;
+  background: var(--line); color: var(--ink3); cursor: pointer; line-height: 1; font-size: 12px; padding: 0;
+}
+.ss-clear:hover { background: var(--line2); color: var(--ink); }
+
+/* 左侧：产线徽标（管理层看平衡率，执行层看待办） */
+.tree-rate {
+  font-size: 10.5px; font-weight: 700; border-radius: 6px; padding: 0 5px; line-height: 1.6;
+  font-variant-numeric: tabular-nums; flex: 0 0 auto;
+}
+.tree-rate.good { background: var(--teal-bg); color: var(--teal); border: 1px solid var(--teal-line); }
+.tree-rate.mid { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); }
+.tree-rate.bad { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-line); }
+.tree-todo {
+  min-width: 16px; text-align: center; font-size: 10.5px; font-weight: 700; border-radius: 8px;
+  background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line);
+  padding: 0 4px; line-height: 1.6; flex: 0 0 auto;
+}
+/* 展开后的产线摘要行 */
+.tree-line-sub {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 1px 8px 5px 28px; font-size: 10.5px; color: var(--ink3);
+}
+.tls-progress { font-variant-numeric: tabular-nums; }
+.tree-leaf-empty { padding: 4px 8px 8px 28px; font-size: 11.5px; color: var(--ink3); }
+
+/* 右侧：归属链 */
+.panel-chain {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  font-size: 11.5px; color: var(--ink3); padding: 0 2px 10px; margin-bottom: 2px;
+  border-bottom: 1px dashed var(--line);
+}
+.panel-chain i { font-style: normal; color: var(--line2); }
+.panel-chain a { color: var(--blue); font-weight: 600; }
+.pc-company { color: var(--ink2); font-weight: 600; }
+
+/* 右侧：三格 KPI / 状态色 */
+.panel-kpis.three { grid-template-columns: repeat(3, 1fr); }
+.pk .v.bad { color: var(--red); }
+
+/* 右侧：工时结构比例条 */
+.stack-bar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: var(--bg); margin: 2px 0 6px; }
+.stack-bar .sb { display: block; height: 100%; }
+.stack-bar .sb.va, .stack-legend i.va { background: var(--teal); }
+.stack-bar .sb.rnva, .stack-legend i.rnva { background: #c9a227; }
+.stack-bar .sb.nva, .stack-legend i.nva { background: var(--red); }
+.stack-legend { display: flex; gap: 12px; font-size: 11px; color: var(--ink3); flex-wrap: wrap; }
+.stack-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+
+/* ================= v3.7 新建分析对象向导（工厂→产线→项目→工位） ================= */

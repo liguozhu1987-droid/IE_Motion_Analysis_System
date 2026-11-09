@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-10-30T07:32:20.945Z",
+  "target": "http://127.0.0.1:3102/?perf=lighthouse#/dashboard",
+  "mode": "Lighthouse desktop / simulated throttling / local HTTP",
+  "lighthouse_version": "13.6.0",
+  "chrome_version": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+  "authenticated_dataset": {
+    "prewarm_dashboard_200": true,
+    "dashboard_api_200": true,
+    "stations_api_200_over_50kb": true,
+    "stations_resource_bytes": 80801,
+    "final_screenshot_present": true
+  },
+  "metrics": {
+    "lcp_ms": 1082.0323846618653,
+    "cls": 0,
+    "tbt_ms": 384.9999999999999,
+    "fcp_ms": 617.87405,
+    "speed_index_ms": 771.4568009783525,
+    "performance_score": 0.91,
+    "inp": {
+      "status": "not_measured",
+      "reason": "Lighthouse 实验室加载审计不提供现场 INP；不以 TBT 冒充 INP"
+    }
+  },
+  "thresholds": {
+    "lcp_ms": "<2500",
+    "cls": "<0.1"
+  },
+  "runtime_error": null,
+  "passed": true
+}

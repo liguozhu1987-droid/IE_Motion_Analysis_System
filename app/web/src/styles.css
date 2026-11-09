@@ -1,0 +1,35 @@
+/* ============================================================
+ * styles.css · 样式总入口（v3.56 分层 / v3.60 拆完 legacy）
+ * ------------------------------------------------------------
+ * 分层顺序即层叠优先级，新增样式请落到对应层，不要往本文件堆：
+ *
+ *   styles/tokens.css        设计令牌（柔和工业风色板 / 字体 / 尺度 / 纹理 / 动效）
+ *   styles/base.css          基础层：重置、排版、表单、按钮、标签、表格、卡片、时间线
+ *   styles/login.css         认证层：登录 / 注册 / 找回密码 / 强制改密 / 启动占位
+ *   styles/shell.css         外壳层：顶栏、导航、用户与权限区、三栏、对象树、上下文面板
+ *   styles/dashboard.css     驾驶舱层：KPI、筛选条、分布卡、横评表、上手引导
+ *   styles/workbench.css     分解工作台（v3.60 拆出）
+ *   styles/ai.css            AI 页：AI 配置 / AI 改善建议 / AI 分解 / 浪费识别（v3.60 拆出）
+ *   styles/settings.css      设置类页：设置中心 / 动作标准配置（v3.60 拆出）
+ *   styles/nav.css           导航层分层：工厂 → 产线 → 工位（v3.60 拆出）
+ *   styles/components.css    通用自绘控件：SelectMenu 下拉 / 右键浮层（v3.60 拆出）
+ *   styles/diff.css          版本对比页（v3.60 拆出）
+ *   styles/help.css          系统使用帮助文档页（v3.60 拆出）
+ *
+ * Vite 原生处理 @import 并内联打包，输出顺序与此处一致。
+ * 拆分原则：机械切分、类名零变更；已用脚本校验「跨文件无同名选择器」，
+ * 故层叠结果与拆分前完全一致（829 个选择器零丢失）。
+ * ============================================================ */
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/login.css';
+@import './styles/shell.css';
+@import './styles/dashboard.css';
+@import './styles/workbench.css';
+@import './styles/ai.css';
+@import './styles/settings.css';
+@import './styles/nav.css';
+@import './styles/components.css';
+@import './styles/diff.css';
+@import './styles/help.css';
+@import './styles/videos.css';

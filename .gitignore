@@ -1,0 +1,41 @@
+# 依赖与构建产物
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# 日志与运行时
+*.log
+*.err.log
+*.pid
+nohup.out
+
+# 临时与探测
+.temp-probe/
+probe_out.txt
+app/api/.tools/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 会话产物（截图、临时下载）
+app/web/shots/
+*.tmp
+
+# Office 锁文件
+~$*
+.workbuddy/tmp/
+
+# 单文件发布包（195MB，走拷贝分发不进 git）
+deliverables/IE-Platform-*/
+
+# WorkBuddy 平台自动化内部数据（非项目产物）
+.workbuddy/memory/automations/
+
+# ffmpeg二进制程序
+app/api/bin/ffmpeg.exe
+# 视频文件
+*.mp4

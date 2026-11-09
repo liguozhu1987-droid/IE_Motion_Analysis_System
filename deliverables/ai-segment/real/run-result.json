@@ -1,0 +1,11 @@
+{
+  "video": "D:\\Application\\IE_Improvement_Platform\\app\\web",
+  "tag": "run",
+  "startedAt": "2026-10-26T03:01:00.654Z",
+  "steps": [
+    "[console] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[console] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "页面就绪：PA10 · v1 · 现有要素 136 条",
+    "[console] Failed to load resource: net::ERR_FILE_NOT_FOUND"
+  ]
+}

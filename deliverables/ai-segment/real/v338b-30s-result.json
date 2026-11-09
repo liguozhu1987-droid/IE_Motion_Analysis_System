@@ -1,0 +1,165 @@
+{
+  "video": "D:\\Application\\IE_Improvement_Platform\\deliverables\\ai-segment\\real\\sample30.mp4",
+  "tag": "v338b-30s",
+  "startedAt": "2026-10-25T13:31:15.138Z",
+  "steps": [
+    "[console] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[console] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "页面就绪：PA10 · v1 · 现有要素 0 条",
+    "视频载入：1920x1080 · 30.07s",
+    "已点击「开始分析」，等待完成…",
+    "  0s · 尚未分析",
+    "  15s · 尚未分析",
+    "  31s · 尚未分析",
+    "  46s · 尚未分析",
+    "  62s · 尚未分析",
+    "  78s · 尚未分析",
+    "  93s · 尚未分析",
+    "分析结束：耗时 103s，候选 11 条",
+    "分层 高6/中0/低5 · 手别 L5/R4/B2 · 覆盖 30.1s (100%)"
+  ],
+  "videoMeta": {
+    "duration": 30.07,
+    "w": 1920,
+    "h": 1080
+  },
+  "countText": "纳入 11 / 共 11 条 · 30.07s",
+  "rows": 11,
+  "emptyText": "",
+  "elapsedSec": 103,
+  "candidates": [
+    {
+      "id": "C1",
+      "hand": "R",
+      "span": "0.0–1.3s",
+      "dur": "1.3s",
+      "conf": "0.90 · 高（原地高能短动作）",
+      "tier": "high",
+      "include": true,
+      "type": "装配",
+      "desc": "装配[对象于：][位置：][距离：]"
+    },
+    {
+      "id": "C2",
+      "hand": "R",
+      "span": "1.3–5.7s",
+      "dur": "4.4s",
+      "conf": "0.90 · 高（长时(4.4s)低幅）",
+      "tier": "low",
+      "include": true,
+      "type": "目检",
+      "desc": "目检[对象：][属性：]"
+    },
+    {
+      "id": "C3",
+      "hand": "B",
+      "span": "5.7–10.1s",
+      "dur": "4.4s",
+      "conf": "0.90 · 高（手别待确认｜长时(4.4s)低幅）",
+      "tier": "low",
+      "include": true,
+      "type": "目检",
+      "desc": "目检[对象：][属性：]"
+    },
+    {
+      "id": "C4",
+      "hand": "R",
+      "span": "10.1–12.1s",
+      "dur": "2s",
+      "conf": "0.90 · 高（长时(2.0s)低幅）",
+      "tier": "low",
+      "include": true,
+      "type": "目检",
+      "desc": "目检[对象：][属性：]"
+    },
+    {
+      "id": "C5",
+      "hand": "B",
+      "span": "12.1–15.9s",
+      "dur": "3.8s",
+      "conf": "0.90 · 高（手别待确认｜长时(3.8s)低幅）",
+      "tier": "low",
+      "include": true,
+      "type": "目检",
+      "desc": "目检[对象：][属性：]"
+    },
+    {
+      "id": "C6",
+      "hand": "R",
+      "span": "15.9–19.3s",
+      "dur": "3.4s",
+      "conf": "0.90 · 高（长时(3.4s)低幅）",
+      "tier": "low",
+      "include": true,
+      "type": "目检",
+      "desc": "目检[对象：][属性：]"
+    },
+    {
+      "id": "C7",
+      "hand": "L",
+      "span": "19.3–22.1s",
+      "dur": "2.8s",
+      "conf": "0.90 · 高（质心位移 11% 画面）",
+      "tier": "high",
+      "include": true,
+      "type": "移物",
+      "desc": "移物[对象：][距离：]"
+    },
+    {
+      "id": "C8",
+      "hand": "L",
+      "span": "22.1–23.8s",
+      "dur": "1.7s",
+      "conf": "0.90 · 高（质心位移 11% 画面）",
+      "tier": "high",
+      "include": true,
+      "type": "移物",
+      "desc": "移物[对象：][距离：]"
+    },
+    {
+      "id": "C9",
+      "hand": "L",
+      "span": "23.8–25.3s",
+      "dur": "1.5s",
+      "conf": "0.90 · 高（质心位移 10% 画面）",
+      "tier": "high",
+      "include": true,
+      "type": "移物",
+      "desc": "移物[对象：][距离：]"
+    },
+    {
+      "id": "C10",
+      "hand": "L",
+      "span": "25.3–26.6s",
+      "dur": "1.3s",
+      "conf": "0.90 · 高（原地高能短动作）",
+      "tier": "high",
+      "include": true,
+      "type": "装配",
+      "desc": "装配[对象于：][位置：][距离：]"
+    },
+    {
+      "id": "C11",
+      "hand": "L",
+      "span": "26.6–30.1s",
+      "dur": "3.47s",
+      "conf": "0.90 · 高（质心位移 10% 画面）",
+      "tier": "high",
+      "include": true,
+      "type": "移物",
+      "desc": "移物[对象：][距离：]"
+    }
+  ],
+  "tiers": {
+    "high": 6,
+    "mid": 0,
+    "low": 5
+  },
+  "hands": {
+    "L": 5,
+    "R": 4,
+    "B": 2
+  },
+  "includedDuration": 30.1,
+  "coveragePct": 100
+}

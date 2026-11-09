@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-10-30T06:04:37.280Z",
+  "command": "npm audit --omit=dev --json（app/api 与 app/web 分别执行）",
+  "passed": false,
+  "results": [
+    {
+      "name": "api",
+      "npm_exit_code": 1,
+      "counts": {
+        "info": 0,
+        "low": 2,
+        "moderate": 7,
+        "high": 10,
+        "critical": 1,
+        "total": 20
+      },
+      "pass": false,
+      "policy": "生产依赖 high/critical=0 才通过；moderate/low 记录但不阻断"
+    },
+    {
+      "name": "web",
+      "npm_exit_code": 0,
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "pass": true,
+      "policy": "生产依赖 high/critical=0 才通过；moderate/low 记录但不阻断"
+    }
+  ],
+  "note": "不使用 npm audit fix --force 自动跨 major 升级；依赖修复须单独评估 NestJS/sqlite3 兼容性。"
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "label": "v322-summary",
+    "data": {
+      "draftCount": 3,
+      "loopBtn": {
+        "exists": true,
+        "text": "↻ 循环关",
+        "inSpeedRow": true
+      }
+    }
+  }
+]

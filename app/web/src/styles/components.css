@@ -1,0 +1,109 @@
+/************************************************************
+ * components.css · 通用自绘控件（SelectMenu 下拉 / 右键浮层）
+ * 由 legacy.css 于 v3.60 机械拆分而来（类名零变更，仅换文件）
+ ************************************************************/
+/* ================= v3.21 自绘下拉 SelectMenu ================= */
+.sm-trigger {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px; font-size: 13px; font-family: inherit;
+  background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  color: var(--ink); cursor: pointer; text-align: left; min-width: 0;
+}
+.sm-trigger:hover { border-color: var(--blue-line); }
+.sm-trigger:focus-visible { outline: 2px solid var(--blue-line); border-color: var(--blue); }
+.sm-trigger:disabled { opacity: 0.55; cursor: not-allowed; }
+/* v3.59.1 错误态：对齐原生 select 的 .in-err（必填校验失败红框红底） */
+.sm-trigger.sm-err { border-color: var(--red) !important; background: var(--red-bg) !important; }
+.sm-value { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-value.sm-ph { color: var(--ink3); }
+.sm-hint { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--ink3); }
+.sm-caret { margin-left: auto; font-size: 10px; color: var(--ink3); }
+.sm-menu {
+  position: fixed; z-index: 1200;
+  background: #fff; border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 18%), 0 2px 8px rgb(15 23 42 / 8%);
+  max-height: 320px; overflow-y: auto; padding: 4px;
+}
+.sm-option {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer;
+}
+.sm-option[data-active="1"] { background: var(--bg); }
+.sm-option.on { color: var(--blue); font-weight: 600; }
+.sm-option.on::after { content: '✓'; margin-left: auto; font-size: 11px; }
+.sm-option.accent { color: var(--blue); border-top: 1px dashed var(--line); margin-top: 3px; border-radius: 0 0 6px 6px; }
+.sm-o-label { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-o-hint { margin-left: auto; font-size: 11.5px; color: var(--ink3); flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.wz { max-width: 760px; width: calc(100vw - 48px); padding: 0; overflow: hidden; }
+.wz-head {
+  display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #fbfcfe, #fff);
+}
+.wz-head h3 { margin: 0 0 2px; font-size: 16px; }
+.wz-head p { margin: 0; font-size: 12px; max-width: 60ch; }
+.wz-x {
+  margin-left: auto; width: 26px; height: 26px; border: none; border-radius: 50%;
+  background: var(--bg); color: var(--ink3); font-size: 16px; cursor: pointer; line-height: 1;
+}
+.wz-x:hover { background: var(--line); color: var(--ink); }
+.wz-body { display: grid; gap: 12px; padding: 14px 20px 8px; max-height: min(70vh, 640px); overflow-y: auto; }
+.wz-loading { padding: 30px; text-align: center; color: var(--ink3); font-size: 13px; }
+.wz-sec { display: grid; gap: 7px; }
+.wz-sec-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+.wz-n {
+  width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff;
+  font-size: 11px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 20px;
+}
+.wz-tag { font-size: 11px; font-weight: 600; color: var(--blue); background: var(--blue-bg); border: 1px solid var(--blue-line); border-radius: 8px; padding: 0 7px; }
+.wz-tag.muted { color: var(--ink3); background: var(--bg); border-color: var(--line); font-weight: 400; }
+.wz-readonly {
+  font-size: 13px; color: var(--ink); background: var(--bg); border: 1px dashed var(--line2);
+  border-radius: 9px; padding: 8px 12px;
+}
+.wz-readonly .muted { font-size: 11.5px; }
+.wz-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wz-inline select, .wz-inline .sm-trigger { min-width: 260px; flex: 0 1 340px; padding: 6px 10px; font-size: 13px; }
+.wz-hint { font-size: 11.5px; color: var(--ink3); }
+.wz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+@media (max-width: 640px) { .wz-grid { grid-template-columns: 1fr; } }
+.wz-field { display: grid; gap: 4px; }
+.wz-field > span { font-size: 11.5px; color: var(--ink3); }
+.wz-field input, .wz-field select { padding: 6px 10px; font-size: 13px; }
+.wz-foot {
+  display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+  border-top: 1px solid var(--line); background: #fff;
+}
+.wz-summary { font-size: 12px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 新建成功后的卡片定位高亮 */
+.card-hi { border-color: var(--blue) !important; box-shadow: 0 0 0 3px var(--blue-bg); animation: hi-pulse 1.4s ease-out 1; }
+@keyframes hi-pulse {
+  0% { box-shadow: 0 0 0 6px rgba(31, 95, 208, 0.22); }
+  100% { box-shadow: 0 0 0 3px var(--blue-bg); }
+}
+
+.ctx-menu {
+  position: fixed; z-index: 61;
+  min-width: 240px; max-width: 320px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 9px;
+  padding: 9px 12px 11px;
+  box-shadow: 0 8px 28px rgba(16, 28, 48, 0.18);
+  transform: translate(4px, 4px); /* 相对右键点轻微偏移，避免遮住光标 */
+}
+.ctx-title { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+.ctx-desc { font-size: 12px; color: var(--ink3); line-height: 1.45; margin-bottom: 7px; }
+.ctx-desc b { color: var(--ink2); }
+.ctx-desc.muted { margin-bottom: 2px; }
+.ctx-preview {
+  font-size: 12px; color: var(--ink2); line-height: 1.7;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 7px;
+  padding: 6px 9px; margin-bottom: 9px;
+}
+.ctx-preview .mono { font-size: 11.5px; }
+.ctx-btn { display: block; width: 100%; font-size: 12.5px; }
+
+/* v3.60 补齐：共享与协作弹窗（此前零定义）。弹窗内协作者表沿用 .panel-table，
+   但对话框宽度仅 560，需更紧的行高与内边距，避免横向撑破。 */
+.share-dlg .panel-table { font-size: 12px; }
+.share-dlg .panel-table td { padding: 5px 6px; }

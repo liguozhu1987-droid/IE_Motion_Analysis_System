@@ -1,0 +1,490 @@
+{
+  "rv": "RV3.64",
+  "note": "VA归类规则（RV3.0）：在动素三分法 19 类基础上并入公司《VA N-VA Defination v00 20190429》判定表 22 类动作标准类型（拿取=NVA/放置=RNVA/目检点检检测=RNVA/装配粘贴涂扫描=VA/插压推拉按对象条件判定等）。词表=经典动素 ∪ 公司动作标准（与 motion_standard.json 一致，可在「动作标准」配置页维护）。三段式判定与例外机制不变：默认由 type 带出，例外优先；desc 含 [VA改判]/[VA确认] 标记的要素跳过自动归类。RV3.63 勘误（IE 2026-10-28，配套 motion_standard MS1.2）：原表注明「有些动作本身难以判断其增值性，需要根据其作业对象进行综合判断」「增值性分类不是绝对情况」——操作族按/压/推/拉/插 默认工夹具=RNVA，对象为装入产品的物料（含借助工具按压/推拉/插装零部件）时例外改判 VA（low 置信，进待审人工确认）；拔 遇返工/维修/换型参考拆卸=VA；新增 VR43 操作 / VR44 移动 一级分组规则（v3.49 一级可选后分组不能再无规则）；VR41 机器自动占位说明写实。 RV3.64 收敛（IE 2026-10-28）：「检查」标签口径统一为 RNVA——检查一般不增值，客户/规范要求时属必要非增值，须持续改善检查方法与技术、逐步减少；无依据的返检/重复检查按 NVA。 VR09（检查）由 VA 改判 RNVA，与 VR32 目检/VR33 点检/VR34 检测 及 motion_standard MS1.3 检查分组同口径； 经典动素「检查=VA」的旧口径作废（ELEMENT_TYPES_CLASSIC 仅保留词表，VA 归类不再区分来源）。",
+  "types": [
+    {
+      "id": "VR01",
+      "type": "伸手",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "伸手默认VA：有效动素，取放作业的必经段",
+      "exceptions": [
+        {
+          "when": "desc~=空伸|徒劳|伸错",
+          "result": "RNVA",
+          "confidence": "low",
+          "reason": "疑似空伸/伸错对象，请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR02",
+      "type": "握取",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "握取默认VA：有效动素",
+      "exceptions": [
+        {
+          "when": "desc~=掉落|滑落|重取|没拿稳",
+          "result": "NVA",
+          "confidence": "low",
+          "reason": "疑似抓取失败重取，请确认"
+        }
+      ]
+    },
+    {
+      "id": "VR03",
+      "type": "移物",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "移物默认VA：有效动素（手持对象移动）；浪费判定由 waste_triggers 的重复/长距规则承担",
+      "exceptions": [
+        {
+          "when": "desc~=往返|再次|回取",
+          "result": "NVA",
+          "confidence": "low",
+          "reason": "疑似同工位往返搬运，请确认布局"
+        }
+      ]
+    },
+    {
+      "id": "VR04",
+      "type": "定位",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "定位默认VA：有效动素（对准/预搭是装配的必经段）",
+      "exceptions": [
+        {
+          "when": "dur_s>2",
+          "result": "NVA",
+          "confidence": "low",
+          "reason": "长定位>2s，疑似可消除（对应治具定向改善）"
+        }
+      ]
+    },
+    {
+      "id": "VR05",
+      "type": "装配",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "装配默认VA：直接形成产品组合",
+      "exceptions": [
+        {
+          "when": "desc~=返工|重装|拆",
+          "result": "NVA",
+          "confidence": "low",
+          "reason": "疑似返工/拆装，请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR06",
+      "type": "拆卸",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "拆卸默认VA：有效动素（维修/换型场景）",
+      "exceptions": [
+        {
+          "when": "desc~=返工|重装|拆了再装",
+          "result": "NVA",
+          "confidence": "low",
+          "reason": "疑似返工拆装，请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR07",
+      "type": "使用",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "使用/加工默认VA：直接改变形态或性能",
+      "exceptions": [
+        {
+          "when": "desc~=空跑|试运行|对刀",
+          "result": "RNVA",
+          "confidence": "low",
+          "reason": "疑似空跑/试运行，非加工有效时间"
+        }
+      ]
+    },
+    {
+      "id": "VR08",
+      "type": "放手",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "放手默认VA：有效动素（放置到位是作业闭环）",
+      "exceptions": [
+        {
+          "when": "desc~=掉落|抛|滑落",
+          "result": "NVA",
+          "confidence": "low",
+          "reason": "疑似抛掷/掉落放置，请确认品质风险"
+        }
+      ]
+    },
+    {
+      "id": "VR09",
+      "type": "检查",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "检查默认RNVA：检查一般不增值；客户/规范要求的检查属必要非增值，须持续改善检查方法与技术、逐步减少（2026-10-28 用户裁定收敛：经典动素「检查」与公司检查分组口径统一为 RNVA）",
+      "exceptions": [
+        {
+          "when": "desc~=返检|重复|自设|抽检复查|复检|二次确认",
+          "result": "NVA",
+          "confidence": "low",
+          "reason": "疑似无依据/重复检验（冗余检查）——优先直接消除，请确认品质文件依据"
+        }
+      ]
+    },
+    {
+      "id": "VR10",
+      "type": "寻找",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "寻找默认RNVA：辅助动素，目视化/定置管理可压缩",
+      "exceptions": []
+    },
+    {
+      "id": "VR11",
+      "type": "发现",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "发现默认RNVA：辅助动素（寻找的终点）",
+      "exceptions": []
+    },
+    {
+      "id": "VR12",
+      "type": "选择",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "选择默认RNVA：辅助动素，混料挑拣应流向供料唯一化",
+      "exceptions": []
+    },
+    {
+      "id": "VR13",
+      "type": "思考",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "思考默认RNVA：辅助动素，作业指导书/SOP 可压缩",
+      "exceptions": []
+    },
+    {
+      "id": "VR14",
+      "type": "预置",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "预置默认RNVA：辅助动素，事前摆料可并入上一动作或治具化",
+      "exceptions": []
+    },
+    {
+      "id": "VR15",
+      "type": "持住",
+      "default": "NVA",
+      "confidence": "high",
+      "reason": "持住默认NVA：手当夹具用，治具可代",
+      "exceptions": []
+    },
+    {
+      "id": "VR16",
+      "type": "可避免延迟",
+      "default": "NVA",
+      "confidence": "high",
+      "reason": "可避免延迟默认NVA：人等料/找不到/无谓等待，优先消除",
+      "exceptions": [
+        {
+          "when": "desc~=节拍|配合|同步|等机器|等传送",
+          "result": "RNVA",
+          "confidence": "low",
+          "reason": "疑似节拍设计缓冲/人机配合等待，应归入「不可避免延迟」"
+        }
+      ]
+    },
+    {
+      "id": "VR17",
+      "type": "不可避免延迟",
+      "default": "NVA",
+      "confidence": "high",
+      "reason": "不可避免延迟默认NVA：节拍设计/人机配合/工艺固化等待（按三分法归无效，但改善靠重排而非硬删）",
+      "exceptions": []
+    },
+    {
+      "id": "VR18",
+      "type": "休息",
+      "default": "NVA",
+      "confidence": "high",
+      "reason": "休息默认NVA：生理需要，靠宽放率覆盖不靠删要素",
+      "exceptions": []
+    },
+    {
+      "id": "VR19",
+      "type": "其他",
+      "default": "RNVA",
+      "confidence": "low",
+      "reason": "类型为其他，规则无法判定，请人工归类",
+      "exceptions": []
+    },
+    {
+      "id": "VR20",
+      "type": "拿取",
+      "default": "NVA",
+      "confidence": "high",
+      "reason": "判定表#NVA：拿取=非增值（料架布局/就近取料改善空间大）",
+      "exceptions": []
+    },
+    {
+      "id": "VR21",
+      "type": "放置",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：放置=必要非增值（装配必经，只能压缩）",
+      "exceptions": []
+    },
+    {
+      "id": "VR22",
+      "type": "走动",
+      "default": "NVA",
+      "confidence": "high",
+      "reason": "判定表#NVA：走动=无负载移动（布局/就近 supplies 改善）",
+      "exceptions": []
+    },
+    {
+      "id": "VR23",
+      "type": "粘贴",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "判定表#VA：粘贴=增值（直接改变产品）",
+      "exceptions": []
+    },
+    {
+      "id": "VR24",
+      "type": "涂",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "判定表#VA：涂=增值（直接改变产品）",
+      "exceptions": []
+    },
+    {
+      "id": "VR25",
+      "type": "按",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：按=必要非增值",
+      "exceptions": [
+        {
+          "when": "desc~=物料|零部件|配件|零件|产品",
+          "result": "VA",
+          "confidence": "low",
+          "reason": "对象为装入产品的物料：按+物料=VA（含借助工具按压装配零部件），请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR26",
+      "type": "压",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：压+工夹具=RNVA；对象为装入产品的物料时人工改判 VA",
+      "exceptions": [
+        {
+          "when": "desc~=物料|零部件|配件|零件|产品|安装|装配|装入|装上|压入",
+          "result": "VA",
+          "confidence": "low",
+          "reason": "压+物料=VA：借助工具按压装配零部件即增值（不一定非增值），请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR27",
+      "type": "抬",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：抬=必要非增值",
+      "exceptions": []
+    },
+    {
+      "id": "VR28",
+      "type": "推",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：推+工夹具=RNVA；对象为装入产品的物料时人工改判 VA",
+      "exceptions": [
+        {
+          "when": "desc~=物料|零部件|配件|零件|产品|安装|装配|装入|装上|压入",
+          "result": "VA",
+          "confidence": "low",
+          "reason": "推+物料=VA：借助工具推压装配零部件即增值，请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR29",
+      "type": "拉",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：拉+工夹具=RNVA；对象为装入产品的物料时人工改判 VA",
+      "exceptions": [
+        {
+          "when": "desc~=物料|零部件|配件|零件|产品|安装|装配|装入|装上|压入",
+          "result": "VA",
+          "confidence": "low",
+          "reason": "拉+物料=VA：借助工具拉拽装配零部件即增值，请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR30",
+      "type": "插",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：插+工夹具=RNVA、插+物料=VA——默认按工夹具，装入产品的物料请人工改判",
+      "exceptions": [
+        {
+          "when": "desc~=物料|零部件|配件|零件|产品|线束|插入|接入|插到|插至",
+          "result": "VA",
+          "confidence": "low",
+          "reason": "插+物料=VA：装入产品的物料（含线束）即增值，请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR31",
+      "type": "拔",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：拔=必要非增值",
+      "exceptions": [
+        {
+          "when": "desc~=返工|维修|换型|退料|拆下",
+          "result": "VA",
+          "confidence": "low",
+          "reason": "拔下已装部件（维修/换型）参考拆卸=VA，请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR32",
+      "type": "目检",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：目检=外观检查（有规范依据，只能压缩/自动化）",
+      "exceptions": []
+    },
+    {
+      "id": "VR33",
+      "type": "点检",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：点检=伴随点检笔的检查",
+      "exceptions": []
+    },
+    {
+      "id": "VR34",
+      "type": "检测",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：检测=测量性检查",
+      "exceptions": []
+    },
+    {
+      "id": "VR35",
+      "type": "清洁",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：清洁=擦拭动作",
+      "exceptions": []
+    },
+    {
+      "id": "VR36",
+      "type": "扫描",
+      "default": "VA",
+      "confidence": "high",
+      "reason": "判定表#VA：扫描=增值（绑定追溯信息）",
+      "exceptions": []
+    },
+    {
+      "id": "VR37",
+      "type": "翻转",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：翻转=正反面处理（治具双面可达可消除）",
+      "exceptions": []
+    },
+    {
+      "id": "VR38",
+      "type": "拆",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "判定表#RNVA：拆=拆物料包装（供应商包装改善可消除）",
+      "exceptions": []
+    },
+    {
+      "id": "VR39",
+      "type": "转身",
+      "default": "NVA",
+      "confidence": "high",
+      "reason": "判定表#NVA：转身=躯干运动（区域布局改善）",
+      "exceptions": []
+    },
+    {
+      "id": "VR40",
+      "type": "等待",
+      "default": "NVA",
+      "confidence": "high",
+      "reason": "判定表#NVA：等待=人等设备/节拍",
+      "exceptions": []
+    },
+    {
+      "id": "VR41",
+      "type": "机器自动",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "机器时间单列 Machine 口径、不参与操作工 VA 率；RNVA 仅为通过校验的占位，不代表增值属性",
+      "exceptions": []
+    },
+    {
+      "id": "VR42",
+      "type": "弯腰",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "弯腰默认RNVA：必要非增值，可通过工位高度/容器位置/滑槽/升降台改善（MODAPTS 身体动作 B17）",
+      "exceptions": []
+    },
+    {
+      "id": "VR43",
+      "type": "操作",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "操作一级分组：按对象条件判定——工装/工具/按钮=RNVA，装入产品的物料=VA（借助工具按压装配零部件即VA）",
+      "exceptions": [
+        {
+          "when": "desc~=物料|零部件|配件|零件|产品|安装|装配|装入|装上|压入",
+          "result": "VA",
+          "confidence": "low",
+          "reason": "对象为装入产品的物料：操作+物料=VA（含借助工具按压装配零部件），请人工确认"
+        }
+      ]
+    },
+    {
+      "id": "VR44",
+      "type": "移动",
+      "default": "RNVA",
+      "confidence": "high",
+      "reason": "移动一级分组：无负载走动=NVA、负载移物=VA，请优先选二级",
+      "exceptions": [
+        {
+          "when": "desc~=空手|无负载|空走",
+          "result": "NVA",
+          "confidence": "low",
+          "reason": "疑似无负载空走，请确认是否应记「走动」=NVA"
+        },
+        {
+          "when": "desc~=负载|搬运|搬|移物|端着|拿着|推着|拉着",
+          "result": "VA",
+          "confidence": "low",
+          "reason": "疑似负载移动，请确认是否应记「移物」=VA"
+        }
+      ]
+    }
+  ]
+}

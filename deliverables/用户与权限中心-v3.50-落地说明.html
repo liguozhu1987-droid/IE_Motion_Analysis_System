@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>用户与权限中心 v3.50 · 落地说明</title>
+<style>
+  :root {
+    --bg: #f6f8fb; --card: #ffffff; --line: #e3e8ef; --ink: #1f2937; --muted: #6b7280;
+    --accent: #2f6fd0; --accent-soft: #eef4ff; --ok: #0f766e; --warn: #b45309; --warn-soft: #fff7ed;
+    --bad: #b91c1c; --bad-soft: #fef2f2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-size: 14px; line-height: 1.75; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 22px 60px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
+  h2 { font-size: 19px; margin: 30px 0 12px; padding-left: 10px; border-left: 4px solid var(--accent); }
+  h3 { font-size: 15px; margin: 18px 0 8px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 600; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; border: 1px solid var(--line); background: #f8fafc; }
+  .t-ok { color: var(--ok); border-color: #99f6e4; background: #ecfdf5; }
+  .t-warn { color: var(--warn); border-color: #fed7aa; background: var(--warn-soft); }
+  .t-bad { color: var(--bad); border-color: #fecaca; background: var(--bad-soft); }
+  .t-new { color: var(--accent); border-color: #bfdbfe; background: var(--accent-soft); }
+  .note { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 10px 12px; border-radius: 6px; margin: 10px 0; }
+  .law { background: var(--warn-soft); border-left: 3px solid var(--warn); padding: 10px 12px; border-radius: 6px; margin: 10px 0; }
+  ul { margin: 6px 0 6px 20px; padding: 0; }
+  li { margin: 3px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .kv { font-size: 13px; color: var(--muted); }
+  footer { margin-top: 34px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>用户与权限中心 · v3.50 落地说明</h1>
+  <div class="sub">
+    依据《动作分解 / 动作分析软件 · 行业架构分析报告》（2026-10-27，样本 TiCon 4 / MOST / MODAPTS / AviX Suite / Motion-Mining）
+    的「治理与合规柱」要求，对本系统用户管理模块做体系化打磨。编制日期：2026-10-28。
+  </div>
+
+  <h2>一、行业报告给出的标尺与本系统改前差距</h2>
+  <div class="card">
+    <p>行业报告的共性骨架是「五层 + 一柱」，其中贯穿柱第一条就是
+      <b>权限 / 角色 / 租户隔离</b>，第二条是<b>审计日志（输入与更改全记录）</b>，
+      并明确写入「<b>方法认证（MTM / Blue Card）：分级认证、有效期 4 年、复训与再认证</b>——
+      把人的因素纳入体系，跨分析员一致性靠制度而非靠工具」。
+      报告结论原话：这一柱的厚薄，决定了「数据能否被审计、被复用、被信任」。</p>
+    <table>
+      <thead><tr><th style="width:22%">治理柱要求</th><th style="width:39%">改前本系统状态</th><th style="width:39%">v3.50 落地</th></tr></thead>
+      <tbody>
+        <tr><td>权限 / 角色 / 租户隔离</td>
+            <td>5 个角色<b>硬编码</b>在后端常量与前端常量两处；<code>role:write</code> 权限点已定义但<b>无任何端点</b>；角色权限配比改不了</td>
+            <td>角色 CRUD + 权限矩阵可视化勾选；角色以 <code>t_role</code> 为唯一数据源，自定义角色自动进入可选范围 <span class="tag t-new">新增</span></td></tr>
+        <tr><td>审计日志（更改全记录）</td>
+            <td>写 <code>t_audit_log</code>，但<b>没有查询界面</b>，管理员看不到「谁改了权限」</td>
+            <td><code>GET /admin/audit</code> + 「变更审计」页签，含改前/改后、操作人、IP <span class="tag t-new">新增</span></td></tr>
+        <tr><td>多站点 / 多工厂（组织维度）</td>
+            <td>用户只有用户名/显示名/邮箱，<b>没有部门、岗位、工号</b>，无法按组织批量授权</td>
+            <td>人员档案（部门/岗位/工号）+ 按部门筛选 + 多选批量授权 <span class="tag t-new">新增</span></td></tr>
+        <tr><td>方法认证（Blue Card 分级 + 有效期）</td>
+            <td>无</td>
+            <td>方法资质等级 L1/L2/L3 + 有效期（过期红标提醒）<span class="tag t-new">新增</span></td></tr>
+        <tr><td>行级数据范围</td>
+            <td>无（仅靠工位 owner/协作者的 ACL）</td>
+            <td><code>data_scope</code> 四档（仅本人 / 本产线 / 本租户 / 全集团）落库 <span class="tag t-warn">标注态</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>二、改造成果：四个能力面</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>① 人员</h3>
+      <ul>
+        <li>建号即带档案：部门 / 岗位 / 工号 / 数据范围 / 方法资质（等级 + 有效期）</li>
+        <li>列表新增部门、数据范围、资质三列；按部门筛选；搜索覆盖工号与岗位</li>
+        <li>「档案」弹窗可单独维护，与停启用、口令处置互不干扰</li>
+        <li>保留原有：注册审批、代置临时口令、下发重置码、停用即吊销会话</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>② 角色</h3>
+      <ul>
+        <li>系统角色（5 个，蓝标）不可删除、不可改名，可改说明</li>
+        <li>自定义角色可新建 / 改名 / 改说明 / 删权限 / 删除（有成员不可删）</li>
+        <li>种子内置示例角色 <code>quality_auditor</code>（质量审核员）演示「按岗位建角色」</li>
+        <li>每个角色显示成员数，删除前必须先解除授权</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>③ 权限分配</h3>
+      <ul>
+        <li>权限点字典按 11 个模块分组，勾选即全量提交（含模块全选/取消）</li>
+        <li>用户侧：单人角色维护 + 多选<b>批量授权</b>（替换 / 追加两种模式）</li>
+        <li>「生效权限」弹窗按角色展开并给出并集——授权前先回答「他现在能干什么」</li>
+        <li>权限改完<b>即时失效</b>相关成员缓存（30s → 0s），不等过期</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>④ 追溯</h3>
+      <ul>
+        <li>13 类 RBAC 动作全留痕：建号 / 改资料 / 改角色 / 批量授权 / 审批 / 建角色 / 改权限 / 删角色 …</li>
+        <li>审计含改前 / 改后 JSON、操作人、来源 IP、时间</li>
+        <li>前端「变更审计」页签，audit:read 可见</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>三、安全保护规则（写进服务端，不靠前端自觉）</h2>
+  <div class="card">
+    <ul>
+      <li><b>防锁死</b>：<code>sys_admin</code> 的 <code>user:read / user:write / role:read / role:write</code> 为强制保留项，即使矩阵里全部取消勾选，服务端也会补回——避免「改完权限全站没人能再改权限」。</li>
+      <li><b>自我保护</b>：批量授权时若目标包含操作者本人且新角色不含 <code>sys_admin</code>，该账号被跳过并计入 <code>skipped</code>，管理员不会把自己改下线。</li>
+      <li><b>删除保护</b>：系统角色不可删；仍有成员的角色不可删（返回 400 并提示人数）。</li>
+      <li><b>白名单校验</b>：角色 code 小写字母开头 2–24 位且租户内唯一；权限点必须存在于字典；<code>data_scope</code> 与资质等级走枚举。</li>
+      <li><b>安全默认</b>：所有新端点显式声明 <code>@RequirePermission</code>，未声明的路由被全局守卫直接 403。</li>
+      <li><b>越权拦截</b>：IE 工程师（无 <code>role:read</code>）访问 <code>/admin/roles</code> 与改权限接口均返回 403（已回归覆盖）。</li>
+    </ul>
+  </div>
+
+  <h2>四、数据模型与接口增量</h2>
+  <div class="card">
+    <h3>表结构（<code>scripts/migrate.ts</code>，v3.50 段，幂等 ALTER）</h3>
+    <table>
+      <thead><tr><th style="width:34%">表 / 字段</th><th style="width:22%">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>t_user.department / position / employee_no</code></td><td>NVARCHAR(64/64/32)</td><td>人员档案三件套，支持按部门筛选与花名册</td></tr>
+        <tr><td><code>t_user.data_scope</code></td><td>NVARCHAR(16) 默认 own</td><td>own / line / tenant / all（当前为标注态，见第六节）</td></tr>
+        <tr><td><code>t_user.cert_level / cert_expires_at</code></td><td>NVARCHAR(16) / DATETIME2</td><td>方法资质等级与有效期，过期列表红标</td></tr>
+        <tr><td><code>t_role.description</code></td><td>NVARCHAR(128)</td><td>角色用途说明，便于交接与审计追溯</td></tr>
+      </tbody>
+    </table>
+    <h3>新增端点（全部走 RBAC 守卫）</h3>
+    <table>
+      <thead><tr><th style="width:38%">端点</th><th style="width:18%">权限点</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET /admin/roles</code></td><td>role:read</td><td>角色列表（含权限点、成员数、是否系统角色）</td></tr>
+        <tr><td><code>GET /admin/permissions</code></td><td>role:read</td><td>权限点字典，按模块分组</td></tr>
+        <tr><td><code>POST /admin/roles</code></td><td>role:write</td><td>新建自定义角色</td></tr>
+        <tr><td><code>PATCH /admin/roles/:id</code></td><td>role:write</td><td>改名 / 改说明</td></tr>
+        <tr><td><code>PUT /admin/roles/:id/permissions</code></td><td>role:write</td><td>权限全量替换（勾选矩阵）</td></tr>
+        <tr><td><code>DELETE /admin/roles/:id</code></td><td>role:write</td><td>删除自定义角色（有成员则 400）</td></tr>
+        <tr><td><code>POST /admin/users/bulk-roles</code></td><td>user:write</td><td>批量授权（replace / merge）</td></tr>
+        <tr><td><code>GET /admin/users/:id/permissions</code></td><td>user:read</td><td>生效权限（按角色展开 + 并集）</td></tr>
+        <tr><td><code>GET /admin/audit</code></td><td>audit:read</td><td>权限与账号变更审计</td></tr>
+      </tbody>
+    </table>
+    <p class="kv">同步新增权限点 <code>role:read</code>（IE 主管可见角色矩阵但不可改），<code>sys_admin</code> 与 <code>ie_admin</code> 的角色-权限绑定由 seed 幂等补齐。</p>
+  </div>
+
+  <h2>五、验证证据</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th style="width:34%">验证项</th><th style="width:18%">结果</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>test/test-rbac-admin.cjs</code>（新增专项回归）</td><td><span class="tag t-ok">36 / 36 通过</span></td><td>G1 角色列表 · G2 权限字典 · G3 建角色校验 · G4 权限分配 · G5 防锁死 · G6 删除保护 · G7 人员档案 · G8 批量授权 · G9 生效权限 · G10 缓存即时失效 · G11 审计留痕 · G12 越权 403</td></tr>
+        <tr><td>smoke 主回归</td><td><span class="tag t-ok">143 / 143 通过</span></td><td>既有业务链路未受影响</td></tr>
+        <tr><td>frontend-integration</td><td><span class="tag t-ok">31 / 31 通过</span></td><td>前后端契约未破坏</td></tr>
+        <tr><td>后端 <code>tsc</code> + 前端 <code>tsc --noEmit</code></td><td><span class="tag t-ok">0 错误</span></td><td>类型全通过</td></tr>
+        <tr><td>前端生产构建 <code>vite build</code></td><td><span class="tag t-ok">success（4.8s）</span></td><td>UserManagementPage 35.5 kB 独立分包</td></tr>
+        <tr><td>环境</td><td><span class="tag">mssql / CN_AME</span></td><td>migrate 33 项存量升级 + seed 幂等执行（权限 26 / 角色 12）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>六、未验证项与已知限制（如实披露）</h2>
+  <div class="card">
+    <ul>
+      <li><b>UI 未做真机点击验证</b>：本轮仅完成类型检查、生产构建与 API 层回归，页面交互（矩阵勾选、批量授权弹窗）尚未用浏览器逐项点过，建议人工在 <code>#/admin-users</code> 三页签各走一遍。</li>
+      <li><b><code>data_scope</code> 目前是「标注 + 排序/提醒」态</b>：字段已落库并在界面可选，但尚未接入工位/要素查询的行级过滤；接入前不影响现有 ACL（owner / 协作者）行为。</li>
+      <li><b>方法资质仅提醒不阻断</b>：资质过期在列表红标提示，不做登录或提交拦截；是否要「无 L2 不得签发标准时间」属于管理制度，需人工决策后再上规则。</li>
+      <li><b>租户范围</b>：与原有用户管理一致，仅覆盖 DEFAULT 租户；多租户开通时角色与权限需按租户复制。</li>
+      <li><b>dashboard 集团视图越权</b>（v3.42 遗留：viewer/他租户应 403 实 200）不在本轮范围，仍待修。</li>
+      <li>行业对标部分为桌面调研结论（未做实机基准对比），资质分级借鉴 MTM Blue Card / MOST 认证体系，具体等级定义需结合本厂实际校准。</li>
+    </ul>
+  </div>
+
+  <footer>
+    变更文件：app/api/scripts/migrate.ts · seed.ts · src/entities/{user,rbac}.entity.ts ·
+    src/modules/roles/{roles.service,roles.controller,roles.module}.ts ·
+    src/modules/users/{users.service,users.controller}.ts · src/app.module.ts ·
+    app/web/src/api.ts · pages/{UserManagementPage,RolePermissionPanel,RbacAuditPanel}.tsx ·
+    app/api/test/test-rbac-admin.cjs
+  </footer>
+</div>
+</body>
+</html>

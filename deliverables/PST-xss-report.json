@@ -1,0 +1,112 @@
+{
+  "generated_at": "2026-10-30T06:03:23.538Z",
+  "base": "http://127.0.0.1:3101/api",
+  "isolation_db": "gate-security.db",
+  "payloads": {
+    "station": "<img src=x onerror=window.__xss=1>工位",
+    "element": "<svg onload=window.__xss=2>要素"
+  },
+  "datalist": {
+    "standard": "拿取 对象 于 位置 距离",
+    "history": "装前壳到位",
+    "options": [
+      "<svg onload=window.__xss=2>要素",
+      "装前壳到位",
+      "扶住壳体",
+      "拿取 对象 于 位置 距离",
+      "放置 对象 至 位置 距离",
+      "走动 距离",
+      "移物 对象 距离",
+      "装配 对象 于 位置 距离",
+      "粘贴 对象 至 位置 距离",
+      "涂 对象 于 位置 距离",
+      "操作 对象",
+      "按 对象",
+      "压 对象",
+      "抬 对象",
+      "推 对象",
+      "拉 对象",
+      "插 对象",
+      "拔 对象",
+      "目检 对象 属性",
+      "点检 对象 数量",
+      "检测 对象 属性",
+      "清洁 对象",
+      "扫描 对象 条码",
+      "翻转 对象",
+      "拆 对象包装",
+      "转身 角度",
+      "弯腰 对象 程度",
+      "等待 设备动作"
+    ]
+  },
+  "passed": 11,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "工位列表原样显示存储 payload",
+      "pass": true,
+      "evidence": "<img src=x onerror=window.__xss=1>工位"
+    },
+    {
+      "name": "工位 payload 未形成 img 元素",
+      "pass": true,
+      "evidence": {
+        "injectedImg": 0,
+        "xss": 0
+      }
+    },
+    {
+      "name": "分解清单原样显示存储 payload",
+      "pass": true,
+      "evidence": "<svg onload=window.__xss=2>要素"
+    },
+    {
+      "name": "要素 payload 未形成 onload SVG",
+      "pass": true,
+      "evidence": 0
+    },
+    {
+      "name": "公司标准骨架进入 datalist",
+      "pass": true,
+      "evidence": {
+        "optionCount": 28
+      }
+    },
+    {
+      "name": "同线历史真实短语仍保留",
+      "pass": true,
+      "evidence": {
+        "optionCount": 28
+      }
+    },
+    {
+      "name": "历史短语排在标准骨架之前",
+      "pass": true
+    },
+    {
+      "name": "描述输入框已连接 datalist",
+      "pass": true
+    },
+    {
+      "name": "window 执行标记始终为 0",
+      "pass": true,
+      "evidence": {
+        "station": 0,
+        "workbench": 0
+      }
+    },
+    {
+      "name": "无 alert/confirm 弹窗",
+      "pass": true,
+      "evidence": []
+    },
+    {
+      "name": "无 JavaScript pageerror",
+      "pass": true,
+      "evidence": []
+    }
+  ],
+  "pageErrors": [],
+  "dialogs": []
+}

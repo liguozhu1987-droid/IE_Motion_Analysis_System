@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IE 改善效率平台 · 前端 UI 诊断与柔和工业风升级报告 v3.60</title>
+<style>
+  :root{
+    --bg:#F1EFE9; --card:#FCFBF8; --ink:#23282C; --ink2:#4B545A; --ink3:#7B8489;
+    --steel:#2F5D6C; --steel-bg:#E7EFF1; --steel-line:#C2D7DC;
+    --copper:#B0703C; --copper-bg:#F8EEE3; --copper-line:#E4CBAE;
+    --teal:#2E7D6B; --teal-bg:#E6F1ED; --teal-line:#BDD8D0;
+    --amber:#9A6A1F; --amber-bg:#FBF2E2; --amber-line:#E8D4AB;
+    --red:#A5403A; --red-bg:#FAECEA; --red-line:#E8C5C1;
+    --line:#DFDAD0; --line2:#C7C0B3;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"IBM Plex Sans","PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+    font-size:14.5px;line-height:1.85;
+    background-image:
+      repeating-linear-gradient(0deg,transparent 0 19px,rgba(47,93,108,.045) 19px 20px),
+      repeating-linear-gradient(90deg,transparent 0 19px,rgba(47,93,108,.045) 19px 20px);}
+  .wrap{max-width:1080px;margin:0 auto;padding:36px 26px 72px}
+  header{border-bottom:3px solid var(--steel);padding-bottom:18px;margin-bottom:26px}
+  .kicker{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:700}
+  h1{font-size:27px;margin:8px 0 6px;letter-spacing:.4px}
+  .sub{color:var(--ink2);font-size:13.5px;max-width:80ch}
+  h2{font-size:19px;margin:34px 0 12px;padding-left:12px;border-left:4px solid var(--steel)}
+  h3{font-size:15px;margin:22px 0 8px;color:var(--steel)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:14px 0;box-shadow:0 1px 2px rgba(35,40,44,.05)}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px;background:var(--card);border-radius:10px;overflow:hidden}
+  th,td{border-bottom:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--steel-bg);color:var(--steel);font-weight:700;font-size:12.5px;letter-spacing:.03em}
+  tr:last-child td{border-bottom:none}
+  code,.mono{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace;font-size:12.5px;
+    background:#fff;border:1px solid var(--line2);border-radius:4px;padding:1px 5px;color:var(--steel)}
+  pre{background:#fff;border:1px solid var(--line2);border-radius:8px;padding:11px 14px;overflow:auto;font-size:12.5px;line-height:1.7}
+  .tag{display:inline-block;font-size:11.5px;padding:1px 9px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink2)}
+  .t-steel{background:var(--steel-bg);border-color:var(--steel-line);color:var(--steel)}
+  .t-copper{background:var(--copper-bg);border-color:var(--copper-line);color:var(--copper)}
+  .t-teal{background:var(--teal-bg);border-color:var(--teal-line);color:var(--teal)}
+  .t-amber{background:var(--amber-bg);border-color:var(--amber-line);color:var(--amber)}
+  .t-red{background:var(--red-bg);border-color:var(--red-line);color:var(--red)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:12px 0}
+  .kpi{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--steel);border-radius:10px;padding:12px 14px}
+  .kpi b{display:block;font-size:25px;line-height:1.25;color:var(--steel);font-variant-numeric:tabular-nums}
+  .kpi span{font-size:12px;color:var(--ink3)}
+  .kpi.copper{border-left-color:var(--copper)} .kpi.copper b{color:var(--copper)}
+  .kpi.teal{border-left-color:var(--teal)} .kpi.teal b{color:var(--teal)}
+  .kpi.red{border-left-color:var(--red)} .kpi.red b{color:var(--red)}
+  figure{margin:16px 0}
+  figure img{width:100%;border:1px solid var(--line2);border-radius:10px;display:block;background:#fff}
+  figcaption{font-size:12px;color:var(--ink3);margin-top:6px;text-align:center}
+  .note{border-left:3px solid var(--copper);background:var(--copper-bg);padding:10px 14px;border-radius:8px;font-size:13px;margin:12px 0}
+  .warn{border-left:3px solid var(--red);background:var(--red-bg);padding:10px 14px;border-radius:8px;font-size:13px;margin:12px 0}
+  .ok{border-left:3px solid var(--teal);background:var(--teal-bg);padding:10px 14px;border-radius:8px;font-size:13px;margin:12px 0}
+  ul{margin:8px 0;padding-left:22px} li{margin:4px 0}
+  .foot{margin-top:40px;border-top:1px dashed var(--line2);padding-top:14px;font-size:12px;color:var(--ink3)}
+  @media print{body{background:#fff} .wrap{padding:0} figure{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Industrial Engineering Improvement Platform · Frontend Audit</div>
+  <h1>前端 UI 诊断与「柔和工业风」升级报告 <span class="tag t-steel">v3.60</span></h1>
+  <div class="sub">承接 v3.56（样式分层 + 登录页重写 + 权限显示改造）的未完成项。本轮完成：<b>legacy.css 全量拆分</b>、<b>16 个「用了但没定义」类名的样式补齐</b>、<b>装饰性 emoji 清零</b>，并在验证过程中发现并修复了一个<b>导致后端无法启动</b>的实体类型缺陷。所有结论均附证据链与验证结果。</div>
+</header>
+
+<div class="grid">
+  <div class="kpi"><b>1698 → 0</b><span>legacy.css 行数（已全量拆出）</span></div>
+  <div class="kpi teal"><b>829 / 829</b><span>拆分前后选择器数（零丢失）</span></div>
+  <div class="kpi copper"><b>16</b><span>新发现并补齐的裸奔类名</span></div>
+  <div class="kpi red"><b>2</b><span>修复的 mssql 不兼容列类型</span></div>
+  <div class="kpi"><b>6 / 6</b><span>Emoji 残留清零（仅剩注释）</span></div>
+  <div class="kpi teal"><b>0</b><span>新文件间选择器冲突</span></div>
+</div>
+
+<h2>1. 本轮做了什么</h2>
+<div class="card">
+<table>
+  <thead><tr><th style="width:22%">工作项</th><th style="width:14%">性质</th><th>内容</th><th style="width:16%">验证</th></tr></thead>
+  <tbody>
+    <tr><td>legacy.css 拆分</td><td><span class="tag t-steel">重构</span></td><td>1698 行的遗留样式按页面归属机械拆成 7 个分层文件，类名零变更</td><td>选择器 829→829 零丢失、跨文件冲突 0</td></tr>
+    <tr><td>裸奔类名补齐</td><td><span class="tag t-copper">缺陷修复</span></td><td>静态扫描出 16 个「JSX 在用、CSS 零定义」的类名，按柔和工业风补齐</td><td>截图逐页确认；新增门禁零未定义</td></tr>
+    <tr><td>装饰性 emoji 清零</td><td><span class="tag t-steel">规范</span></td><td>☰ / ✅ / ❌ 6 处替换为单色描边 SVG，收口到 <code>components/Icons.tsx</code></td><td>tsc + build 通过；扫描仅剩注释</td></tr>
+    <tr><td>后端启动崩溃修复</td><td><span class="tag t-red">阻塞级</span></td><td>2 处实体列写死 <code>type:'boolean'</code>，mssql 不认该类型名 → DataSource 建不起来</td><td>API 由启动失败转为 health=200</td></tr>
+    <tr><td>防回归门禁</td><td><span class="tag t-teal">新增</span></td><td><code>npm run test:css-classes</code>：出现新的未定义类名即失败</td><td>当前 PASS（0 未定义）</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>2. 目录结构：拆分前后</h2>
+<p>拆分前 <code>src/styles/</code> 有 6 个文件，其中 <code>legacy.css</code> 独占 1698 行 / 99 KB，是全站样式的"杂物抽屉"。拆分后每个文件都有明确的页面归属：</p>
+
+<table>
+  <thead><tr><th style="width:26%">文件</th><th style="width:10%">行数</th><th>职责</th></tr></thead>
+  <tbody>
+    <tr><td><code>tokens.css</code></td><td>116</td><td>设计令牌：柔和工业风色板 / 字体 / 尺度 / 工业纹理 / 动效</td></tr>
+    <tr><td><code>base.css</code></td><td>275</td><td>基础层：重置、排版、表单、按钮、标签、表格、卡片、时间线</td></tr>
+    <tr><td><code>login.css</code></td><td>187</td><td>认证层：登录 / 注册 / 找回密码 / 强制改密</td></tr>
+    <tr><td><code>shell.css</code></td><td>326</td><td>外壳层：顶栏、导航、用户与权限区、三栏、对象树</td></tr>
+    <tr><td><code>dashboard.css</code></td><td>167</td><td>驾驶舱层：KPI、筛选条、分布卡、横评表、上手引导</td></tr>
+    <tr style="background:var(--teal-bg)"><td><code>workbench.css</code></td><td>895</td><td><b>v3.60 拆出</b>：分解工作台（视频舞台 / 传输条 / 属性检查器 / 时间线 / 交付条 / 工具箱）</td></tr>
+    <tr style="background:var(--teal-bg)"><td><code>ai.css</code></td><td>450</td><td><b>v3.60 拆出</b>：AI 配置 / AI 改善建议 / AI 分解 / 浪费识别</td></tr>
+    <tr style="background:var(--teal-bg)"><td><code>settings.css</code></td><td>112</td><td><b>v3.60 拆出</b>：设置中心 / 动作标准配置</td></tr>
+    <tr style="background:var(--teal-bg)"><td><code>nav.css</code></td><td>67</td><td><b>v3.60 拆出</b>：导航层分层（工厂 → 产线 → 工位）</td></tr>
+    <tr style="background:var(--teal-bg)"><td><code>components.css</code></td><td>109</td><td><b>v3.60 拆出</b>：通用自绘控件（SelectMenu 下拉 / 右键浮层 / 共享弹窗）</td></tr>
+    <tr style="background:var(--teal-bg)"><td><code>diff.css</code></td><td>69</td><td><b>v3.60 拆出</b>：版本对比页</td></tr>
+    <tr style="background:var(--teal-bg)"><td><code>help.css</code></td><td>56</td><td><b>v3.60 拆出</b>：系统使用帮助文档页</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><b>关于 user.css</b>：原计划拆出「用户管理」层，但扫描确认 <code>UserManagementPage</code> / <code>RolePermissionPanel</code> / <code>RbacAuditPanel</code> 三个页面<b>已 100% 复用 base.css 通用类</b>（card / btn / tag / field / modal / banner），legacy.css 中不存在任何 user 专有样式。因此不建空文件——这本身是一条正面结论。</div>
+
+<h3>2.1 为什么拆分是安全的（可复现的证明）</h3>
+<p>CSS 拆分最大的风险是<b>块间相对顺序改变导致层叠结果变化</b>。原 legacy.css 中页面段落是交错排列的（设置 → AI → 工作台 → 导航 → 工作台…），任何切分都无法保持原序。因此采用如下判据：</p>
+<div class="ok"><b>判据：只要「同一选择器」不跨文件出现，顺序变化就不影响最终层叠结果</b>（特异性相同时后者覆盖前者；无同名即无覆盖关系）。</div>
+<p>用脚本递归解析（含 <code>@media</code> 嵌套）全部新文件并求交集，结果：</p>
+<ul>
+  <li>新文件间<b>同名词选择器：0 个</b></li>
+  <li>拆分前后<b>选择器总数：829 → 829，零丢失</b></li>
+  <li>过程中发现原本唯一的 2 处冲突（<code>.set-tab</code> / <code>.set-tab.on</code> 在 AI 段被重复声明）→ 归入 <code>settings.css</code> 后归零</li>
+</ul>
+<pre>新文件间冲突选择器: 0
+SAFE：拆分不改变层叠结果
+legacy.css 原始选择器数: 829
+新文件选择器合计: 829 | 去重后: 829
+丢失选择器数: 0</pre>
+
+<h2>3. 核心发现：16 个「用了但没定义」的类名</h2>
+<p>这是本轮最有价值的发现。扫描 <code>src/</code> 下全部 JSX 的 className，与 <code>styles/</code> 中已有定义求差集，命中 22 项，剔除 6 项动态前缀误报（<code>banner-${kind}</code> 等，其取值 <code>warn/success/error</code> 等已逐一核实有定义）后，<b>16 个类名在 CSS 中零定义</b>——页面靠 inline style 勉强撑着，不报错但视觉是坏的。</p>
+
+<table>
+  <thead><tr><th style="width:26%">类名</th><th style="width:22%">所在页面</th><th>实际后果</th></tr></thead>
+  <tbody>
+    <tr><td><code>aw-page</code> / <code>aw-section</code> / <code>aw-batch-bar</code></td><td>浪费识别页</td><td>整页区块无任何语义样式</td></tr>
+    <tr style="background:var(--red-bg)"><td><code>aw-issues</code> / <code>aw-issue-card</code></td><td>浪费识别页</td><td><b>致命</b>：<code>.card</code> 本身无外边距，相邻问题卡片<b>零间距粘连</b>成一片</td></tr>
+    <tr><td><code>aw-kb</code> / <code>aw-manual-form</code> / <code>aw-seq-box</code></td><td>知识库 / 人工录入</td><td>勾选盒无边框无底色，与表单区连成一片</td></tr>
+    <tr style="background:var(--red-bg)"><td><code>aip-scene</code> / <code>aip-scenes</code> / <code>aip-scenes-list</code></td><td>AI 分解页</td><td><b>致命</b>：场景切分候选是裸 <code>&lt;button&gt;</code>，浏览器默认按钮样式，与工业风严重割裂</td></tr>
+    <tr><td><code>print-area</code></td><td>分析页改善建议书</td><td>打印时可能被跨页截断</td></tr>
+    <tr><td><code>share-dlg</code></td><td>共享与协作弹窗</td><td>560px 窄弹窗内表格沿用宽表行高，易横向撑破</td></tr>
+    <tr><td><code>std-row-l1</code></td><td>动作标准配置</td><td>一级分组之间<b>无任何视觉分界</b>，长表难读</td></tr>
+    <tr><td><code>wb-converting-txt</code></td><td>工作台转码提示</td><td>长文件名可顶破提示条 max-width</td></tr>
+    <tr><td><code>wb-tbx-g</code></td><td>Ctrl+K 工具箱</td><td>分组内条目无间距</td></tr>
+  </tbody>
+</table>
+
+<h3>3.1 补齐原则（柔和工业风）</h3>
+<ul>
+  <li><b>语义化左侧基线</b>：铜色 = 录入 / 批次操作区，钢青 = 内容区，松绿 = 知识库——用一根 2px 竖线表达区块性质，不加色块不加阴影</li>
+  <li><b>补间距而非加装饰</b>：卡片间距统一 10px，用现有 <code>--sh-*</code> 阴影层级，不引入新色</li>
+  <li><b>不动 transform</b>：入场动画的 <code>to</code> 帧只写 opacity——否则元素留下恒等 transform 会成为 fixed 后代的包含块（v3.18 下拉漂移的已知根因）</li>
+  <li><b>全部落到对应层</b>：<code>aw-*</code>/<code>aip-scene*</code> → ai.css，<code>std-row-l1</code> → settings.css，<code>wb-*</code> → workbench.css，<code>share-dlg</code> → components.css，<code>print-area</code> → base.css</li>
+</ul>
+
+<h2>4. 视觉证据（改造后）</h2>
+
+<figure>
+  <img src="ui-v360/03-ai-waste.png" alt="浪费识别页改造后" />
+  <figcaption>图 1 · 浪费识别页：问题卡片之间已恢复清晰间距，分区卡片左侧出现语义色基线（此前整页裸奔、卡片粘连）</figcaption>
+</figure>
+
+<figure>
+  <img src="ui-v360/04-standard-config.png" alt="动作标准配置页改造后" />
+  <figcaption>图 2 · 动作标准配置：一级分组（拿取 / 放置 / 移动 / 装配）之间出现可辨识的钢青分组带（此前分组间无任何分界）</figcaption>
+</figure>
+
+<figure>
+  <img src="ui-v360/02-dashboard.png" alt="首页驾驶舱" />
+  <figcaption>图 3 · 首页驾驶舱：拆分后无回退——顶栏深色钢板、KPI 卡片、筛选条、对象树均正常</figcaption>
+</figure>
+
+<figure>
+  <img src="ui-v360/05-ai-config.png" alt="AI 配置页" />
+  <figcaption>图 4 · AI 配置页：✅/❌ 已替换为单色描边 SVG 图标，随语义色（松绿 / 砖红）变化</figcaption>
+</figure>
+
+<h2>5. 附带修复：后端启动崩溃（阻塞级）</h2>
+<div class="warn"><b>现象</b>：本轮起服务做视觉验证时，API 无法启动。<code>DataTypeNotSupportedError: Data type "boolean" in "VideoDerivative.vfr" is not supported by "mssql"</code>。修复后再启动，又暴露第二处 <code>AiLlmProfile.enabled</code>。两处都是<b>整个 DataSource 建不起来 → 全站不可用</b>。</div>
+
+<table>
+  <thead><tr><th style="width:22%">实体列</th><th style="width:26%">原声明</th><th style="width:22%">迁移 DDL</th><th>根因</th></tr></thead>
+  <tbody>
+    <tr><td><code>VideoDerivative.vfr</code></td><td><code>type:'boolean'</code></td><td><code>vfr BIT NULL</code></td><td rowspan="2">mssql 驱动不认 <code>boolean</code> 这个类型名（应为 <code>bit</code>）；<b>而隔离测试走 SQLite，SQLite 支持 boolean → 全绿漏网</b>。正是「实体声明与迁移 DDL 必须同步」铁律的同类问题（此前是 length，这里是 type）。</td></tr>
+    <tr><td><code>AiLlmProfile.enabled</code></td><td><code>type:'boolean'</code></td><td><code>enabled BIT NOT NULL DEFAULT 0</code></td></tr>
+  </tbody>
+</table>
+
+<p><b>修法</b>：不写死 type，交给 TypeORM 按方言推断（mssql → BIT，与 DDL 一致；sqlite → BOOLEAN，隔离测试不受影响）。已全量扫描 25 个实体文件，其余列类型（int / decimal / datetime / text / nvarchar / smallint / real / bigint）均无同类问题。</p>
+<pre>- @Column({ type: 'boolean', nullable: true }) vfr: boolean | null;
++ @Column({ nullable: true }) vfr: boolean | null;
+
+- @Column({ type: 'boolean', default: false }) enabled: boolean;
++ @Column({ default: false }) enabled: boolean;</pre>
+<div class="ok"><b>验证</b>：重建 dist 后 API 启动成功，<code>GET /api/health → 200</code>。</div>
+
+<h2>6. 权限管理显示（承接 v3.56，本轮确认）</h2>
+<p>权限显示沿用 v3.56 的收口方案，本轮未改动判定逻辑（<b>判定始终在服务端</b>），仅确认前端展示链路在样式拆分后完好：</p>
+<ul>
+  <li>展示入口 <code>components/UserMenu.tsx</code>：可见范围徽标 + 权限浮层</li>
+  <li>数据源：后端 <code>/api/auth/me</code> 返回的 <code>dataScope</code>（own / line / tenant / all）与 <code>fullAccess</code></li>
+  <li>判定：唯一口径 <code>stations.service.resolveVisibleStationIds()</code> = ACL 三并集 ∪ data_scope；全权角色单一数据源 <code>api/src/rbac/full-access.ts</code></li>
+  <li>越权页：<code>.deny-card</code> 403 提示卡</li>
+</ul>
+
+<h2>7. 验证矩阵</h2>
+<table>
+  <thead><tr><th style="width:30%">门禁 / 用例</th><th style="width:16%">结果</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>前端类型检查 <code>tsc --noEmit</code></td><td><span class="tag t-teal">0 错</span></td><td>含新增 Icons.tsx 与三处引用改造</td></tr>
+    <tr><td>前端构建 <code>npm run build</code></td><td><span class="tag t-teal">通过</span></td><td>CSS 产物 112.86 kB / gzip 22.12 kB，与拆分前一致</td></tr>
+    <tr><td>拆包预算 <code>test:perf</code></td><td><span class="tag t-teal">6 / 6</span></td><td>首屏 JS gzip ≤120KB、三个路由独立 chunk 全部保持</td></tr>
+    <tr><td>CSS 类名门禁 <code>test:css-classes</code></td><td><span class="tag t-teal">PASS</span></td><td>未定义类名 22 → 0（6 项动态前缀已白名单）</td></tr>
+    <tr><td>描述联想离线 <code>test:desc-hints</code></td><td><span class="tag t-teal">6 / 6</span></td><td>—</td></tr>
+    <tr><td>前端单元 <code>test-p2-unit</code></td><td><span class="tag t-teal">23 / 0</span></td><td>—</td></tr>
+    <tr><td>UI 回归 <code>test-v349</code></td><td><span class="tag t-teal">22 / 0</span></td><td>ST010 工位，全通过</td></tr>
+    <tr><td>UI 回归 <code>test-v348</code></td><td><span class="tag t-amber">23 / 3</span></td><td>3 项失败均为<b>既有数据态偏差</b>，见下方说明</td></tr>
+    <tr><td>后端 API 启动</td><td><span class="tag t-teal">health 200</span></td><td>本轮修复前为启动失败</td></tr>
+    <tr><td>原生 <code>&lt;select&gt;</code> 铁律</td><td><span class="tag t-teal">合规</span></td><td>全量 grep 仅剩注释说明文字，零实际 JSX 元素</td></tr>
+  </tbody>
+</table>
+
+<div class="note"><b>关于 v348 的 3 项失败</b>：<br/>
+① <code>T1/T7 期望 20 个要素 → 实际 19</code>：ST010 当前实际 19 条要素（已直连数据库核实）。本轮未做任何业务数据写入，属既有数据态与断言不符。<br/>
+② <code>T9 采纳/否决按钮各 3 → 实际 0（待审标签 2/3）</code>：该断言按按钮<b>文本内容</b>计数（<code>b.textContent.trim() === '采纳'</code>），CSS 无法影响；且已在「AI 关闭」前置下复跑结果相同，说明是既有建议已部分决策的数据态所致。<br/>
+→ 结论：与本次改动无关，需单独排期修正测试数据或断言。</div>
+
+<div class="note"><b>未能执行的回归</b>：UI 套件 v341 / v343 / v344 / v351 / v353 依赖 <code>L01-ST01</code> 与 <code>L01-ST11</code> 前置工位，而 2026-10-29 经授权的业务数据清空后库内仅余 ST010。<b>按既定纪律严禁 <code>npm run seed</code></b>（会重新植入种子工位、部分抵消清库结果），故未重建这些夹具，本轮改由「构建 + 离线门禁 + 逐页截图」验证。</div>
+
+<h2>8. 遗留与下一步</h2>
+<table>
+  <thead><tr><th style="width:26%">事项</th><th style="width:12%">优先级</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>重建 UI 回归夹具</td><td><span class="tag t-amber">P1</span></td><td>需单独建 L01-ST01 / L01-ST11 测试工位（非 <code>npm run seed</code>），恢复 v341+ 全套可执行</td></tr>
+    <tr><td>v348 断言与数据对齐</td><td><span class="tag t-amber">P1</span></td><td>20 vs 19 要素、已决策建议导致待审数不足</td></tr>
+    <tr><td>内联样式回收</td><td><span class="tag t-steel">P2</span></td><td>浪费识别页仍有大量 <code>style={{...}}</code> 内联样式，建议逐步收进 ai.css</td></tr>
+    <tr><td>内网字体自托管</td><td><span class="tag t-steel">P2</span></td><td>IBM Plex / Barlow Condensed 目前依赖外部加载，内网机器可能回退</td></tr>
+    <tr><td>workbench.css 再拆</td><td><span class="tag t-steel">P3</span></td><td>895 行仍偏大，可按「舞台 / 检查器 / 时间线 / 工具箱」继续切</td></tr>
+    <tr><td>依赖审计 10 high / 1 critical</td><td><span class="tag t-red">P1</span></td><td>api 侧 <code>npm run test:deps</code> 未清零（既有，非本轮引入）</td></tr>
+  </tbody>
+</table>
+
+<h2>9. 变更文件清单</h2>
+<pre>新增  app/web/src/styles/workbench.css       (895 行，由 legacy 拆出)
+新增  app/web/src/styles/ai.css              (450 行，由 legacy 拆出 + v3.60 补齐)
+新增  app/web/src/styles/settings.css        (112 行，由 legacy 拆出 + v3.60 补齐)
+新增  app/web/src/styles/nav.css             ( 67 行，由 legacy 拆出)
+新增  app/web/src/styles/components.css      (109 行，由 legacy 拆出 + v3.60 补齐)
+新增  app/web/src/styles/diff.css            ( 69 行，由 legacy 拆出)
+新增  app/web/src/styles/help.css            ( 56 行，由 legacy 拆出)
+新增  app/web/src/components/Icons.tsx       (SVG 图标：IconMenu / IconCheck / IconCross)
+新增  app/web/test-css-classes.cjs           (类名防回归门禁)
+删除  app/web/src/styles/legacy.css          (1698 行，已全量拆出)
+修改  app/web/src/styles.css                 (12 条 @import，替代原 6 条)
+修改  app/web/src/styles/base.css            (+print-area)
+修改  app/web/src/components/GroupTree.tsx   (☰ → IconMenu)
+修改  app/web/src/components/StationTree.tsx (☰ → IconMenu)
+修改  app/web/src/pages/AiConfigPage.tsx     (✅/❌ → IconCheck/IconCross)
+修改  app/web/package.json                   (+test:css-classes)
+修改  app/api/src/entities/video-derivative.entity.ts   (type:'boolean' → 方言推断)
+修改  app/api/src/modules/ai-suggest/entities/ai-llm-profile.entity.ts (同上)</pre>
+
+<div class="foot">
+  报告版本 v3.60 · 生成于 2026-11-02 · 证据截图见 <code>deliverables/ui-v360/</code><br/>
+  方法：静态类名扫描 + 递归选择器冲突校验 + 真实浏览器逐页截图 + 既有回归门禁。所有结论可复现；数据缺口与未执行项已在第 7、8 节显式声明，未做任何推测性结论。
+</div>
+
+</div>
+</body>
+</html>

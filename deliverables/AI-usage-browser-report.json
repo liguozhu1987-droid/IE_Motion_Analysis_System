@@ -1,0 +1,150 @@
+{
+  "generated_at": "2026-11-02T01:53:46.368Z",
+  "base": "http://127.0.0.1:3103/api",
+  "browser": "real Chrome via puppeteer-core",
+  "passed": true,
+  "checks": [
+    {
+      "name": "导航路由直达 AI 用量统计页",
+      "pass": true,
+      "evidence": "AI 用量统计"
+    },
+    {
+      "name": "AI 用量不再占用首层菜单且系统管理父项激活",
+      "pass": true,
+      "evidence": {
+        "topLevelUsage": 0,
+        "systemActive": true
+      }
+    },
+    {
+      "name": "5 个 KPI 与隔离事实精确一致",
+      "pass": true,
+      "evidence": [
+        "1,411",
+        "245",
+        "116",
+        "8",
+        "10"
+      ]
+    },
+    {
+      "name": "默认按用户＋产线＋工位＋功能显示 4 个分组",
+      "pass": true,
+      "evidence": 4
+    },
+    {
+      "name": "缺失 usage 明示警告，不按 0 静默处理",
+      "pass": true,
+      "evidence": "有 1 次调用的上游响应未提供 Token 用量；这些记录计调用次数，但 Token 不按 0 虚构。"
+    },
+    {
+      "name": "历史/缺失/完整数据口径标签可见",
+      "pass": true,
+      "evidence": [
+        "部分明细",
+        "历史总 Token",
+        "逐次明细",
+        "部分明细"
+      ]
+    },
+    {
+      "name": "筛选使用 FilterSelect，无原生 select",
+      "pass": true,
+      "evidence": 0
+    },
+    {
+      "name": "1440px 无页面横向溢出",
+      "pass": true,
+      "evidence": false
+    },
+    {
+      "name": "单页结果禁用下一页",
+      "pass": true,
+      "evidence": true
+    },
+    {
+      "name": "管理员系统管理菜单同时包含 AI 配置与 AI 用量统计",
+      "pass": true,
+      "evidence": {
+        "usage": 1,
+        "config": 1
+      }
+    },
+    {
+      "name": "工位筛选只显示该工位 15 Token，不叠加历史 80",
+      "pass": true,
+      "evidence": {
+        "stationMetrics": [
+          "15",
+          "10",
+          "5",
+          "1",
+          "1"
+        ],
+        "stationText": "IE 工程师 王工\tL01 · 示例装配线 L01\tL01-ST02 · 锁螺丝\tAI 改善建议\t1\t1\t0\t10\t5\t15\t逐次明细"
+      }
+    },
+    {
+      "name": "功能筛选验证浪费/问题共享生成只计 300 历史 Token",
+      "pass": true,
+      "evidence": [
+        "300",
+        "—",
+        "—",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "空范围 KPI 为 0/未知且表格显示明确空态",
+      "pass": true,
+      "evidence": {
+        "metrics": [
+          "0",
+          "—",
+          "—",
+          "0",
+          "0"
+        ],
+        "empty": "当前筛选范围内没有正式 AI 调用或历史 Token 记录"
+      }
+    },
+    {
+      "name": "1280px 筛选换行且页面无横向溢出",
+      "pass": true,
+      "evidence": {
+        "overflow": false,
+        "filters": 7
+      }
+    },
+    {
+      "name": "普通 IE 工程师保留 AI 用量入口但不显示 AI 配置",
+      "pass": true,
+      "evidence": {
+        "usage": 1,
+        "config": 0,
+        "topLevelUsage": 0,
+        "total": "15"
+      }
+    },
+    {
+      "name": "无 JavaScript pageerror",
+      "pass": true,
+      "evidence": []
+    },
+    {
+      "name": "无 API 5xx 响应",
+      "pass": true,
+      "evidence": []
+    }
+  ],
+  "pageErrors": [],
+  "failedResponses": [],
+  "screenshots": [
+    "AI-usage-page-1440.png",
+    "AI-usage-system-menu.png",
+    "AI-usage-page-empty.png",
+    "AI-usage-page-1280.png"
+  ]
+}

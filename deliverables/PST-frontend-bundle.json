@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-11-04T10:14:58.216Z",
+  "dist": "app/web/dist",
+  "initial": [
+    {
+      "file": "index-CffWeKuS.js",
+      "raw_bytes": 287434,
+      "gzip_bytes": 89511
+    }
+  ],
+  "initial_gzip_bytes": 89511,
+  "route_chunks": {
+    "DashboardPage": {
+      "file": "DashboardPage-opq5iHbi.js",
+      "raw_bytes": 11238,
+      "gzip_bytes": 3030
+    },
+    "WorkbenchPage": {
+      "file": "WorkbenchPage-cU9UBdqs.js",
+      "raw_bytes": 113649,
+      "gzip_bytes": 37660
+    },
+    "AnalysisPage": {
+      "file": "AnalysisPage-C7IIA1fe.js",
+      "raw_bytes": 26685,
+      "gzip_bytes": 8287
+    }
+  },
+  "total_js_chunks": 25,
+  "passed": 6,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "首屏只有一个入口 script",
+      "pass": true,
+      "evidence": [
+        "/assets/index-CffWeKuS.js"
+      ]
+    },
+    {
+      "name": "首屏 JS gzip ≤120KB",
+      "pass": true,
+      "evidence": {
+        "gzip_bytes": 89511,
+        "limit": 122880
+      }
+    },
+    {
+      "name": "DashboardPage 独立路由 chunk",
+      "pass": true,
+      "evidence": "DashboardPage-opq5iHbi.js"
+    },
+    {
+      "name": "WorkbenchPage 独立路由 chunk",
+      "pass": true,
+      "evidence": "WorkbenchPage-cU9UBdqs.js"
+    },
+    {
+      "name": "AnalysisPage 独立路由 chunk",
+      "pass": true,
+      "evidence": "AnalysisPage-C7IIA1fe.js"
+    },
+    {
+      "name": "首屏 HTML 不预载重工作台",
+      "pass": true,
+      "evidence": [
+        "/assets/index-CffWeKuS.js"
+      ]
+    }
+  ],
+  "not_covered": [
+    "Lighthouse LCP/INP/CLS",
+    "真实 Chrome 时间线拖拽帧率与长任务"
+  ]
+}

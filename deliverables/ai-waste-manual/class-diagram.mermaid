@@ -1,0 +1,30 @@
+classDiagram
+    class AiWasteStationController {
+      +generate(stationId, user)
+      +generateManual(stationId, user)
+      +latest(stationId, query)
+      +batches(stationId, query)
+    }
+    class AiWasteService {
+      -loadBySource(station, source) {elements, outliers, ct}
+      +generate(stationId, userId, source='ai_assisted')
+      -doGenerate(station, userId, elements, ct, outliers, source)
+      -runLlmAndValidate(station, batchId, elements, ct, outliers, eff)
+      -lastBatchOf(stationId, statuses, source)
+      +latest(stationId, source?) / +listBatches(stationId, source?)
+      -batchPayload(batch, ct?) / +settle(issueId, status, operator)
+    }
+    class WasteUserPayload {
+      +station_id string / +ct number / +tt number
+      +elements WasteCompactElement[] / +outliers WasteOutlierHint[]
+      +decomposition_source 'ai_assisted'|'manual' / +waste_whitelist string[]
+    }
+    class ListWasteBatchesQuery {
+      +source? 'manual'|'ai_assisted' / +version? number
+    }
+    class AiWasteBatch {
+      +element_source 'ai_assisted'|'manual' / +prompt_version 'WV2' / +status running|done|done_empty|failed
+    }
+    AiWasteStationController --> AiWasteService
+    AiWasteService ..> WasteUserPayload : buildWasteUserPrompt()
+    AiWasteService ..> AiWasteBatch : lastBatchOf(source)

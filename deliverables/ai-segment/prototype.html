@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 动作切分候选层 · 原型（嵌于 v3.32 分解工作台）</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   1. 项目既有 Token（原样复制自 app/web/src/styles.css :root）
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --ink:#1a2332; --ink2:#3d4a5c; --ink3:#6b7787;
+  --line:#e3e8f0; --line2:#cbd5e3;
+  --bg:#f6f8fb; --card:#ffffff;
+  --blue:#1f5fd0; --blue-bg:#eef4ff; --blue-line:#c7d8f5;
+  --teal:#0e8074; --teal-bg:#e8f6f4; --teal-line:#bfe3de;
+  --amber:#9a6a00; --amber-bg:#fdf6e3; --amber-line:#f0dfae;
+  --red:#b3372f; --red-bg:#fdeeec; --red-line:#f2c8c3;
+
+  /* ══════════════════════════════════════════════════════════
+     AIS-1.0 · AI 候选层增量 Token（只增不改，全部由既有色派生）
+     原则：不引入新色相 / 颜色不单独表意 / 无裸 hex
+     ══════════════════════════════════════════════════════════ */
+  --ai-ink:         color-mix(in srgb, var(--ink) 88%, var(--ink3));
+  --ai-ink-weak:    color-mix(in srgb, var(--ink2) 62%, transparent);
+  --ai-fill:        color-mix(in srgb, var(--ink2) 6%, transparent);
+  --ai-fill-hover:  color-mix(in srgb, var(--ink2) 11%, transparent);
+  --ai-hatch:       color-mix(in srgb, var(--ink2) 20%, transparent);
+  --ai-line:        color-mix(in srgb, var(--ink2) 52%, transparent);
+  --ai-line-strong: color-mix(in srgb, var(--ink) 66%, transparent);
+
+  --ai-hatch-pitch-high:10px;
+  --ai-hatch-pitch-mid:6px;
+  --ai-hatch-pitch-low:3px;
+  --ai-pip-w:2px; --ai-pip-h:4px; --ai-pip-gap:1px; --ai-pip-strip-h:7px;
+
+  --ai-focus-ring:0 0 0 1px var(--card), 0 0 0 3px color-mix(in srgb, var(--blue) 46%, transparent);
+  --ai-dim-human:.18; --ai-dim-other-lane:.35;
+
+  --ai-sweep-dur:1200ms;
+  --ai-ease:cubic-bezier(.2,0,0,1);
+  --ai-dur-in:150ms;
+}
+@media (prefers-reduced-motion: reduce){
+  :root{ --ai-sweep-dur:0ms; --ai-dur-in:0ms; }
+  *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; }
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; height:100%; }
+body{
+  background:#e9edf3; color:var(--ink);
+  font-family:"Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;
+  font-size:14px; line-height:1.7;
+  display:flex; flex-direction:column; align-items:center;
+  padding:14px 0 40px;
+}
+.mono{ font-family:"JetBrains Mono","Cascadia Mono",Consolas,monospace; font-variant-numeric:tabular-nums; }
+button{ font-family:inherit; }
+
+/* ══════════════════════════════════════════════════════════════════
+   2. 原型工具条（产品之外，不属于设计交付）
+   ══════════════════════════════════════════════════════════════════ */
+.proto{
+  width:1366px; max-width:calc(100vw - 28px);
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:#fff; border:1px solid var(--line); border-radius:12px;
+  padding:10px 14px; margin-bottom:12px;
+  box-shadow:0 10px 26px -22px rgba(16,30,54,.5);
+}
+.proto h1{ font-size:14px; margin:0; font-weight:700; }
+.proto h1 span{ font-weight:400; color:var(--ink3); font-size:12px; margin-left:8px; }
+.proto-tabs{ display:inline-flex; gap:4px; background:var(--bg); border-radius:9px; padding:3px; }
+.proto-tabs button{
+  border:none; background:transparent; color:var(--ink3); cursor:pointer;
+  font-size:12px; padding:5px 12px; border-radius:7px; transition:all .14s var(--ai-ease);
+}
+.proto-tabs button:hover{ color:var(--ink); }
+.proto-tabs button.on{ background:#fff; color:var(--ink); font-weight:700; box-shadow:0 1px 3px rgba(16,30,54,.1); }
+.proto-tools{ margin-left:auto; display:flex; align-items:center; gap:14px; font-size:12px; color:var(--ink2); }
+.proto-tools label{ display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+.proto-tools input[type=checkbox]{ width:14px; height:14px; accent-color:var(--blue); }
+
+/* ══════════════════════════════════════════════════════════════════
+   3. 产品外壳（1366×768 定尺，四档视口由 JS 改宽高）
+   ══════════════════════════════════════════════════════════════════ */
+.app{
+  flex:0 0 auto;                 /* 不被 body flex 压缩：定尺 1366×768 是验收前提 */
+  width:1366px; height:768px; background:var(--bg);
+  display:flex; flex-direction:column; overflow:hidden;
+  border:1px solid #cfd8e5; border-radius:10px;
+  box-shadow:0 24px 60px -32px rgba(12,24,44,.55);
+  position:relative; zoom:var(--zoom,1);
+}
+.app.gray-tl .wb-tlstrip{ filter:grayscale(1); }
+
+/* 全局顶栏（既有：深蓝渐变，非 Indigo→Pink） */
+.topbar{
+  flex:0 0 48px; display:flex; align-items:center; gap:16px; padding:0 22px;
+  background:linear-gradient(135deg,#12315e 0%,#1f5fd0 100%); color:#fff;
+}
+.brand{ font-weight:700; font-size:15px; letter-spacing:.4px; }
+.brand small{ font-weight:400; opacity:.75; margin-left:8px; font-size:12px; }
+.nav{ display:flex; gap:4px; margin-left:auto; align-items:center; }
+.nav a{ padding:6px 11px; border-radius:8px; color:rgba(255,255,255,.82); font-size:13px; text-decoration:none; }
+.nav a.active,.nav a:hover{ background:rgba(255,255,255,.15); color:#fff; }
+.nav-sep{ width:1px; height:16px; background:rgba(255,255,255,.22); margin:0 7px; }
+.userchip{ display:flex; align-items:center; gap:7px; font-size:12.5px; opacity:.9; margin-left:10px; }
+.userchip .avatar{ width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.2); display:grid; place-items:center; font-size:11px; }
+
+.shell-main{ flex:1 1 auto; min-height:0; display:flex; padding:0 10px; }
+
+/* 面包屑 + 工位页签（既有） */
+.crumbs{ flex:0 0 24px; display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--ink3); }
+.crumbs b{ color:var(--ink2); font-weight:600; }
+.crumbs .sep{ color:var(--line2); }
+.stabs{ flex:0 0 28px; display:flex; align-items:flex-end; gap:4px; }
+.stabs a{
+  font-size:12px; color:var(--ink3); text-decoration:none; padding:4px 11px; border-radius:8px 8px 0 0;
+  border:1px solid transparent; line-height:1.3;
+}
+.stabs a.on{ background:var(--card); border-color:var(--line); border-bottom-color:var(--card); color:var(--ink); font-weight:700; position:relative; top:1px; }
+.stabs a:hover{ color:var(--blue); }
+
+/* 工作台容器 */
+.wb{ flex:1 1 auto; min-width:0; min-height:0; display:flex; flex-direction:column; gap:6px; padding-bottom:6px; }
+
+/* ── 顶栏 38px ── */
+.wb-topbar{ flex:0 0 38px; display:flex; align-items:center; gap:14px; }
+.wb-id{ min-width:0; }
+.wb-id h1{ font-size:15px; font-weight:700; line-height:1.2; }
+.wb-meta{ font-size:11px; color:var(--ink3); display:flex; align-items:center; gap:5px; }
+.wb-meta i{ font-style:normal; color:var(--line2); }
+.wb-meta a{ color:var(--blue); text-decoration:none; }
+.wb-stats{ display:flex; align-items:stretch; gap:2px; margin-left:4px; }
+.ws{ padding:1px 11px; border-left:1px solid var(--line); display:flex; flex-direction:column; justify-content:center; line-height:1.15; }
+.ws:first-child{ border-left:none; }
+.ws b{ font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; }
+.ws b i{ font-size:10px; font-style:normal; color:var(--ink3); font-weight:600; margin-left:1px; }
+.ws span{ font-size:10.5px; color:var(--ink3); }
+.ws.warn b{ color:var(--amber); }
+.wb-top-acts{ display:flex; align-items:center; gap:6px; margin-left:auto; flex:0 0 auto; }
+.wb-vfile{ font-size:11px; color:var(--ink3); max-width:22ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:4px; }
+.wb-top-btn{
+  font-size:12px; font-weight:600; color:var(--ink2); cursor:pointer;
+  border:1px solid var(--line2); border-radius:7px; padding:4px 10px; background:#fff;
+  display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  transition:all .14s var(--ai-ease);
+}
+.wb-top-btn:hover{ border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
+.wb-top-btn.icon{ padding:4px 8px; }
+.wb-top-btn svg{ display:block; }
+/* AI 切分按钮：与「复用要素」并列，同属"批量灌入要素"捷径 */
+.wb-top-btn.ai{ color:var(--ai-ink); border-color:var(--ai-line); background:var(--ai-fill); }
+.wb-top-btn.ai:hover{ color:var(--ink); border-color:var(--ai-line-strong); background:var(--ai-fill-hover); }
+
+/* ── 主区：舞台（左，676）+ 检查器（右，≤560） ── */
+.wb-main{
+  flex:1 1 auto; min-height:0; display:grid; gap:12px; align-items:stretch;
+  grid-template-columns:var(--stage-w,676px) minmax(280px,1fr);
+  grid-template-rows:minmax(0,1fr);   /* 关键：auto 行不会收缩，会让时间线条叠到画面上 */
+  justify-content:start;
+}
+.wb-stage{
+  display:flex; min-height:0; flex-direction:column; min-height:0; container-type:inline-size;
+  background:linear-gradient(168deg,#101a26 0%,#0a1119 58%,#0d1622 100%);
+  border:1px solid #1d2a3a; border-radius:14px; overflow:hidden;
+  box-shadow:0 18px 40px -28px rgba(9,20,34,.55);
+}
+.wb-screen{ position:relative; background:#04080d; flex:1 1 auto; min-height:120px; display:grid; place-items:center; box-shadow:inset 0 0 70px rgba(0,0,0,.55); }
+.wb-frame{ position:relative; width:676px; height:380px; background:#04080d; overflow:hidden; }
+/* 视频画面：用分块灰阶模拟车间实拍（原型不引外链） */
+.scene{ position:absolute; inset:0; background:
+  radial-gradient(120% 90% at 24% 18%, #2b3a4a 0%, #16212c 52%, #0b1219 100%); }
+.scene::before{ content:''; position:absolute; left:8%; right:8%; top:56%; height:32%;
+  background:linear-gradient(180deg,#3b4a58,#243039); border-radius:3px; box-shadow:0 -6px 0 -3px #4a5a68; }
+.scene::after{ content:''; position:absolute; left:47%; top:22%; width:15%; height:36%;
+  background:linear-gradient(180deg,#5d6d7c,#37454f); border-radius:6px 6px 2px 2px; opacity:.85; }
+.scene .lamp{ position:absolute; left:12%; top:10%; width:76%; height:18%;
+  background:radial-gradient(60% 100% at 50% 0%,rgba(255,236,190,.22),transparent 72%); }
+.wb-frame .hud{ position:absolute; left:10px; bottom:8px; font-size:10.5px; color:rgba(255,255,255,.5); letter-spacing:.02em; }
+.wb-frame .hud b{ color:rgba(255,255,255,.85); }
+
+/* 控制栏 41px 恒定高 */
+.wb-controls{
+  flex:0 0 41px; display:flex; align-items:center; gap:5px; flex-wrap:nowrap;
+  padding:5px 8px; background:rgba(255,255,255,.035); border-top:1px solid rgba(255,255,255,.07);
+  height:41px; overflow:hidden;
+}
+.wb-controls>*{ flex:0 0 auto; }
+.wb-play{ width:30px; height:30px; flex:0 0 30px; border-radius:50%; border:none; background:var(--blue); color:#fff; display:inline-grid; place-items:center; cursor:pointer; transition:transform .12s var(--ai-ease); }
+.wb-play:hover{ transform:scale(1.06); }
+.wb-play:disabled{ background:rgba(255,255,255,.14); cursor:not-allowed; transform:none; }
+.wb-tp-group{ display:inline-flex; align-items:center; gap:2px; padding-left:4px; border-left:1px solid rgba(255,255,255,.1); }
+.wb-tp-btn{ min-width:26px; height:28px; padding:0 4px; border:none; border-radius:7px; background:transparent; color:rgba(255,255,255,.82); cursor:pointer; display:inline-grid; place-items:center; font-size:12px; transition:all .12s var(--ai-ease); }
+.wb-tp-btn:hover{ background:rgba(255,255,255,.13); color:#fff; }
+.wb-tp-btn.sm{ font-size:11px; letter-spacing:-.02em; color:rgba(255,255,255,.72); }
+.wb-tp-btn:disabled{ opacity:.35; cursor:not-allowed; }
+.wb-tp-time{ display:inline-flex; align-items:baseline; gap:6px; margin-left:2px; }
+.wb-tp-time b{ color:#fff; font-size:13px; letter-spacing:.02em; font-variant-numeric:tabular-nums; }
+.wb-tp-time span{ color:rgba(255,255,255,.42); font-size:10.5px; }
+.wb-fps{ font-size:10px; color:rgba(255,255,255,.42); border:1px solid rgba(255,255,255,.14); border-radius:5px; padding:0 4px; margin-left:4px; }
+.wb-tp-speed{ display:inline-flex; gap:2px; align-items:center; }
+.wb-tp-speed button{ border:none; background:transparent; color:rgba(255,255,255,.5); font-size:11px; padding:3px 5px; border-radius:6px; cursor:pointer; transition:all .12s var(--ai-ease); font-variant-numeric:tabular-nums; }
+.wb-tp-speed button:hover{ color:#fff; background:rgba(255,255,255,.11); }
+.wb-tp-speed button.on{ background:rgba(255,255,255,.92); color:#0b1119; font-weight:700; }
+.wb-loop-btn{ border:1px solid rgba(255,255,255,.18); background:transparent; color:rgba(255,255,255,.55); font-size:10.5px; font-weight:600; padding:3px 7px; border-radius:6px; cursor:pointer; }
+.wb-loop-btn.on{ border-color:rgba(120,220,220,.6); color:#9fe6e2; background:rgba(20,90,90,.35); }
+.wb-rec{ display:inline-flex; align-items:center; gap:4px; margin-left:auto; padding-left:8px; border-left:1px solid rgba(255,255,255,.1); }
+.wb-rec-btn,.wb-rec-split{
+  height:28px; padding:0 8px; border:1px solid rgba(255,255,255,.18); border-radius:7px;
+  background:rgba(255,255,255,.05); color:rgba(255,255,255,.86); cursor:pointer;
+  display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:600; white-space:nowrap;
+  transition:all .12s var(--ai-ease);
+}
+.wb-rec-btn:hover,.wb-rec-split:hover{ background:rgba(255,255,255,.15); border-color:rgba(255,255,255,.34); color:#fff; }
+.io-k{ font-size:11px; font-weight:800; color:#0b1119; background:rgba(255,255,255,.72); border-radius:3px; padding:0 3px; line-height:14px; }
+@container (max-width:720px){ .wb-rec-btn .lbl,.wb-rec-split .lbl{ display:none; } }
+
+/* ── 顶栏 / 时间线条：固定行高靠内容压紧，否则 line-height:1.7 会把行撑破 ── */
+.wb-id h1{ line-height:1.15; }
+.wb-meta{ line-height:1.3; }
+.wb-tlstrip-head{ min-height:29px; height:29px; }
+.wb-tabs{ padding:1px; }
+.wb-tabs button{ padding:3px 11px; line-height:1.15; }
+.wb-panel-sel{ padding:1px 8px; line-height:1.55; }
+.wb-tlstrip-toggle{ padding:2px 9px; line-height:1.4; }
+.wb-legend{ line-height:1.3; }
+.wb-tabs .cnt{ line-height:15px; }
+
+/* ── 属性检查器（既有，候选层零改动） ── */
+.wb-inspector{
+  width:100%; max-width:560px; min-height:0; height:100%; overflow:auto;
+  background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+  box-shadow:0 10px 26px -26px rgba(16,30,54,.4);
+}
+.wb-insp-toggle-row{ display:flex; justify-content:flex-end; margin-bottom:6px; }
+.wb-insp-toggle-btn{ border:1px solid var(--line2); background:#fff; color:var(--ink3); font-size:11px; border-radius:7px; padding:2px 8px; cursor:pointer; }
+.wb-insp-head{ display:flex; align-items:center; gap:8px; padding-bottom:8px; }
+.wb-insp-seq{ font-size:12px; font-weight:800; color:#fff; background:var(--ink2); border-radius:6px; padding:1px 7px; font-variant-numeric:tabular-nums; }
+.wb-insp-head .h-desc{ font-size:13px; font-weight:700; flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb-icon{ width:26px; height:26px; border:1px solid var(--line); background:#fff; border-radius:7px; color:var(--ink3); display:inline-grid; place-items:center; cursor:pointer; }
+.wb-icon:hover{ border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
+.wb-icon.danger:hover{ border-color:var(--red); color:var(--red); background:var(--red-bg); }
+.wb-sec{ padding:9px 0; border-top:1px dashed var(--line); }
+.wb-sec:first-of-type{ border-top:none; }
+.wb-sec-t{ font-size:11px; font-weight:800; color:var(--ink3); letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px; display:flex; align-items:center; }
+.btn{ border:1px solid var(--line2); background:#fff; color:var(--ink2); border-radius:8px; padding:6px 12px; font-size:12.5px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.btn.primary{ background:var(--blue); border-color:var(--blue); color:#fff; }
+.btn.sm{ padding:4px 9px; font-size:12px; }
+.wb-insp-foot{ display:flex; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid var(--line); }
+.wb-insp-foot .btn.primary{ flex:1; justify-content:center; }
+.field{ margin-bottom:7px; }
+.field label{ display:block; font-size:11px; color:var(--ink3); margin-bottom:2px; }
+.input{ width:100%; border:1px solid var(--line2); border-radius:7px; padding:5px 8px; font-size:12.5px; font-family:inherit; color:var(--ink); background:#fff; }
+.input.focus{ border-color:var(--blue); box-shadow:var(--ai-focus-ring); }
+.row2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.sd-row{ display:grid; grid-template-columns:92px 1fr 82px 74px; gap:6px; align-items:end; }
+.sd-type{ border:1px solid var(--line2); border-radius:7px; padding:5px 8px; font-size:12.5px; background:var(--blue-bg); border-color:var(--blue-line); color:var(--blue); font-weight:700; display:flex; align-items:center; justify-content:space-between; }
+.wb-batch{ border:1px solid var(--line); border-radius:9px; overflow:hidden; margin-bottom:8px; }
+.wb-batch-sum{ width:100%; border:none; background:#fbfcfe; padding:7px 9px; display:flex; align-items:center; gap:8px; cursor:pointer; font-family:inherit; text-align:left; }
+.wb-batch-sum-t{ font-size:12px; font-weight:700; color:var(--ink2); }
+.wb-batch-sum-v{ font-size:11px; color:var(--ink3); }
+.wb-batch-sum-v.warn{ color:var(--amber); font-weight:600; }
+.wb-batch-caret{ margin-left:auto; color:var(--ink3); font-size:10px; }
+.tag{ display:inline-block; font-size:10.5px; font-weight:700; border-radius:5px; padding:0 5px; line-height:16px; }
+.t-teal{ background:var(--teal-bg); color:var(--teal); }
+.t-amber{ background:var(--amber-bg); color:var(--amber); }
+.t-red{ background:var(--red-bg); color:var(--red); }
+.t-blue{ background:var(--blue-bg); color:var(--blue); }
+.t-gray{ background:var(--bg); color:var(--ink3); }
+
+/* ══════════════════════════════════════════════════════════════════
+   4. 时间线条（既有骨架，145px = head 29 + body 116）
+   ══════════════════════════════════════════════════════════════════ */
+.wb-tlstrip{ flex:0 0 auto; display:flex; flex-direction:column; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.wb-tlstrip-head{ flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:3px 9px 3px 7px; border-bottom:1px solid var(--line); min-height:29px; }
+.wb-tabs{ display:inline-flex; background:var(--bg); border-radius:9px; padding:2px; gap:2px; flex:0 0 auto; }
+.wb-tabs button{ border:none; background:transparent; color:var(--ink3); font-size:12px; padding:4px 12px; border-radius:7px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .14s var(--ai-ease); }
+.wb-tabs button:hover{ color:var(--ink); }
+.wb-tabs button.on{ background:#fff; color:var(--ink); font-weight:700; box-shadow:0 1px 3px rgba(16,30,54,.09); }
+.wb-tabs .cnt{ font-size:10px; background:var(--line); color:var(--ink2); border-radius:8px; padding:0 6px; font-weight:700; font-variant-numeric:tabular-nums; }
+.wb-tabs button.on .cnt{ background:var(--blue-bg); color:var(--blue); }
+/* 候选页签：未激活时也用石墨语义（与候选块呼应），激活后仍走既有 on 态 */
+.wb-tabs button.cand{ color:var(--ai-ink); }
+.wb-tabs button.cand .cnt{ background:var(--ai-fill); color:var(--ai-ink); }
+.wb-panel-sel{ font-size:11px; color:var(--ink2); background:var(--bg); border:1px solid var(--line); border-radius:7px; padding:2px 8px; max-width:56ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb-panel-sel.cand{ background:var(--ai-fill); border-color:var(--ai-line); color:var(--ai-ink); }
+.wb-panel-sel .kbd{ border:1px solid var(--ai-line); border-radius:4px; padding:0 4px; font-size:10px; font-weight:700; }
+.wb-legend{ display:flex; gap:11px; font-size:11px; color:var(--ink3); margin-left:auto; flex-wrap:nowrap; }
+.wb-legend i{ display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; }
+.wb-legend i.va{ background:var(--teal); } .wb-legend i.rnva{ background:#c9a227; } .wb-legend i.nva{ background:var(--red); }
+.wb-tlstrip-toggle{ flex:0 0 auto; border:1px solid var(--line2); background:#fff; color:var(--ink3); font-size:11px; border-radius:7px; padding:3px 9px; cursor:pointer; }
+.wb-tlstrip-toggle:hover{ border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
+.wb-tlstrip-body{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; height:116px; }
+.wb-tlstrip-body.is-cand{ height:clamp(148px,19vh,188px); }
+
+.timeline-wrap{ flex:1 1 auto; min-height:0; overflow:auto; background:#fff; }
+.timeline-wrap::-webkit-scrollbar{ width:8px; height:8px; }
+.timeline-wrap::-webkit-scrollbar-thumb{ background:var(--line2); border-radius:4px; }
+.timeline{ position:relative; padding-bottom:9px; }
+.tl-ruler{ position:relative; height:16px; border-bottom:1px solid var(--line); margin-left:40px; font-size:10px; color:var(--ink3); }
+.tl-ruler span{ position:absolute; top:1px; transform:translateX(-50%); font-variant-numeric:tabular-nums; }
+.tl-ruler span::before{ content:''; position:absolute; left:50%; top:12px; width:1px; height:4px; background:var(--line2); }
+.tl-row{ position:relative; height:28px; border-bottom:1px dashed var(--line); display:flex; }
+.tl-row:last-child{ border-bottom:none; }
+.tl-label{ position:sticky; left:0; width:40px; flex:0 0 40px; background:#f7f9fc; border-right:1px solid var(--line); font-size:11px; color:var(--ink3); display:grid; place-items:center; z-index:3; }
+.tl-lane{ position:relative; flex:1; min-width:0; }
+
+/* ── 人工块（既有口径：top/bottom 3、直角、VA 实底、实线边） ── */
+.block{
+  position:absolute; top:3px; bottom:3px; border:1px solid var(--line2); border-radius:0;
+  font-size:10.5px; line-height:1.35; padding:0 4px; overflow:hidden; white-space:nowrap;
+  cursor:pointer; display:flex; align-items:center; gap:3px; font-variant-numeric:tabular-nums;
+}
+.block.va{ background:var(--teal-bg); border-color:var(--teal-line); color:#0b5f57; }
+.block.rnva{ background:var(--amber-bg); border-color:var(--amber-line); color:#7a5400; }
+.block.nva{ background:var(--red-bg); border-color:var(--red-line); color:#8f2c25; }
+.block.selected{ outline:2px solid var(--blue); z-index:4; }
+.blk-seq{ opacity:.5; }
+
+/* ── 候选块（AIS-1.0）：斜纹 + 虚线/点线边 + 顶部 pip，无握把 ── */
+.block.cand{
+  background-color:var(--ai-fill);
+  background-image:repeating-linear-gradient(45deg,
+      var(--ai-hatch) 0 1px, transparent 1px var(--cand-pitch,var(--ai-hatch-pitch-mid)));
+  border-color:var(--ai-line);
+  border-style:dashed;
+  color:var(--ai-ink);
+  flex-direction:column; align-items:flex-start; gap:0;
+  padding:0 4px 1px; cursor:pointer;
+  animation:cand-in var(--ai-dur-in) var(--ai-ease) 1 both;
+}
+.block.cand:hover{ background-color:var(--ai-fill-hover); border-color:var(--ai-line-strong); }
+.block.cand.tier-high{ --cand-pitch:var(--ai-hatch-pitch-high); border-style:dashed; }
+.block.cand.tier-mid{ --cand-pitch:var(--ai-hatch-pitch-mid); border-style:dashed; }
+.block.cand.tier-low{ --cand-pitch:var(--ai-hatch-pitch-low); border-style:dotted; color:var(--ai-ink-weak); }
+.block.cand.selected{ outline:2px solid var(--blue); z-index:4; color:var(--ink); }
+.block.cand .cand-pips{ display:flex; gap:var(--ai-pip-gap); height:4px; margin-top:3px; flex:0 0 4px; }
+.block.cand .cand-pips i{ width:var(--ai-pip-w); height:var(--ai-pip-h); background:var(--ai-line-strong); display:block; }
+.block.cand .cand-pips i:not(.on){ background:color-mix(in srgb,var(--ink2) 18%,transparent); }
+.block.cand .cand-txt{ font-size:10px; line-height:12px; overflow:hidden; text-overflow:clip; max-width:100%; }
+.block.cand.narrow .cand-txt{ display:none; }
+@keyframes cand-in{ from{ opacity:0; } to{ opacity:1; } }   /* 只动 opacity，绝不写 transform（C13 坑） */
+
+/* 隔离审阅（纯不透明度降权，不改布局） */
+.wb-tlstrip.isolate .block:not(.cand){ opacity:var(--ai-dim-human); }
+.wb-tlstrip.isolate .tl-row.dim{ opacity:var(--ai-dim-other-lane); }
+
+/* 播放头 */
+.playhead{ position:absolute; top:0; bottom:0; width:2px; background:#e0483c; z-index:5; pointer-events:none; }
+.playhead::before{ content:''; position:absolute; top:-4px; left:-3px; border:4px solid transparent; border-top-color:#e0483c; }
+
+/* ── 候选审阅表格（在时间线条内，不进检查器 → 绕开折叠态吃按钮的坑） ── */
+.cand-wrap{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+.cand-tools{ flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:3px 9px; border-bottom:1px solid var(--line); background:#fbfcfe; }
+.cand-tools .btn{ padding:3px 9px; font-size:11.5px; }
+.cand-tools .btn[disabled]{ opacity:.45; cursor:not-allowed; }
+.cand-tools .sp{ margin-left:auto; }
+.cand-tip{ font-size:10.5px; color:var(--ink3); }
+.cand-iso{ display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--ink2); cursor:pointer; user-select:none; }
+.cand-iso input{ width:13px; height:13px; accent-color:var(--blue); }
+.cand-table{ flex:1 1 auto; min-height:0; overflow:auto; }
+.cand-table table{ width:100%; border-collapse:collapse; font-size:11.5px; }
+.cand-table thead th{ position:sticky; top:0; background:#fff; z-index:1; box-shadow:0 1px 0 var(--line); text-align:left; font-weight:700; color:var(--ink3); font-size:10.5px; letter-spacing:.06em; padding:3px 8px; white-space:nowrap; line-height:1.4; }
+.cand-table tbody tr{ cursor:pointer; border-bottom:1px solid #f1f4f9; transition:background .12s var(--ai-ease); }
+.cand-table tbody tr:hover{ background:var(--bg); }
+.cand-table tbody tr.sel{ background:var(--ai-fill); box-shadow:inset 2px 0 0 var(--blue); }
+.cand-table tbody tr.dim{ opacity:.62; }
+.cand-table td{ padding:2px 8px; white-space:nowrap; line-height:1.7; }
+.cand-table td.num{ font-variant-numeric:tabular-nums; }
+.cand-table .cb{ width:26px; }
+.cand-table input[type=checkbox]{ width:14px; height:14px; accent-color:var(--blue); }
+.cand-table .mini{ display:inline-flex; gap:1px; vertical-align:-1px; margin-right:5px; }
+.cand-table .mini i{ width:2px; height:9px; background:var(--ai-line-strong); display:block; }
+.cand-table .mini i:not(.on){ background:color-mix(in srgb,var(--ink2) 20%,transparent); }
+.cand-foot{ flex:0 0 auto; padding:2px 9px; border-top:1px solid var(--line); font-size:10px; color:var(--ink3); background:#fbfcfe; }
+
+/* ══════════════════════════════════════════════════════════════════
+   5. 交付条 36px（既有）
+   ══════════════════════════════════════════════════════════════════ */
+.wb-actionbar{
+  flex:0 0 36px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:4px 10px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.94);
+  box-shadow:0 12px 28px -20px rgba(16,30,54,.35);
+}
+.wb-deliver{ display:flex; align-items:center; gap:10px; min-width:0; }
+.wb-ab-label{ font-size:10.5px; font-weight:800; color:var(--ink3); letter-spacing:.12em; text-transform:uppercase; }
+.wb-ab-field{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink2); }
+.wb-ab-field input{ width:56px; border:1px solid var(--line2); border-radius:6px; padding:2px 6px; font-size:12px; font-family:inherit; }
+.wb-ab-unit{ font-style:normal; font-size:10.5px; color:var(--ink3); }
+.wb-ab-actions{ display:flex; align-items:center; gap:7px; }
+
+/* ══════════════════════════════════════════════════════════════════
+   6. 浮层：Toast / 分析中覆盖层 / 批量确认弹窗（portal 到 body）
+   ══════════════════════════════════════════════════════════════════ */
+/* ── Toast（对齐既有 .wb-toast 口径：右对齐浮层，不居中压控制栏） ── */
+.wb-toast{
+  position:absolute; right:24px; top:152px; z-index:40;
+  display:flex; align-items:center; gap:10px;
+  background:var(--teal-bg); border:1px solid var(--teal-line); color:var(--teal);
+  border-radius:8px; padding:4px 10px; font-size:12px; font-weight:600;
+  max-width:46ch; box-shadow:0 6px 24px rgb(15 23 32 / 12%);
+  animation:toast-in 150ms var(--ai-ease) 1 both;
+}
+@keyframes toast-in{ from{ opacity:0; } to{ opacity:1; } }
+.wb-toast .btn{ background:#fff; border-color:var(--teal-line); color:var(--teal); white-space:nowrap; flex:0 0 auto; }
+.wb-toast span{ min-width:0; }
+.wb-toast .x{ border:none; background:transparent; color:var(--teal); opacity:.6; cursor:pointer; font-size:14px; line-height:1; }
+.wb-toast b{ font-variant-numeric:tabular-nums; }
+
+/* 分析中覆盖层：挂在视频画面内，不是全页遮罩 */
+.analyze-cover{
+  position:absolute; inset:0; z-index:6; display:grid; place-items:center;
+  background:color-mix(in srgb,#04080d 74%,transparent);
+}
+.analyze-card{
+  width:340px; background:rgba(16,26,40,.94); border:1px solid rgba(255,255,255,.14);
+  border-radius:12px; padding:16px 18px; color:#e8eef7;
+  box-shadow:0 26px 60px -30px rgba(0,0,0,.9);
+}
+.analyze-card h3{ margin:0 0 3px; font-size:13px; font-weight:700; letter-spacing:.01em; }
+.analyze-card .ai-badge{
+  display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700;
+  color:rgba(255,255,255,.66); border:1px solid rgba(255,255,255,.16); border-radius:5px; padding:1px 6px; margin-bottom:9px;
+  letter-spacing:.04em;
+}
+/* 阶段条：不确定态=40px 亮段循环；确定态=真实填充比例 */
+.phase-rail{ position:relative; height:3px; border-radius:2px; background:rgba(255,255,255,.14); overflow:hidden; margin:11px 0 9px; }
+.phase-rail .sweep{ position:absolute; top:0; bottom:0; width:40px; background:linear-gradient(90deg,transparent,#8ab4f8,transparent); animation:sweep var(--ai-sweep-dur) linear infinite; }
+.phase-rail .fill{ position:absolute; top:0; bottom:0; left:0; background:#8ab4f8; transition:width .2s linear; }
+@keyframes sweep{ from{ left:-40px; } to{ left:100%; } }
+.analyze-steps{ list-style:none; margin:0 0 10px; padding:0; font-size:11.5px; }
+.analyze-steps li{ display:flex; align-items:center; gap:7px; padding:2px 0; color:rgba(255,255,255,.4); }
+.analyze-steps li.done{ color:rgba(255,255,255,.62); }
+.analyze-steps li.now{ color:#fff; font-weight:600; }
+.analyze-steps .dot{ width:6px; height:6px; border-radius:50%; border:1px solid currentColor; flex:0 0 6px; }
+.analyze-steps li.done .dot{ background:currentColor; }
+.analyze-steps .val{ margin-left:auto; font-variant-numeric:tabular-nums; font-size:10.5px; opacity:.8; }
+.analyze-meta{ font-size:10.5px; color:rgba(255,255,255,.5); line-height:1.6; border-top:1px solid rgba(255,255,255,.1); padding-top:8px; margin-top:2px; }
+.analyze-meta b{ color:rgba(255,255,255,.8); font-variant-numeric:tabular-nums; }
+.analyze-acts{ display:flex; gap:8px; margin-top:11px; }
+.analyze-acts .btn{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.2); color:#dbe6f4; }
+.analyze-acts .btn:hover{ background:rgba(255,255,255,.16); color:#fff; }
+
+/* 标注图例卡（原型辅助，非产品 UI） */
+.annot{
+  position:absolute; left:16px; top:150px; width:318px; z-index:30;
+  background:#fff; border:1px solid var(--line); border-radius:11px; padding:11px 13px;
+  box-shadow:0 20px 44px -26px rgba(16,30,54,.55); font-size:11.5px; color:var(--ink2);
+}
+.annot h4{ margin:0 0 8px; font-size:11.5px; font-weight:800; letter-spacing:.06em; color:var(--ink3); text-transform:uppercase; }
+.annot dl{ margin:0; display:grid; grid-template-columns:34px 1fr; gap:7px 8px; }
+.annot dt{ font-weight:800; color:var(--ink); font-size:11px; }
+.annot dd{ margin:0; }
+.annot .sw{ display:inline-block; width:26px; height:14px; border-radius:0; vertical-align:-3px; margin-right:5px; }
+.annot .sw.h{ background:var(--teal-bg); border:1px solid var(--teal-line); }
+.annot .sw.c{ border:1px dashed var(--ai-line);
+  background-color:var(--ai-fill);
+  background-image:repeating-linear-gradient(45deg,var(--ai-hatch) 0 1px,transparent 1px 6px); }
+.annot .sw.l{ border:1px dotted var(--ai-line); opacity:.62;
+  background-color:var(--ai-fill);
+  background-image:repeating-linear-gradient(45deg,var(--ai-hatch) 0 1px,transparent 1px 3px); }
+.annot .pips{ display:inline-flex; gap:1px; vertical-align:0; margin-right:5px; }
+.annot .pips i{ width:2px; height:9px; background:var(--ai-line-strong); }
+.annot .pips i:not(.on){ background:color-mix(in srgb,var(--ink2) 20%,transparent); }
+
+/* 批量确认弹窗（portal 到 body · 因恒等 transform 坑，绝不挂在 .wb 子树） */
+.modal-mask{
+  position:fixed; inset:0; z-index:9000; background:rgba(14,22,34,.5);
+  display:grid; place-items:center; padding:20px;
+}
+.modal{
+  width:420px; background:#fff; border-radius:13px; padding:0; overflow:hidden;
+  box-shadow:0 30px 70px -30px rgba(10,20,36,.7); border:1px solid var(--line);
+}
+.modal-h{ padding:13px 16px 9px; font-size:14px; font-weight:800; }
+.modal-h span{ display:block; font-size:11.5px; font-weight:400; color:var(--ink3); margin-top:2px; }
+.modal-b{ padding:0 16px 4px; font-size:12.5px; color:var(--ink2); }
+.kv{ display:flex; gap:8px; padding:5px 0; border-bottom:1px dashed var(--line); }
+.kv:last-child{ border-bottom:none; }
+.kv dt{ width:104px; flex:0 0 104px; color:var(--ink3); font-size:11.5px; }
+.kv dd{ margin:0; font-variant-numeric:tabular-nums; }
+.kv dd b{ font-weight:800; }
+.risk{ display:flex; gap:7px; align-items:flex-start; background:var(--red-bg); border:1px solid var(--red-line);
+  color:var(--red); border-radius:8px; padding:7px 9px; font-size:11.5px; margin:9px 0 2px; }
+.risk .bang{ font-weight:900; }
+.modal-f{ display:flex; align-items:center; gap:8px; padding:12px 16px; background:#fbfcfe; border-top:1px solid var(--line); }
+.modal-f .note{ font-size:10.5px; color:var(--ink3); margin-right:auto; line-height:1.5; }
+.modal-f .btn{ padding:7px 14px; }
+.modal-f .btn.danger{ background:var(--ink); border-color:var(--ink); color:#fff; }
+.modal-f .btn.danger:hover{ background:#0f1826; }
+.modal-f .btn:focus-visible{ outline:none; box-shadow:var(--ai-focus-ring); }
+
+.hide{ display:none !important; }
+
+/* ── 自检钩子（?only=strip 只留时间线条做 1:1 像素核对；?s=N 直达场景；?debug=1 量尺） ── */
+.only-strip body{ padding:0; background:#fff; }
+.only-strip .proto,
+.only-strip .topbar,
+.only-strip .crumbs,
+.only-strip .stabs,
+.only-strip .wb-topbar,
+.only-strip .wb-main,
+.only-strip .wb-actionbar{ display:none !important; }
+.only-strip .app{ height:auto; width:1346px; border:0; border-radius:0; box-shadow:none; }
+.only-strip .shell-main{ padding:0; }
+/* 量尺浮层：把 §4.2 / §10.1 的核算数字变成屏幕上的实测值 */
+.measure{
+  position:fixed; left:12px; top:12px; z-index:9999; width:296px;
+  background:#0f1826; color:#dbe6f4; border-radius:10px; padding:10px 12px;
+  font:11px/1.65 "JetBrains Mono",Consolas,monospace; box-shadow:0 18px 40px -20px rgba(0,0,0,.8);
+}
+.measure h5{ margin:0 0 6px; font-size:11px; letter-spacing:.08em; color:#8ab4f8; font-weight:700; }
+.measure div{ display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid rgba(255,255,255,.07); padding:1px 0; }
+.measure div:last-child{ border-bottom:none; }
+.measure b{ color:#fff; font-weight:700; }
+.measure .ok{ color:#6ee7a8; } .measure .bad{ color:#ff9a8f; }
+</style>
+</head>
+<body>
+
+<!-- ─────────── 原型工具条 ─────────── -->
+<div class="proto">
+  <h1>AI 自动动作切分 · 候选层<span>AIS-1.0 ｜ 嵌于 v3.32 分解工作台 ｜ 1366×768</span></h1>
+  <div class="proto-tabs" id="tabs">
+    <button data-s="1" class="on">S1 候选层全貌</button>
+    <button data-s="2">S2 分析中</button>
+    <button data-s="3">S3 低置信度处理</button>
+    <button data-s="4">S4 批量确认防护</button>
+  </div>
+  <div class="proto-tools">
+    <label><input type="checkbox" id="gray"> 时间线灰度（验色彩无关性）</label>
+    <label><input type="checkbox" id="annot"> 编码标注</label>
+    <label><input type="checkbox" id="width"> 1600×1000</label>
+  </div>
+</div>
+
+<!-- ─────────── 产品视图 ─────────── -->
+<div class="app" id="app">
+
+  <!-- 全局顶栏 -->
+  <header class="topbar">
+    <div class="brand">IE 改善平台<small>AI 赋能 · RBAC</small></div>
+    <nav class="nav">
+      <a href="#">集团看板</a><a href="#" class="active">产线总览</a><a href="#">改善任务</a>
+      <span class="nav-sep"></span>
+      <a href="#">主数据</a><a href="#">动作标准库</a>
+      <span class="nav-sep"></span>
+      <a href="#">系统管理 ▾</a>
+      <span class="userchip"><span class="avatar">IE</span>陈工 · IE 工程师</span>
+    </nav>
+  </header>
+
+  <main class="shell-main" style="flex-direction:column">
+    <div class="crumbs"><b>前横梁产线 L01</b><span class="sep">/</span>工位 L01-ST01<span class="sep">/</span>分解工作台</div>
+    <div class="stabs"><a href="#">要素分解</a><a href="#" class="on">分解工作台</a><a href="#">对比</a><a href="#">改善建议</a></div>
+
+    <div class="wb">
+      <!-- 顶栏 38px -->
+      <header class="wb-topbar">
+        <div class="wb-id">
+          <h1>前横梁装配工位</h1>
+          <div class="wb-meta mono">L01-ST01 <i>·</i> v3 <i>·</i> <a href="#">2 个有效版本 ⤫</a> <i>·</i> L01</div>
+        </div>
+        <div class="wb-stats">
+          <div class="ws"><b id="stEl">3</b><span>要素</span></div>
+          <div class="ws"><b>9.42<i>s</i></b><span>预览 CT</span></div>
+          <div class="ws"><b>10<i>s</i></b><span>TT</span></div>
+          <div class="ws"><b>12<i>%</i></b><span>VA 占比</span></div>
+          <div class="ws warn"><b>1</b><span>异常</span></div>
+        </div>
+        <div class="wb-top-acts">
+          <span class="wb-vfile mono" title="L01-ST01_前横梁装配_v3.mp4">L01-ST01_前横梁装配_v3.mp4</span>
+          <button class="wb-top-btn">复用要素</button>
+          <label class="wb-top-btn">更换视频</label>
+          <!-- ★ AI 切分入口：与「复用要素」并列（同属批量灌入要素的捷径） -->
+          <button class="wb-top-btn ai" id="btnAi" title="AI 自动切分：本机浏览器逐帧分析，生成动作候选（视频不上传、不写入要素，需逐条确认）">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="1.5" y="5.5" width="4" height="5" rx=".5" stroke="currentColor" stroke-width="1.2"/>
+              <rect x="10.5" y="5.5" width="4" height="5" rx=".5" stroke="currentColor" stroke-width="1.2"/>
+              <path d="M8 1.5v13" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.6 1.6"/>
+            </svg>
+            AI 切分
+          </button>
+          <button class="wb-top-btn icon" title="快捷工具箱（Ctrl+K）" aria-label="快捷工具箱">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 5.5h12v8H2zM5.5 5.5V3h5v2.5" stroke="currentColor" stroke-width="1.2"/></svg>
+          </button>
+          <button class="wb-top-btn icon" title="键盘快捷键" aria-label="键盘快捷键">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M6.2 10.5h3.6" stroke="currentColor" stroke-width="1.2"/></svg>
+          </button>
+          <button class="wb-top-btn icon" title="全屏工作台（F）" aria-label="全屏切换">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 6V2h4M14 10v4h-4M2 10v4h4M14 6V2h-4" stroke="currentColor" stroke-width="1.3"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- 主区 -->
+      <div class="wb-main">
+        <section class="wb-stage">
+          <div class="wb-screen">
+            <div class="wb-frame">
+              <div class="scene"><div class="lamp"></div></div>
+              <div class="hud">前横梁装配 · <b>00:04.200</b> / 00:18.000 · 1920×1080</div>
+
+              <!-- 分析中覆盖层（只盖画面，不盖时间线与检查器） -->
+              <div class="analyze-cover hide" id="cover">
+                <div class="analyze-card">
+                  <div class="ai-badge">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="5.5" width="3.4" height="5" stroke="currentColor" stroke-width="1.2"/><rect x="11.1" y="5.5" width="3.4" height="5" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.5v13" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.6 1.6"/></svg>
+                    本机分析
+                  </div>
+                  <h3 id="phaseTitle">正在逐帧分析</h3>
+                  <div class="phase-rail">
+                    <div class="sweep" id="sweep"></div>
+                    <div class="fill hide" id="fill" style="width:38%"></div>
+                  </div>
+                  <ul class="analyze-steps">
+                    <li class="done"><i class="dot"></i>加载姿态模型<span class="val">2.1s</span></li>
+                    <li class="now"><i class="dot"></i>逐帧分析<span class="val" id="phaseVal">6.8s / 18.0s</span></li>
+                    <li><i class="dot"></i>合并动作边界<span class="val">—</span></li>
+                  </ul>
+                  <div class="analyze-meta">
+                    已检出 <b id="foundN">7</b> 条候选 · 已用 <b>14s</b><br>
+                    视频不上传，全部分析在本机浏览器完成
+                  </div>
+                  <div class="analyze-acts">
+                    <button class="btn sm" id="btnStop">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="7" height="7" rx=".5" fill="currentColor"/></svg>
+                      停止
+                    </button>
+                    <button class="btn sm" title="分析期间播放与快捷键整体让位，避免解码与推理抢线程造成时间码抖动">为什么不能播放</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 控制栏 41px：既有按钮序列原样不动（已无宽度余量，故 AI 入口不放这里） -->
+          <div class="wb-controls">
+            <button class="wb-play" id="btnPlay" aria-label="播放">
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4-7 4V2z" fill="currentColor"/></svg>
+            </button>
+            <div class="wb-tp-group">
+              <button class="wb-tp-btn" title="后退一帧（33.3ms）" aria-label="后退一帧"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8 2L3.5 6 8 10V2z" fill="currentColor"/><path d="M2.5 2v8" stroke="currentColor" stroke-width="1.2"/></svg></button>
+              <button class="wb-tp-btn" title="前进一帧" aria-label="前进一帧"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M4 2l4.5 4L4 10V2z" fill="currentColor"/><path d="M9.5 2v8" stroke="currentColor" stroke-width="1.2"/></svg></button>
+              <button class="wb-tp-btn sm" title="后退 1 秒">−1s</button>
+              <button class="wb-tp-btn sm" title="前进 1 秒">+1s</button>
+            </div>
+            <div class="wb-tp-time mono" title="播放头位置"><b>00:04.200</b><span>f126</span><span class="wb-fps">30fps</span></div>
+            <div class="wb-tp-speed">
+              <button>0.5×</button><button>0.75×</button><button class="on">1×</button>
+              <button class="wb-loop-btn">↻ 循环关</button>
+            </div>
+            <div class="wb-rec">
+              <button class="wb-rec-btn" title="新增要素（N）">＋<span class="lbl">新增</span></button>
+              <button class="wb-rec-btn" title="设起点（I）"><span class="io-k">I</span><span class="lbl">起点</span></button>
+              <button class="wb-rec-btn" title="设止点（O）"><span class="io-k">O</span><span class="lbl">止点</span></button>
+              <button class="wb-rec-split" title="在播放头分割（S）">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1v10" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.5 1.5"/><circle cx="6" cy="2.6" r="1.2" stroke="currentColor" stroke-width="1.1"/><circle cx="6" cy="9.4" r="1.2" stroke="currentColor" stroke-width="1.1"/></svg>
+                <span class="lbl">分割</span>
+              </button>
+              <button class="wb-rec-btn" title="同上新增（D）">⧉<span class="lbl">同上</span></button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 属性检查器：候选层零改动 -->
+        <aside class="wb-inspector">
+          <div class="wb-insp-toggle-row"><button class="wb-insp-toggle-btn">▶ 收起</button></div>
+          <div class="wb-insp-head">
+            <span class="wb-insp-seq">#3</span>
+            <span class="h-desc">拿取 螺栓 于 料盒</span>
+            <button class="wb-icon" title="分割该要素"><svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1v10" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.5 1.5"/></svg></button>
+            <button class="wb-icon danger" title="删除该要素（30 秒内可撤销）"><svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 3.5h7M4.5 3.5V2h3v1.5M3.5 3.5l.5 6.5h5l.5-6.5" stroke="currentColor" stroke-width="1.1"/></svg></button>
+          </div>
+
+          <div class="wb-batch">
+            <button class="wb-batch-sum">
+              <span class="wb-batch-sum-t">批量评定</span>
+              <span class="wb-batch-sum-v warn">还没评定：11 个要素全用默认 1.00/0.15</span>
+              <span class="wb-batch-caret">▾</span>
+            </button>
+          </div>
+
+          <div class="wb-sec" style="border-top:none">
+            <div class="field">
+              <label>要素描述</label>
+              <input class="input" value="拿取 螺栓 于 料盒">
+            </div>
+          </div>
+
+          <div class="wb-sec">
+            <div class="wb-sec-t">结构化描述</div>
+            <div class="sd-row">
+              <div class="sd-type">拿取 <span style="opacity:.6">▾</span></div>
+              <div><label style="display:block;font-size:10.5px;color:var(--ink3)">对象</label><input class="input" value="螺栓"></div>
+              <div><label style="display:block;font-size:10.5px;color:var(--ink3)">位置（于）</label><input class="input" value="料盒"></div>
+              <div><label style="display:block;font-size:10.5px;color:var(--ink3)">行程</label><input class="input" value="手腕"></div>
+            </div>
+          </div>
+
+          <div class="wb-sec">
+            <div class="wb-sec-t">手别与评定</div>
+            <div class="row2">
+              <div><label style="display:block;font-size:10.5px;color:var(--ink3)">手别</label><input class="input" value="右手 R"></div>
+              <div><label style="display:block;font-size:10.5px;color:var(--ink3)">VA 类别</label>
+                <div style="display:flex;align-items:center;gap:6px;padding-top:4px"><span class="tag t-red">NVA</span><span style="font-size:11px;color:var(--ink3)">判定表默认</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="wb-insp-foot sd">
+            <button class="btn primary sm">✓ 完成 · 下一个</button>
+          </div>
+
+          <div class="wb-sec">
+            <div class="wb-sec-t">版本 <span style="margin-left:auto;font-size:10.5px;font-weight:600;color:var(--blue)">收起</span></div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;padding:3px 0;border-bottom:1px dashed var(--line)">
+              <span class="mono">v3</span><span style="color:var(--ink3)">11 要素 · CT 9.42s</span><span class="tag t-blue" style="margin-left:auto">当前</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;padding:3px 0">
+              <span class="mono">v2</span><span style="color:var(--ink3)">9 要素 · CT 8.10s</span><span class="tag t-gray" style="margin-left:auto">封存</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- 时间线条 -->
+      <section class="wb-tlstrip" id="strip">
+        <div class="wb-tlstrip-head">
+          <div class="wb-tabs" id="stripTabs">
+            <button class="on" data-t="time">时间线</button>
+            <button data-t="list">清单<span class="cnt">3</span></button>
+            <button class="cand" data-t="cand">候选<span class="cnt" id="candCnt">10</span></button>
+          </div>
+          <div class="wb-panel-sel mono" id="panelSel">#3 拿取 螺栓 于 料盒 · 2500→3400ms</div>
+          <div class="wb-legend">
+            <span><i class="va"></i>VA 0.0s</span>
+            <span><i class="rnva"></i>RNVA 2.6s</span>
+            <span><i class="nva"></i>NVA 3.4s</span>
+          </div>
+          <button class="wb-tlstrip-toggle">▾ 收起</button>
+        </div>
+
+        <div class="wb-tlstrip-body" id="stripBody">
+          <!-- 时间线视图 -->
+          <div class="timeline-wrap" id="viewTime">
+            <div class="timeline" style="width:1124px">
+              <div class="tl-ruler" id="ruler"></div>
+              <!-- 三条轨：L / R / B（既有，按手别） -->
+              <div class="tl-row" data-lane="L"><div class="tl-label">左手</div><div class="tl-lane" id="laneL"></div></div>
+              <div class="tl-row" data-lane="R"><div class="tl-label">右手</div><div class="tl-lane" id="laneR"></div></div>
+              <div class="tl-row" data-lane="B"><div class="tl-label">双手</div><div class="tl-lane" id="laneB"></div></div>
+            </div>
+          </div>
+
+          <!-- 候选审阅视图（不进检查器 → 折叠态也永远可达） -->
+          <div class="cand-wrap hide" id="viewCand">
+            <div class="cand-tools">
+              <label class="cand-iso"><input type="checkbox" id="ckAllHigh">全选高置信度（5）</label>
+              <span class="cand-tip" id="candPos">第 — / 10 条</span>
+              <button class="btn" id="btnRejectSel">否决勾选（0）</button>
+              <button class="btn" id="btnRejectSel2" style="display:none"></button>
+              <span class="sp"></span>
+              <label class="cand-iso"><input type="checkbox" id="ckIso">隔离审阅</label>
+              <button class="btn primary" id="btnAcceptSel" disabled>接受勾选的 0 条</button>
+            </div>
+            <div class="cand-table">
+              <table>
+                <thead><tr>
+                  <th class="cb"><input type="checkbox" id="ckAll" aria-label="全选"></th>
+                  <th>#</th><th>时间</th><th>手别</th><th>预测类型</th><th>置信度</th><th style="text-align:right">操作</th>
+                </tr></thead>
+                <tbody id="candBody"></tbody>
+              </table>
+            </div>
+            <div class="cand-foot">候选仅本次会话有效，刷新丢失；确认后请「提交分解」落库。已标注区间不会被重复切分。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 交付条 -->
+      <div class="wb-actionbar">
+        <div class="wb-deliver">
+          <span class="wb-ab-label">交付参数</span>
+          <label class="wb-ab-field">评比 <input value="1.00"></label>
+          <label class="wb-ab-field">宽放 <input value="15"><i class="wb-ab-unit">%</i></label>
+          <label class="wb-ab-field">新片段 <input value="1.00"><i class="wb-ab-unit">s</i></label>
+        </div>
+        <div class="wb-ab-actions">
+          <button class="btn sm">校验</button>
+          <button class="btn sm">导出 CSV</button>
+          <button class="btn primary sm">提交分解</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div class="wb-toast hide" id="toast">
+    <span id="toastMsg">已接受 8 条候选</span>
+    <button class="btn sm" id="toastAct">撤销（30 秒内）</button>
+    <button class="x" id="toastX" aria-label="关闭">×</button>
+  </div>
+
+  <!-- 编码标注卡（原型辅助） -->
+  <div class="annot hide" id="annotCard">
+    <h4>候选层四重编码（颜色永不单独表意）</h4>
+    <dl>
+      <dt>①</dt><dd><span class="sw h"></span>实底 + 实线边 = <b>人工已定稿要素</b></dd>
+      <dt>②</dt><dd><span class="sw c"></span>45° 斜纹 + 虚线边 = <b>AI 候选 · 待审</b></dd>
+      <dt>③</dt><dd><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i></span>3 格 = 高（≥0.80）预勾选<br>
+        <span class="pips" style="margin-left:0"><i class="on"></i><i class="on"></i><i></i></span>2 格 = 中（0.55–0.80）预勾选+需复核<br>
+        <span class="pips" style="margin-left:0"><i class="on"></i><i></i><i></i></span>1 格 + <span class="sw l" style="width:18px"></span>= 低（&lt;0.55）不勾选</dd>
+      <dt>④</dt><dd>灰度模式下 ①–③ 仍可两两区分（去掉灰度开关对比）</dd>
+    </dl>
+  </div>
+</div>
+
+<!-- 弹窗根：直接挂 body（createPortal 同款），避开恒等 transform 包含块 -->
+<div id="modalRoot"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   数据：3 条人工要素 + 10 条 AI 候选（候选只填未标注区间，互不重叠）
+   ════════════════════════════════════════════════════════════════ */
+const PX = 60;                     // PX_PER_SEC（项目常量，未改）
+const TOTAL = 18000;
+
+const manual = [
+  { seq:1, hand:'L', va:'nva',  desc:'拿取 前横梁 于 料箱',   s:0,    e:1500 },
+  { seq:2, hand:'L', va:'va',   desc:'移物 前横梁 至 治具',   s:1500, e:2500 },
+  { seq:3, hand:'R', va:'nva',  desc:'拿取 螺栓 于 料盒',     s:2500, e:3400 },
+];
+
+const cands = [
+  { id:'c1',  hand:'L', type:'放置',   note:'至 治具',      va:'rnva', s:3400,  e:4200,  conf:.91 },
+  { id:'c2',  hand:'R', type:'拿取',   note:'电动枪 于 挂架', va:'nva',  s:4200,  e:5000,  conf:.88 },
+  { id:'c3',  hand:'R', type:'按',     note:'电动枪',      va:'rnva', s:5000,  e:9200,  conf:.84 },
+  { id:'c4',  hand:'L', type:'等待',   note:'电动枪动作',   va:'nva',  s:9200,  e:9600,  conf:.47 },
+  { id:'c5',  hand:'R', type:'放置',   note:'电动枪 至 挂架', va:'rnva', s:9800,  e:10500, conf:.62 },
+  { id:'c6',  hand:'R', type:'目检',   note:'前横梁 螺纹',   va:'rnva', s:10500, e:11800, conf:.72 },
+  { id:'c7',  hand:'B', type:'装配',   note:'螺栓 于 前横梁', va:'va',   s:11800, e:14800, conf:.93 },
+  { id:'c8',  hand:'B', type:'翻转',   note:'前横梁',       va:'rnva', s:14800, e:15600, conf:.58 },
+  { id:'c9',  hand:'B', type:'目检',   note:'前横梁 外观',   va:'rnva', s:15600, e:16600, conf:.51 },
+  { id:'c10', hand:'B', type:'放置',   note:'前横梁 至 周转箱', va:'rnva', s:16600, e:18000, conf:.86 },
+];
+
+/* 分级：0.80 / 0.55；R1 时长护栏（<0.30s 或 >6.0s → 强制低） */
+function tierOf(c){
+  const dur = (c.e - c.s) / 1000;
+  if (dur < 0.30 || dur > 6.0) return 'low';
+  if (c.conf >= 0.80) return 'high';
+  if (c.conf >= 0.55) return 'mid';
+  return 'low';
+}
+function tierLabel(t){ return t === 'high' ? '高' : t === 'mid' ? '中' : '低'; }
+function pips(t){ return t === 'high' ? 3 : t === 'mid' ? 2 : 1; }
+
+const state = { checked:new Set(), sel:null, scenario:1 };
+
+/* ── 标尺 ── */
+(function buildRuler(){
+  const r = document.getElementById('ruler');
+  for (let s = 0; s <= TOTAL/1000; s += 2){
+    const el = document.createElement('span');
+    el.style.left = (s * PX) + 'px';
+    el.textContent = s + 's';
+    r.appendChild(el);
+  }
+})();
+
+/* ── 渲染时间线 ── */
+function renderTimeline(){
+  ['L','R','B'].forEach(h => { document.getElementById('lane'+h).innerHTML = ''; });
+
+  manual.forEach(m => {
+    const el = document.createElement('div');
+    el.className = 'block ' + m.va + (h_sel() === 'm'+m.seq ? ' selected' : '');
+    el.style.left = (m.s/1000*PX) + 'px';
+    el.style.width = Math.max(10, ((m.e-m.s)/1000*PX) - 2) + 'px';
+    el.innerHTML = '<span class="blk-seq">#'+m.seq+'</span> '+m.desc;
+    el.title = '#'+m.seq+' '+m.desc+'（人工已定稿 · 实底实线）';
+    el.onclick = (ev) => { ev.stopPropagation(); selectManual(m.seq); };
+    document.getElementById('lane'+m.hand).appendChild(el);
+  });
+
+  cands.forEach(c => {
+    const t = tierOf(c);
+    const w = ((c.e-c.s)/1000*PX) - 2;
+    const el = document.createElement('div');
+    el.className = 'block cand pending tier-'+t + (w < 42 ? ' narrow' : '') + (state.sel === c.id ? ' selected' : '');
+    el.style.left = (c.s/1000*PX) + 'px';
+    el.style.width = Math.max(10, w) + 'px';
+    // 候选块：pip 条 + 文本；无 .grip（不可拖拽）
+    let dot = '';
+    for (let i=0;i<3;i++) dot += '<i class="'+(i < pips(t) ? 'on':'')+'"></i>';
+    el.innerHTML = '<span class="cand-pips">'+dot+'</span><span class="cand-txt">#'+c.id.slice(1)+' '+c.type+' '+c.note+'</span>';
+    el.title = 'AI 候选 #'+c.id.slice(1)+' · '+c.hand+' · '+c.type+' '+c.note
+      + ' · 置信度 '+c.conf.toFixed(2)+'（'+tierLabel(t)+'）'
+      + '\n单击选中 / 双击定位播放头 / Enter 接受 / Backspace 否决';
+    el.setAttribute('role','option');
+    el.setAttribute('aria-selected', state.sel === c.id ? 'true':'false');
+    el.onclick = (ev) => { ev.stopPropagation(); selectCand(c.id); };
+    el.ondblclick = (ev) => { ev.stopPropagation(); /* 定位播放头：与人工块同口径 */ };
+    document.getElementById('lane'+c.hand).appendChild(el);
+  });
+
+  // 播放头：4200ms
+  ['L','R','B'].forEach(h => {
+    const ph = document.createElement('div');
+    ph.className = 'playhead';
+    ph.style.left = (4200/1000*PX) + 'px';
+    document.getElementById('lane'+h).appendChild(ph);
+  });
+}
+function h_sel(){ return state.sel && state.sel.startsWith('m') ? state.sel : null; }
+
+/* ── 选中（互斥：选候选清要素，选要素清候选） ── */
+function selectManual(seq){
+  state.sel = 'm'+seq;
+  document.getElementById('panelSel').className = 'wb-panel-sel mono';
+  document.getElementById('panelSel').innerHTML = '#'+seq+' 拿取 螺栓 于 料盒 · 2500→3400ms';
+  renderTimeline(); renderCandTable();
+}
+function selectCand(id){
+  state.sel = id;
+  const c = cands.find(x => x.id === id);
+  const t = tierOf(c);
+  const ps = document.getElementById('panelSel');
+  ps.className = 'wb-panel-sel mono cand';
+  /* 候选详情走时间线条信息位 —— 不进检查器，因此检查器折叠也不影响可达性（C10） */
+  ps.innerHTML = tierLabel(t) + '置信 ' + c.conf.toFixed(2) + ' · 候选 #' + id.slice(1)
+    + ' · ' + ({L:'左手',R:'右手',B:'双手'})[c.hand] + ' · ' + c.type + ' ' + c.note
+    + (t === 'low' ? ' — 先按 <span class="kbd">Space</span> 试看' : '')
+    + ' · <span class="kbd">Enter</span> 接受 <span class="kbd">⌫</span> 否决';
+  ps.title = ps.textContent;
+  renderTimeline(); renderCandTable();
+}
+
+/* ── 候选表格 ── */
+function renderCandTable(){
+  const tb = document.getElementById('candBody');
+  tb.innerHTML = '';
+  [...cands].sort((a,b) => a.s - b.s).forEach(c => {
+    const t = tierOf(c);
+    const n = pips(t);
+    let mini = '';
+    for (let i=0;i<3;i++) mini += '<i class="'+(i<n?'on':'')+'"></i>';
+    const tr = document.createElement('tr');
+    tr.className = (t === 'low' ? 'dim ' : '') + (state.sel === c.id ? 'sel' : '');
+    tr.innerHTML =
+      '<td class="cb"><input type="checkbox" '+(state.checked.has(c.id)?'checked':'')+' data-id="'+c.id+'" aria-label="选择候选 '+c.id.slice(1)+'"></td>'+
+      '<td class="num">'+c.id.slice(1)+'</td>'+
+      '<td class="num">'+(c.s/1000).toFixed(1)+'→'+(c.e/1000).toFixed(1)+'s</td>'+
+      '<td>'+({L:'左手',R:'右手',B:'双手'})[c.hand]+'</td>'+
+      '<td>'+c.type+' <span style="color:var(--ink3)">'+c.note+'</span></td>'+
+      '<td><span class="mini">'+mini+'</span>'+c.conf.toFixed(2)+' '+tierLabel(t)+(t==='mid'?' · 需复核':'')+(t==='low'?' · 待确认':'')+'</td>'+
+      '<td style="text-align:right;white-space:nowrap">'+
+        '<button class="btn sm" data-act="accept" data-id="'+c.id+'">接受</button> '+
+        '<button class="btn sm" data-act="reject" data-id="'+c.id+'">否决</button>'+
+      '</td>';
+    tr.onclick = (ev) => { if (ev.target.tagName !== 'INPUT' && ev.target.tagName !== 'BUTTON') selectCand(c.id); };
+    tb.appendChild(tr);
+  });
+
+  tb.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.onchange = () => {
+      const id = cb.dataset.id;
+      if (cb.checked) state.checked.add(id); else state.checked.delete(id);
+      syncBatch();
+    };
+  });
+  const cur = [...cands].sort((a,b)=>a.s-b.s).findIndex(c => c.id === state.sel);
+  document.getElementById('candPos').textContent = '第 ' + (cur >= 0 ? cur + 1 : '—') + ' / ' + cands.length + ' 条';
+  const selRow = tb.querySelector('tr.sel');
+  if (selRow) selRow.scrollIntoView({ block:'nearest' });
+
+  tb.querySelectorAll('button[data-act]').forEach(b => {
+    b.onclick = (ev) => {
+      ev.stopPropagation();
+      if (b.dataset.act === 'accept') { toast('已接受候选 #'+b.dataset.id.slice(1)+' · 位置不变', '撤销（30 秒内）'); }
+      else { toast('已否决候选 #'+b.dataset.id.slice(1)+' · 该区间不再提示', '撤销（30 秒内）'); }
+      /* 焦点策略 F1/F3：接受/否决后必须 blur 回 body，否则 L/I/O 被吃（v3.27 铁律） */
+      document.activeElement && document.activeElement.blur && document.activeElement.blur();
+    };
+  });
+  syncBatch();
+}
+
+/* ── 批量闸门 ── */
+function syncBatch(){
+  const n = state.checked.size;
+  const lowN = [...state.checked].filter(id => tierOf(cands.find(c=>c.id===id)) === 'low').length;
+  const btn = document.getElementById('btnAcceptSel');
+  btn.textContent = '接受勾选的 ' + n + ' 条';
+  btn.disabled = n === 0;
+  document.getElementById('btnRejectSel').textContent = '否决勾选（' + n + '）';
+  document.getElementById('ckAll').checked = n === cands.length;
+  document.getElementById('ckAllHigh').checked =
+    n > 0 && [...state.checked].every(id => tierOf(cands.find(c=>c.id===id)) === 'high');
+  btn.title = lowN > 0 ? ('勾选含 ' + lowN + ' 条低置信度，将触发二次确认') : '接受勾选的候选（30 秒内可整批撤销）';
+}
+
+/* ── 预勾选：高 ✅ / 中 ✅（需复核）/ 低 ❌ ── */
+function preselect(){
+  state.checked.clear();
+  cands.forEach(c => { const t = tierOf(c); if (t === 'high' || t === 'mid') state.checked.add(c.id); });
+}
+
+/* ── Toast ── */
+let toastTimer = null;
+function toast(msg, actionLabel){
+  const el = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  const act = document.getElementById('toastAct');
+  if (actionLabel){ act.textContent = actionLabel; act.classList.remove('hide'); }
+  else { act.classList.add('hide'); }
+  el.classList.remove('hide');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add('hide'), 7000);
+  /* F5：toast 内按钮不做 autoFocus；仍在焦点上的一律 blur */
+  document.activeElement && document.activeElement.blur && document.activeElement.blur();
+}
+document.getElementById('toastX').onclick = () => document.getElementById('toast').classList.add('hide');
+
+/* ════════════════════════════════════════════════════════════════
+   场景切换
+   ════════════════════════════════════════════════════════════════ */
+function setScenario(n){
+  state.scenario = n;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', +b.dataset.s === n));
+  const cover = document.getElementById('cover');
+  const body  = document.getElementById('stripBody');
+  const vT = document.getElementById('viewTime');
+  const vC = document.getElementById('viewCand');
+
+  // 默认：时间线视图、无覆盖层、无弹窗
+  cover.classList.add('hide');
+  document.getElementById('modalRoot').innerHTML = '';
+  document.getElementById('btnPlay').disabled = false;
+  document.querySelectorAll('#stripTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === 'time'));
+  body.classList.remove('is-cand');
+  vT.classList.remove('hide'); vC.classList.add('hide');
+  document.getElementById('strip').classList.remove('isolate');
+  document.getElementById('ckIso').checked = false;
+  state.sel = null; preselect();
+
+  if (n === 1){                       // 候选层全貌（时间线视图 + 候选页签在侧）
+    toast('分析完成 · 10 条候选（高 5 / 中 3 / 低 2）', '审阅');
+  }
+  if (n === 2){                       // 分析中
+    cover.classList.remove('hide');
+    document.getElementById('btnPlay').disabled = true;
+    document.getElementById('sweep').classList.remove('hide');
+    document.getElementById('fill').classList.add('hide');
+    document.getElementById('phaseTitle').textContent = '正在逐帧分析';
+    document.getElementById('phaseVal').textContent = '6.8s / 18.0s';
+    document.getElementById('foundN').textContent = '7';
+  }
+  if (n === 3){                       // 低置信度处理：切到候选页签 + 选中一条低置信
+    body.classList.add('is-cand');
+    vT.classList.add('hide'); vC.classList.remove('hide');
+    document.querySelectorAll('#stripTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === 'cand'));
+    selectCand('c4');
+    toast('低置信度默认不勾选 · 选中后按 Space 试看');
+  }
+  if (n === 4){                       // 批量确认防护
+    body.classList.add('is-cand');
+    vT.classList.add('hide'); vC.classList.remove('hide');
+    document.querySelectorAll('#stripTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === 'cand'));
+    preselect();
+    openBatchModal();
+  }
+  renderTimeline(); renderCandTable(); syncBatch();
+  requestAnimationFrame(fitStage);
+}
+
+/* ── 批量确认弹窗（portal 到 body；焦点默认在「取消」，关闭后归还 body 而非触发按钮） ── */
+function openBatchModal(){
+  const n = state.checked.size;
+  const sel = [...state.checked].map(id => cands.find(c => c.id === id)).sort((a,b)=>a.s-b.s);
+  const span = sel.length ? (sel[0].s/1000).toFixed(1) + 's → ' + (sel[sel.length-1].e/1000).toFixed(1) + 's' : '—';
+  const handCnt = { L:0, R:0, B:0 };
+  let lowN = 0, midN = 0;
+  sel.forEach(c => { handCnt[c.hand]++; const t = tierOf(c); if (t==='low') lowN++; if (t==='mid') midN++; });
+
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-mask" id="mask">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+        <div class="modal-h" id="mt">接受 ${n} 条候选？
+          <span>此操作会生成 ${n} 个要素，可整体撤销。</span></div>
+        <div class="modal-b">
+          <dl style="margin:0">
+            <div class="kv"><dt>要素数</dt><dd>现有 3 → <b>${3+n}</b></dd></div>
+            <div class="kv"><dt>覆盖区间</dt><dd>${span}</dd></div>
+            <div class="kv"><dt>手别分布</dt><dd>左手 ${handCnt.L} / 右手 ${handCnt.R} / 双手 ${handCnt.B}</dd></div>
+            <div class="kv"><dt>需复核</dt><dd>${midN} 条（置信度 0.58–0.72）</dd></div>
+          </dl>
+          ${lowN > 0 ? `<div class="risk"><span class="bang">!</span><span>其中 <b>${lowN}</b> 条为低置信度（&lt;0.55），AI 自己也拿不准——建议先单独核对再接受。</span></div>` : ''}
+        </div>
+        <div class="modal-f">
+          <span class="note">接受后用 <b>I / O</b> 精修边界；<br>30 秒内可整批撤销。</span>
+          <button class="btn" id="mCancel" autofocus>取消</button>
+          <button class="btn danger" id="mOk">接受 ${n} 条</button>
+        </div>
+      </div>
+    </div>`;
+
+  const close = () => {
+    root.innerHTML = '';
+    /* 焦点归还 body（不是触发按钮）：否则 Space/Enter 会重复触发批量接受 */
+    document.activeElement && document.activeElement.blur && document.activeElement.blur();
+  };
+  document.getElementById('mCancel').onclick = close;
+  document.getElementById('mOk').onclick = () => {
+    const nn = state.checked.size;
+    close();
+    toast('已接受 ' + nn + ' 条候选 · 位置不变，可直接 I/O 精修', '撤销（30 秒内）');
+  };
+  document.getElementById('mask').onclick = (e) => { if (e.target.id === 'mask') close(); };
+  document.addEventListener('keydown', function esc(e){
+    if (e.key === 'Escape'){ close(); document.removeEventListener('keydown', esc); }
+  });
+  document.getElementById('mCancel').focus();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   交互接线
+   ════════════════════════════════════════════════════════════════ */
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setScenario(+b.dataset.s));
+
+document.querySelectorAll('#stripTabs button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#stripTabs button').forEach(x => x.classList.toggle('on', x === b));
+    const body = document.getElementById('stripBody');
+    const isCand = b.dataset.t === 'cand';
+    body.classList.toggle('is-cand', isCand);
+    document.getElementById('viewTime').classList.toggle('hide', isCand || b.dataset.t === 'list');
+    document.getElementById('viewCand').classList.toggle('hide', !isCand);
+    requestAnimationFrame(fitStage);
+  };
+});
+
+document.getElementById('ckAllHigh').onchange = (e) => {
+  state.checked.clear();
+  if (e.target.checked) cands.forEach(c => { if (tierOf(c) === 'high') state.checked.add(c.id); });
+  renderCandTable();
+};
+document.getElementById('ckAll').onchange = (e) => {
+  state.checked.clear();
+  if (e.target.checked) cands.forEach(c => state.checked.add(c.id));
+  renderCandTable();
+};
+document.getElementById('ckIso').onchange = (e) => {
+  document.getElementById('strip').classList.toggle('isolate', e.target.checked);
+  document.querySelectorAll('.tl-row').forEach((r, i) => r.classList.toggle('dim', e.target.checked && i !== 0));
+  document.activeElement && document.activeElement.blur();
+};
+document.getElementById('btnAcceptSel').onclick = () => {
+  const n = state.checked.size;
+  const lowN = [...state.checked].filter(id => tierOf(cands.find(c=>c.id===id)) === 'low').length;
+  if (n === 0) return;
+  /* 闸门 2：>5 条 或 含低置信度 → 二次确认 */
+  if (n > 5 || lowN > 0) { openBatchModal(); return; }
+  document.activeElement.blur();
+  toast('已接受 ' + n + ' 条候选', '撤销（30 秒内）');
+};
+document.getElementById('btnRejectSel').onclick = () => {
+  const n = state.checked.size;
+  if (n === 0) return;
+  document.activeElement.blur();
+  toast('已否决 ' + n + ' 条 · 该区间不再提示', '撤销（30 秒内）');
+};
+
+document.getElementById('btnAi').onclick = () => { setScenario(2); };
+document.getElementById('btnStop').onclick = () => {
+  setScenario(1);
+  toast('已中止分析 · 保留已完成的 7 条候选', '继续分析');
+};
+document.getElementById('btnPlay').onclick = () => { /* 原型无真实视频 */ };
+
+document.getElementById('gray').onchange = (e) =>
+  document.getElementById('app').classList.toggle('gray-tl', e.target.checked);
+document.getElementById('annot').onchange = (e) =>
+  document.getElementById('annotCard').classList.toggle('hide', !e.target.checked);
+
+document.getElementById('width').onchange = (e) => {
+  const app = document.getElementById('app');
+  if (e.target.checked){
+    app.style.width = '1600px'; app.style.height = '1000px';
+    app.style.setProperty('--stage-w', '883px');
+    document.querySelector('.wb-frame').style.width = '883px';
+    document.querySelector('.wb-frame').style.height = '497px';
+    app.style.setProperty('--zoom', (Math.min(1, (window.innerWidth-40)/1600)).toFixed(3));
+    requestAnimationFrame(fitStage);
+  } else {
+    app.style.width = '1366px'; app.style.height = '768px';
+    app.style.setProperty('--stage-w', '676px');
+    document.querySelector('.wb-frame').style.width = '676px';
+    document.querySelector('.wb-frame').style.height = '380px';
+    app.style.setProperty('--zoom', (Math.min(1, (window.innerWidth-40)/1366)).toFixed(3));
+    requestAnimationFrame(fitStage);
+  }
+};
+
+/* 画面按容器等比重算（真实项目：useLayoutEffect + ResizeObserver 反推 --wb-stage-w） */
+const AR = 16/9;
+function fitStage(){
+  const app = document.getElementById('app');
+  const screen = document.querySelector('.wb-screen');
+  const frame = document.querySelector('.wb-frame');
+  if (!screen || !frame) return;
+  const z = parseFloat(getComputedStyle(app).zoom) || 1;
+  const w = screen.clientWidth / z, h = screen.clientHeight / z;
+  let fw = Math.min(w, h * AR), fh = fw / AR;
+  frame.style.width = Math.round(fw) + 'px';
+  frame.style.height = Math.round(fh) + 'px';
+  const hud = frame.querySelector('.hud');
+  if (hud) hud.textContent = '前横梁装配 · 00:04.200 / 00:18.000 · ' + Math.round(fw) + '×' + Math.round(fh);
+}
+
+/* 自适应缩放（只缩不放；≥97% 时不缩，保证量尺读到的是 1:1 原值） */
+function fitZoom(){
+  const app = document.getElementById('app');
+  const w = app.style.width ? parseFloat(app.style.width) : 1366;
+  const z = (window.innerWidth - 36) / w;
+  app.style.setProperty('--zoom', z >= 0.97 ? 1 : z.toFixed(3));
+}
+window.addEventListener('resize', () => { fitZoom(); fitStage(); });
+
+/* 启动 */
+const Q = new URLSearchParams(location.search);
+if (Q.get('only') === 'strip') document.documentElement.classList.add('only-strip');
+if (Q.get('gray') === '1'){ document.getElementById('gray').checked = true; document.getElementById('app').classList.add('gray-tl'); }
+if (Q.get('annot') === '1'){ document.getElementById('annot').checked = true; document.getElementById('annotCard').classList.remove('hide'); }
+fitZoom();
+fitStage();
+if (window.ResizeObserver){
+  const ro = new ResizeObserver(() => fitStage());
+  ro.observe(document.querySelector('.wb-screen'));
+}
+setScenario(Number(Q.get('s') || 1));
+
+/* 量尺：把 §4.2 的核算数字变成屏幕实测值（?debug=1） */
+if (Q.get('debug') === '1'){
+  const h = el => el ? Math.round(el.getBoundingClientRect().height) : 0;
+  const app = document.getElementById('app');
+  const mainH = h(document.querySelector('.wb-main'));
+  const stageH = h(document.querySelector('.wb-stage'));
+  const stripH = h(document.getElementById('strip'));
+  const headH  = h(document.querySelector('.wb-tlstrip-head'));
+  const bodyH  = h(document.getElementById('stripBody'));
+  const barH   = h(document.querySelector('.wb-actionbar'));
+  const wbH    = h(document.querySelector('.wb'));
+  const laneContent = 16 + 3 * 28 + 9;   // 刻度16 + 3轨×28 + 底距9
+  const need4th = 16 + 4 * 28 + 9;
+  const TL_BODY = 116;                 // 时间线页签的既有 body 高（clamp(116,13vh,124) @1366）
+  const fits = TL_BODY >= need4th;
+  const panel = document.createElement('div');
+  panel.className = 'measure';
+  panel.innerHTML = `
+    <h5>MEASURED @ ${app.style.width || '1366px'}</h5>
+    <div><span>.app</span><b>${h(app)}</b></div>
+    <div><span>.wb（可用）</span><b>${wbH}</b></div>
+    <div><span>.wb-main（舞台+检查器）</span><b>${mainH}</b></div>
+    <div><span>.wb-stage（画面380+控制41）</span><b>${stageH}</b></div>
+    <div><span>.wb-tlstrip 头/身</span><b>${headH} / ${bodyH}</b></div>
+    <div><span>.wb-actionbar</span><b>${barH}</b></div>
+    <div><span>轨道内容需求（3 轨）</span><b>${laneContent}</b></div>
+    <div><span>加第 4 轨需求</span><b>${need4th}</b></div>
+    <div><span>第 4 轨 vs 时间线页签</span><b class="${fits?'ok':'bad'}">${fits?'放得下':'溢出 ' + (need4th-TL_BODY) + 'px'}</b></div>
+    <div><span>工作台内部溢出</span><b class="${wbH<=h(app)?'ok':'bad'}">${wbH} / ${h(app)}</b></div>`;
+  document.body.appendChild(panel);
+}
+</script>
+</body>
+</html>

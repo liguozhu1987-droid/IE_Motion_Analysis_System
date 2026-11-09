@@ -1,0 +1,21 @@
+{
+  "rv": "RV1.1",
+  "note": "12条高频ECRSA映射（文档04 §1）+ RV1.1 补「动作浪费」3条（配合 waste_triggers RV1.3 新增第7类动作浪费：走动/转身/弯腰/大臂/往返）。est_save_s = 证据涉及要素std_time合计 × factor（系数0.3~0.8为经验初值，W7校准、W8冻结）。priority = est_save_s × 日频次 ÷ difficulty，跨候选归一化0~100，分档≥60 P1 / 30~59 P2 / <30 P3。",
+  "mappings": [
+    { "id": "M01", "waste": "持住", "method": "E", "measure": "治具代手持住（夹持/磁吸/真空）", "difficulty": 2, "factor": 0.8, "note": "头号浪费，治具投入小见效快" },
+    { "id": "M02", "waste": "重复取放", "method": "C", "measure": "合并取放/一次取多件", "difficulty": 1, "factor": 0.5, "note": "同对象多次取放时优先" },
+    { "id": "M03", "waste": "重复取放", "method": "C", "measure": "工具定点悬挂/缩短取放距离", "difficulty": 1, "factor": 0.4, "note": "工具用完归位" },
+    { "id": "M04", "waste": "搬运", "method": "R", "measure": "料架移入前臂作业区（50cm内）", "difficulty": 2, "factor": 0.5, "note": "布局重排" },
+    { "id": "M05", "waste": "寻找选择", "method": "E", "measure": "供料唯一化/一穴一件，消除挑选", "difficulty": 2, "factor": 0.7, "note": "目视化+唯一化" },
+    { "id": "M06", "waste": "预对", "method": "E", "measure": "对称布局/防呆定向，免去定向动作", "difficulty": 2, "factor": 0.6, "note": "产品/来料设计配合" },
+    { "id": "M07", "waste": "持住", "method": "C", "measure": "双巢作业（一夹两件）", "difficulty": 3, "factor": 0.4, "note": "需治具改造" },
+    { "id": "M08", "waste": "重复取放", "method": "S", "measure": "包装开槽/易取结构，简化取放", "difficulty": 1, "factor": 0.4, "note": "来料包装改善" },
+    { "id": "M09", "waste": "预对", "method": "R", "measure": "来料定向：供应商按方向阵列供料", "difficulty": 2, "factor": 0.7, "note": "对应预对要素ST≥2s" },
+    { "id": "M10", "waste": "等待", "method": "R", "measure": "快换/SMED，缩短换型等待", "difficulty": 3, "factor": 0.5, "note": "频次口径=日换型次数，非日产量" },
+    { "id": "M11", "waste": "等待", "method": "C", "measure": "重叠内外时间（人机/双工位并行）", "difficulty": 2, "factor": 0.5, "note": "人机联合作业图支持" },
+    { "id": "M12", "waste": "寻找选择", "method": "S", "measure": "SOP把判断变动作，减少选择性判断", "difficulty": 1, "factor": 0.3, "note": "标准作业固化" },
+    { "id": "M13", "waste": "动作浪费", "method": "R", "measure": "作业布局重排：料架/工具移入前臂作业区，消除走动/转身", "difficulty": 2, "factor": 0.5, "note": "布局重排消除身体移位" },
+    { "id": "M14", "waste": "动作浪费", "method": "S", "measure": "工装/供料高度优化，减少大臂伸展与弯腰", "difficulty": 2, "factor": 0.4, "note": "作业面高度与取料点优化" },
+    { "id": "M15", "waste": "动作浪费", "method": "C", "measure": "合并取料/一次取多件，减少往返取料次数", "difficulty": 1, "factor": 0.5, "note": "往返动作合并" }
+  ]
+}

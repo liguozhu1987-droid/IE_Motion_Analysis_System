@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>动作要素浪费识别与改善措施实施方案</title>
+<style>
+  :root{
+    --bg:#F5F8F9; --card:#FFFFFF; --ink:#14232A; --muted:#5A6B73;
+    --primary:#0F5257; --accent:#7A8B94; --line:#DDE5E7;
+    --red:#C62828; --amber:#F9A825; --green:#2E7D32; --blue:#1565C0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.65;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 24px 64px}
+  header.doc{border-bottom:3px solid var(--primary);padding-bottom:16px;margin-bottom:20px}
+  header.doc h1{margin:0 0 6px;font-size:24px;letter-spacing:.5px}
+  header.doc .sub{color:var(--primary);font-size:14px;font-weight:600;margin-bottom:8px}
+  .meta{color:var(--muted);font-size:12.5px;display:flex;flex-wrap:wrap;gap:14px}
+  .meta b{color:var(--ink);font-weight:600}
+  h2{font-size:17px;margin:30px 0 12px;padding-left:10px;border-left:4px solid var(--primary)}
+  h3{font-size:14.5px;margin:22px 0 10px;color:var(--primary)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:14px}
+  .concl{background:#EEF5F5;border:1px solid #CBE0E0;border-left:4px solid var(--primary)}
+  .concl ol{margin:8px 0 0;padding-left:20px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--card)}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:#EAF1F1;color:var(--primary);font-weight:600}
+  tr:nth-child(even) td{background:#FAFCFC}
+  .tag{display:inline-block;padding:0 6px;border-radius:9px;font-size:11.5px;border:1px solid;white-space:nowrap}
+  .t-red{color:var(--red);border-color:#E9BEBE;background:#FCEFEF}
+  .t-amber{color:#8A6100;border-color:#EBD9A6;background:#FDF6E3}
+  .t-green{color:var(--green);border-color:#BFDCC3;background:#EEF7F0}
+  .t-blue{color:var(--blue);border-color:#BDD3EE;background:#EFF5FC}
+  .t-grey{color:var(--accent);border-color:#CBD5D8;background:#F2F5F6}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .gap{background:#FBF7EC;border:1px solid #EBD9A6;border-left:4px solid var(--amber)}
+  .warn{background:#FCEFEF;border:1px solid #E9BEBE;border-left:4px solid var(--red)}
+  .rule{background:#EEF5F5;border:1px solid #CBE0E0;border-left:4px solid var(--primary)}
+  ul.plain{margin:6px 0;padding-left:20px}
+  ul.plain li{margin:3px 0}
+  .mono{font-family:Consolas,"Courier New",monospace;font-size:11.5px;background:#F2F5F6;
+    border:1px solid var(--line);border-radius:6px;padding:10px 12px;white-space:pre-wrap;word-break:break-all}
+  .cat{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11.5px;font-weight:600;color:#fff}
+  .cat-va{background:var(--green)} .cat-rnva{background:var(--blue)} .cat-nva{background:var(--red)} .cat-oth{background:var(--accent)}
+  .k{font-weight:600}
+  footer{margin-top:32px;padding-top:14px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  @media print{
+    body{background:#fff}.wrap{max-width:none;padding:0}
+    section,table,.card,header.doc{page-break-inside:avoid}
+    h2{page-break-after:avoid}
+    table{font-size:10.5px}
+    th,td{padding:4px 5px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <h1>动作要素浪费识别与改善措施实施方案</h1>
+  <div class="sub">AI 大模型执行动作分析的基线判定要求（可直接作为系统提示词使用）</div>
+  <div class="meta">
+    <span>版本：<b>V1.0</b></span>
+    <span>日期：<b>2026-10-27</b></span>
+    <span>编制：<b>工业工程专家天团（AIE）</b></span>
+    <span>密级：<b>内部</b></span>
+    <span>编号：<b>RV1.2-r2 配套方案</b></span>
+  </div>
+</header>
+
+<section class="card concl">
+  <strong>核心结论</strong>
+  <ol>
+    <li><b>「0 命中」是规则覆盖缺口，不是无浪费的证据</b>：现行 waste_triggers RV1.1 仅 12 条触发器，已核实走动、转身、弯腰、拿取、放置、预置、思考七类动素<b>零触发器</b>，有效动素（VA 9 类）与辅助动素（RNVA 5 类）全域零触发器——只要工位没有无效动素，规则引擎必然 0 命中。</li>
+    <li><b>判定口径从「只盯无效动素」扩展为三类动素全覆盖</b>：本方案给出 34 行五栏主表（浪费识别要点→量化判定参考绿/黄/红→ECRS 改善→示例）+ VA 九大检查维度专项 + 22 类 waste_type 红档基准表（v2）+ 触发器清单 WT13–WT52/BT01–BT09，清单↔锚点全量对账<b>绑定 17 + 让位 4 + 待定 1 闭环，无漏网</b>。</li>
+    <li><b>「0 命中不等于无浪费，也不等于无风险」成为强制输出规则</b>：即使未命中无效动素，每次分析 VA/RNVA 各至少输出 1 条优化项（工位≥3 个或 CT≥60s 时各≥2 条）；无 waste 但 PPL=高 的工位单独进 S4 观察名单；【建议】阈值只提示不计收益，标定后才升格。</li>
+  </ol>
+</section>
+
+<h2>一、「0 命中」根因分析</h2>
+<section class="card">
+  <table>
+    <thead><tr><th>既有触发器</th><th>覆盖 waste</th><th>覆盖动素类型</th></tr></thead>
+    <tbody>
+      <tr><td>WT01/WT02</td><td>持住</td><td>NVA</td></tr>
+      <tr><td>WT03/WT04</td><td>重复取放</td><td>移物（边界）</td></tr>
+      <tr><td>WT05/WT06</td><td>搬运</td><td>移物≥2s/≥5%CT（边界）</td></tr>
+      <tr><td>WT07/WT08</td><td>等待</td><td>可避免延迟（NVA）</td></tr>
+      <tr><td>WT09/WT10</td><td>寻找/选择</td><td>寻找/发现/选择（RNVA 少数）</td></tr>
+      <tr><td>WT11/WT12</td><td>检验冗余</td><td>检查（边界）</td></tr>
+    </tbody>
+  </table>
+  <div class="note">已核实事实：走动、转身、弯腰、拿取、放置、预置、思考七类在 RV1.1 中均无触发器；伸手、握取、定位、装配、拆卸、使用、放手等 VA 全域、发现/思考/预置等 RNVA 全域同样零触发器。补齐方案：第 4 章主表 + 第 7 章 22 类 waste_type 判定基准 + 附录 D 触发器清单（WT13–WT52 + BT01–BT09）。</div>
+</section>
+
+<h2>二、判定总纲（两轴规则与口径分层）</h2>
+<section class="card">
+  <ul class="plain">
+    <li><span class="k">轴 1 · 触发档位</span>：绿=不报警 / 黄=关注·预警（轻度浪费，纳入浪费清单但收益待标定）/ 红=判定过长·过高（重度浪费，确定性触发工单）。既有触发器 WT01–WT12 行为一律不动；新触发器 WT13 起才适用绿/黄/红分档。</li>
+    <li><span class="k">轴 2 · 固化状态</span>：仅【既有】阈值与已现场标定值 → 确定性命中 + 计收益；【建议】值 → 只提示、不计收益，标定后才升格。<b>即：档位看阈值严重度，是否算数看依据等级。</b>工程落地用 route 字段：route=finding（确定性命中计收益）/ route=pool（仍纳入浪费清单、est_save_s 置空标「待标定」，仅收益汇总不计值）。<b>黄档与红档——无论【既有】还是【建议】——一律进入浪费清单，route 只决定收益是否计值、不决定清单是否展示，杜绝黄档漏报。</b></li>
+    <li><span class="k">依据等级四级制</span>：【既有】平台既有规则 /【行业】通用实践值 /【建议】建议验证值（只提示不计收益）/【待验证】缺乏现场数据（不得作为触发依据）。全文无编造标杆值。</li>
+    <li><span class="k">口径统一</span>：占 CT 比 = Σstd_time÷CT（单循环）；severity 服务端计算（≥15% 严重 /≥8% 一般 /其余轻微，禁 LLM 产数字）；tier：priority=Σest_save_s÷CT×100，P1≥40/P2≥15/P3<15；档位、route、severity、tier 四者独立计算互不覆盖。</li>
+    <li><span class="k">ECRS 收益口径</span>：E=ΣST 全额；C/R/S=ΣST×0.5；消除型改善即使手段是重排/合并按 E 全额；核心加工 VA 禁 E；VA 命中 va_rules 例外正则（VR02/VR05/VR06/VR08）→ va_effective=NVA → 自动走 E 全额。</li>
+    <li><span class="k">叠加防重</span>：seq 不相交才叠加；同要素多措施取一；工位封顶 Σest≤Σ(NVA+可消除RNVA)ST + 0.5×Σ(VA+必要RNVA)ST（RV1.2-r1 修订版）；每项独立可验证。</li>
+  </ul>
+</section>
+
+<h2>三、「0 命中不等于无浪费，也不等于无风险」判定原则</h2>
+<section class="card rule">
+  <p>「0 命中」仅表示当前规则集未在无效动素与少数边界 RNVA 上触发谓词，<b>绝不等于该工位无浪费、更不等于无风险</b>。无论 NVA 是否命中，每次动作分析均须履行以下强制输出规则：</p>
+  <ol>
+    <li><span class="k">最低条数要求</span>：VA 类（伸手/握取/移物/定位/装配/拆卸/使用/放手/检查及扫描/粘贴/涂）至少 1 条优化建议；RNVA 类（寻找/发现/选择/思考/预置及放置/弯腰/按压抬推拉插拔/清洁/拆/翻转/目检点检检测）至少 1 条。分析工位≥3 个或 CT≥60s 时，VA/RNVA 各至少 2 条。</li>
+    <li><span class="k">无优化项声明模板</span>：经九大检查维度逐项核查确认无优化空间的，必须显式输出「经九大检查维度逐项核查，本工位 VA/RNVA 未发现可优化项；该结论基于当前样本与未标定阈值，建议按每工位≥30 循环工时样本复测确认。」禁止空白或省略。</li>
+    <li><span class="k">「只提示不计收益」降级规则</span>：【建议】判定项<b>仍进入浪费清单展示</b>（route=pool、「待标定」角标），但不参与收益计值——est_save_s 置空标「待标定」、不参与 priority/tier 排序，经现场标定或人工审批确认后方可计收益并升格 route=finding。<b>「只提示不计收益」只约束收益汇总层，不约束清单展示层——识别到浪费就必须进清单，未标定只影响收益数字、不影响浪费可视化与人工跟进。</b>触碰品质/安全红线的项（省检查/免检、免防错、改定位基准、负重路径变更、取消防护）一律不计收益，转 S4 专项评审。</li>
+    <li><span class="k">人因补位（无浪费≠无风险）</span>：即使无任何 waste 记录，PPL-1.0 综合分级为「高」的工位必须单独进 S4 观察名单，由安全责任人组织 RULA/REBA/NIOSH 正式评估；出现硬安全信号（负重&gt;10kg、蹲起≥3 次/循环等）直接 S4 强制评审。</li>
+    <li><span class="k">所有优化项默认「待审」</span>：人工审核通过后方可生效；LLM 只生成解释文本，不参与数值判定。</li>
+  </ol>
+</section>
+
+<h2>四、三类动素浪费识别与改善主表</h2>
+<div class="legend">
+  <span><span class="cat cat-va">VA 有效动素</span> 增值要素，同样必须分析（九大检查维度）</span>
+  <span><span class="cat cat-rnva">RNVA 辅助动素</span> 必要非增值，可压缩/可消除部分</span>
+  <span><span class="cat cat-nva">NVA 无效动素</span> 优先消除</span>
+</div>
+<div class="note">统一结构：动素类别 → 动素名称 → 浪费识别要点（含典型表现）→ 量化判定参考（绿/黄/红+依据）→ 改善措施（ECRS）→ 示例。绑定阈值以第 7 章 v2 红档基准表为准；触发器编号以附录 D.1（RV1.2-r2）为准。</div>
+
+<h3>4.1 有效动素 VA（9 类经典 + 3 个 MS1.1 类型）</h3>
+<section class="card">
+<table>
+  <thead><tr><th style="width:9%">动素名称</th><th style="width:24%">浪费识别要点（含典型表现）</th><th style="width:30%">量化判定参考（绿/黄/红 + 依据）</th><th style="width:22%">改善措施（ECRS）</th><th style="width:15%">示例</th></tr></thead>
+  <tbody>
+    <tr><td class="k">伸手</td><td>逐次看起点-终点距离；肩/肘/腰是否代偿；是否盲伸进容器深处。典型：伸到桌角 70cm 外取物；物料箱在身后；探身+耸肩取远处件</td><td><span class="tag t-green">绿</span>部位档≤小臂(3)且距离≤35cm【既有】。<span class="tag t-amber">黄</span>部位档=大臂(4)或 35cm&lt;距离≤60cm【既有】；工位级单次&gt;40cm 或占 CT≥10%【建议】。<span class="tag t-red">红</span>部位档=肩(5)或&gt;60cm【既有】；加严≥3 次/循环或伴转身/弯腰/踮脚/耸肩或占 CT≥15%【建议】（行程过长 WT13/WT14b）</td><td>E：一次取多件/弹射送料。C：伸手与移物路径重合。R：定置入 35-40cm 黄金域；料架移入前臂作业区（ecrsa M04）。S：滑槽/导向件送料。收益 R/S×0.5</td><td>伸到 70cm 外桌角拿螺丝刀 → 定置到夹具右侧 20cm 内</td></tr>
+    <tr><td class="k">握取</td><td>是否一次抓稳；有无滑脱重抓；抓握面大小；是否盲抓。典型：混料盒盲抓小螺丝；捏取光滑无把手零件；一次抓多件再分拣</td><td><span class="tag t-green">绿</span>same_desc_count=1 且单次&lt;1s。<span class="tag t-amber">黄</span>单次≥1s，或重抓/滑脱≥1 次/循环，或同描述≥2（WT03）。<span class="tag t-red">红</span>单次≥2s，或每次均需二次调整，或同描述≥3【建议】，或湿手/戴手套仍不稳【建议】</td><td>E：定置+定向摆放取消盲抓。C：一次成组抓取。R：容器倾斜/按取用朝向排列。S：真空吸笔/磁吸/夹爪代手。收益 C/R/S×0.5</td><td>混料盒盲抓螺丝 → 分格定位振动盘定向送料</td></tr>
+    <tr><td class="k">移物</td><td>移送距离；身体参与等级；路线是否绕行/交叉；是否悬空移送。典型：工件搬到桌角另一工位；搬运后随手放无定位；路线与人流交叉；重物悬空端送</td><td><span class="tag t-green">绿</span>单次≤1 步、单循环≤2 次且≤3 步、dur&lt;2s 且&lt;5%CT。<span class="tag t-amber">黄</span>dur≥2s（WT05）或累计≥5%CT（WT06），或单次 2 步/单循环 3~5 次【建议】。<span class="tag t-red">红</span>单次≥3 步或单循环≥6 次/≥10 步/累计≥10%CT【建议】，或&gt;60cm/部位档=肩(5)【既有】，或负载&gt;2kg 且&gt;60cm（BT 阻塞）【建议】，或换手/暂停/绕障【建议】（WT42）</td><td>E：工序就近重排取消搬运；就近供料/线边仓。C：一次搬多件。R：消除往返路线重排。S：滑槽/滚筒线/升降台。收益：清零按 E 全额；部分减少 R×0.5</td><td>手持工件走 3 步到下一工位 → 工位间滑槽+升降台</td></tr>
+    <tr><td class="k">定位</td><td>装配前对位次数；是否眼看手试；有无导向。典型：插件反复试插才对孔；贴标撕贴几次找正；轴孔配合靠手感试</td><td><span class="tag t-green">绿</span>≤2s。<span class="tag t-amber">黄</span>&gt;2s（VR04→NVA）或调整≥1 次/循环。<span class="tag t-red">红</span>&gt;3s，或反复调整≥2 次（挂起 BT08/BT09），或无导向盲调【建议】（定位不良 WT36）</td><td>E：定位止口/定位销。C：导向件+限位一次到位。R：先预置后精定位。S：V 型块/导向销/锥度导入（ecrsa M06）。收益 C/R/S×0.5</td><td>USB 接头反复试插 → 导向护套+限位一次到位</td></tr>
+    <tr><td class="k">装配</td><td>是否一次到位；是否分两步（先放后紧）；有无返修。典型：螺丝先松放再拧紧两步走；粘贴先比划再贴；涂胶凭手感、涂完擦溢胶</td><td><span class="tag t-green">绿</span>≤2s。<span class="tag t-amber">黄</span>2~3s。<span class="tag t-red">红</span>&gt;3s，或≥20%CT（WT45），或失败返修（VR05/VR06→NVA），或装后另需紧固【建议】（WT38/WT46）</td><td>E：防错+导向取消返修（免防错属品质红线→S4）。C：合并装配与到位检测。R：先定位后装配。S：夹持治具/定量涂胶阀。收益 C/R/S×0.5</td><td>手工涂胶凭手感 → 定量阀+导向治具</td></tr>
+    <tr><td class="k">拆卸</td><td>拆卸是否顺畅；有无撬/扭/晃/敲附加动作；有无损伤风险。典型：卡扣用指甲抠；生锈螺纹硬拧；乱拆乱装</td><td><span class="tag t-green">绿</span>≤1s。<span class="tag t-amber">黄</span>1~2s，或需撬/扭/晃。<span class="tag t-red">红</span>&gt;2s，或卡死需敲击/撬棒/加热（WT40 正则已扩展撬/敲/加热/硬拆），或零件损伤风险【建议】（WT40）</td><td>E：设计免拆结构。C：合并拆卸与检查。R：拆卸顺序标准化。S：快拆结构/助力手柄。收益 C/R/S×0.5</td><td>卡扣用指甲抠 → 快拆拨片单手一拨即开</td></tr>
+    <tr><td class="k">使用</td><td>操作时长；施力大小与持续时间；身体是否固定姿势；工具是否需归位。典型：徒手持续按压等卡合；敲击代替导向；按钮远需伸身按</td><td><span class="tag t-green">绿</span>&lt;2s 且&lt;10%CT。<span class="tag t-amber">黄</span>≥2s，或占 CT≥10%，或持续用力&gt;2s【建议】。<span class="tag t-red">红</span>≥3s，或占 CT≥15%，或需双手全力/全身用力，或使用后另需归位【建议】。元素级同时按部位档/距离判（WT13）</td><td>E：气动/电动助力取消人力操作。C：多次按压合并。R：按工具动线排顺序。S：助力机械/快接接头/脚踏开关。收益 C/R/S×0.5</td><td>徒手持续按压 5s → 改气缸缓压双手同步作业</td></tr>
+    <tr><td class="k">放手</td><td>放置是否干脆；放置面是否致弹跳/滚动；放手后是否需扶正。典型：怕碰伤件轻放；软胶垫上零件弹开；放下去才发现位偏再挪</td><td><span class="tag t-green">绿</span>干脆放置无扶正。<span class="tag t-amber">黄</span>≥0.5s（含确认落位）或放后需扶正压住【建议】。<span class="tag t-red">红</span>≥1s，或放后弹跳/翻滚/倾倒需重新处理【建议】</td><td>E：连续作业中不松手。C：放手与下一步移物路径重合。R：承接面设定位窝/挡边。S：承接治具/缓冲垫。收益 C/R/S×0.5</td><td>零件放台面常滚动 → 加挡边定位窝</td></tr>
+    <tr><td class="k">检查</td><td>检查占 CT 比；是否反复翻看；有无判定标准；是否重复检查。典型：翻来覆去只看一面；标准凭经验；检完手工记录再录电脑；全检但不良率极低</td><td><span class="tag t-green">绿</span>&lt;8%CT 且同描述=1。<span class="tag t-amber">黄</span>8%~15%CT，或同描述≥2（WT12），或单次≥2s【建议】。<span class="tag t-red">红</span>≥15%CT（WT11），或≥25%CT 加严（WT25）【建议】，或无判定标准全凭经验【建议】</td><td>E：源头防错+抽样取消全检（品质红线→S4，不计收益）。C：检查与作业合并/扫码直录。R：检查工位独立+节拍平衡。S：限度样板/影像自动判定。收益 C/R/S×0.5</td><td>目检外观无标准 → 限度样板+灯检箱</td></tr>
+    <tr><td class="k">扫描<br><span class="tag t-grey">MS1.1·VA</span></td><td>是否一次读码成功；条码朝向/位置是否固定；是否逐件扫描</td><td><span class="tag t-green">绿</span>一次成功。<span class="tag t-amber">黄</span>需调整朝向/位置≥1 次/循环或单次≥1s【建议】。<span class="tag t-red">红</span>重复扫描≥2 次/循环【建议】</td><td>R：条码位置/朝向定置。S：扫码枪支架/固定读码器。C：一次扫多码。收益 C/R/S×0.5</td><td>逐件手持扫码 → 固定读码器+批次扫描</td></tr>
+    <tr><td class="k">粘贴<br><span class="tag t-grey">MS1.1·VA</span></td><td>是否一次到位；有无比划找正；粘贴面有无导向</td><td><span class="tag t-green">绿</span>≤2s。<span class="tag t-amber">黄</span>2~3s 或需比划找正【建议】。<span class="tag t-red">红</span>&gt;3s，或≥20%CT，或返修重贴【建议】</td><td>S：导向治具/定位样板。C：合并粘贴与到位确认。R：先定位后粘贴。收益 C/R/S×0.5</td><td>贴标反复找正 → 定位样板一次到位</td></tr>
+    <tr><td class="k">涂<br><span class="tag t-grey">MS1.1·VA</span></td><td>涂覆量是否可控；是否凭手感；有无溢胶擦除</td><td><span class="tag t-green">绿</span>≤3s。<span class="tag t-amber">黄</span>2~3s 或凭手感涂覆【建议】。<span class="tag t-red">红</span>&gt;3s，或≥20%CT，或涂后擦溢胶【建议】</td><td>S：定量涂胶阀+导向治具。C：合并涂胶与装配节拍。R：涂胶工位独立+防溢。收益 C/R/S×0.5</td><td>手工涂胶凭手感 → 定量阀+导向治具</td></tr>
+  </tbody>
+</table>
+</section>
+
+<h3>4.2 辅助动素 RNVA（5 类经典 + 8 个 MS1.1 类型）</h3>
+<section class="card">
+<table>
+  <thead><tr><th style="width:9%">动素名称</th><th style="width:24%">浪费识别要点（含典型表现）</th><th style="width:30%">量化判定参考（绿/黄/红 + 依据）</th><th style="width:22%">改善措施（ECRS）</th><th style="width:15%">示例</th></tr></thead>
+  <tbody>
+    <tr><td class="k">寻找</td><td>目光与手的停顿；有无转身/翻找；物料是否定置。典型：工具用完不放回；物料混放；多规格混一筒</td><td><span class="tag t-green">绿</span>单次&lt;2s 且累计&lt;8%CT 且≤1 次/循环。<span class="tag t-amber">黄</span>dur≥2s 或累计≥8%CT（WT09）或单循环≥2 次【建议】。<span class="tag t-red">红</span>单循环≥3 次或累计≥15%CT【建议】（WT26/WT27）</td><td>E：定置管理取消寻找；供料唯一化（ecrsa M05）。C：批次配送。R：按动作顺序摆放。S：形迹管理/着色分区。收益：消除型 E 全额</td><td>三种螺丝刀混放每次挑 → 定置+形迹管理</td></tr>
+    <tr><td class="k">发现</td><td>「眼看-手到」是否分两步；有无目光定位停顿。典型：眼睛先找到再伸手；昏暗位眯眼找；目标在视线外先转头</td><td><span class="tag t-green">绿</span>无停顿。<span class="tag t-amber">黄</span>≥0.5s（目光定位停顿）或 dur≥2s/累计≥8%CT（WT10）。<span class="tag t-red">红</span>≥2s 纯停顿无衔接或累计≥15%CT【建议】</td><td>E：物料置于视线正前方。C：发现与伸手路径合一。R：按动作经济原则布点。S：增强照明/颜色分区。收益 C/R/S×0.5</td><td>料盒在视线外每次先转头 → 移至视线正前方 ±45° 内</td></tr>
+    <tr><td class="k">选择</td><td>取料时有无犹豫/比对；相似件是否靠经验分。典型：相似零件混放靠手感分；正反件不分靠试装；物料无标识靠记忆</td><td><span class="tag t-green">绿</span>单次&lt;2s 且≤1 次/循环。<span class="tag t-amber">黄</span>dur≥2s 或累计≥8%CT（WT10）或单循环≥2 次【建议】。<span class="tag t-red">红</span>单循环≥3 次或累计≥15%CT 或选错返工≥1 次/班【建议】</td><td>E：相似件分盒+防错料仓。C：定向送料合并选择与握取。R：按型号分区+标识。S：颜色管理/定位销防反。收益：消除型 E 全额</td><td>两种相似插销混放 → 分格料盒+防呆导向</td></tr>
+    <tr><td class="k">思考</td><td>动作衔接处停顿；顺序是否每次一致；换型/异常时是否变长。典型：下一步做什么想一下；换型后犹豫顺序；边做边翻图纸</td><td><span class="tag t-green">绿</span>无停顿且顺序一致。<span class="tag t-amber">黄</span>≥1s/循环或累计≥5%CT 或 dur≥2s/累计≥8%CT（basis status=已标定-阈值沿用/场景待首批次复核）。<span class="tag t-red">红</span>≥3s/循环或累计≥10%CT 或顺序每次不一【建议】（WT28/WT29）</td><td>E：标准书+视频可视化；SOP 把判断变动作（ecrsa M12）。C：顺序训练固化。R：步骤按节拍固定化。S：Andon/异常处置卡。收益 C/R/S×0.5</td><td>换型后每步都要想 → 换型要领卡+首件验证表</td></tr>
+    <tr><td class="k">预置</td><td>工具/工件是否每循环重新摆放；预置后是否还需调整。典型：螺丝逐颗手摆再拿；工具用完放回再取；零件预先翻面</td><td><span class="tag t-green">绿</span>无重复预置。<span class="tag t-amber">黄</span>≥1s/循环或累计≥5%CT【建议】。<span class="tag t-red">红</span>≥2s/循环或累计≥10%CT 或预置后仍需定位调整【建议】（WT30/WT31）</td><td>E：治具保持+自动送料取消预置。C：预置与作业边做边到位。R：并入节拍平衡分配。S：导向槽/磁吸垫/排列送料。收益 C/R/S×0.5</td><td>螺丝逐颗手摆 → 振动排列送料</td></tr>
+    <tr><td class="k">放置<br><span class="tag t-grey">MS1.1·RNVA</span></td><td>放置是否干脆；粗放还是精定位；放后是否需对中/加压/扶正</td><td><span class="tag t-green">绿</span>无对中加压。<span class="tag t-amber">黄</span>需对中/加压或≥0.5s【建议】。<span class="tag t-red">红</span>重复拆装≥2 次（VR05/VR06）或放后弹跳/翻滚【建议】。粗放按 RNVA、精定位按 VA（须人工确认）</td><td>R：承接面设定位窝/挡边。S：承接治具/缓冲垫。C：放手与下一步移物重合。收益 C/R/S×0.5</td><td>零件放台面常滚动 → 挡边定位窝</td></tr>
+    <tr><td class="k">弯腰<br><span class="tag t-grey">MS1.1·RNVA</span></td><td>取料/作业是否需弯腰；浅弯还是深弯/蹲起；频次。典型：料盒在地面每次弯腰取；蹲起调整低位安装</td><td><span class="tag t-green">绿</span>无深弯/蹲起。<span class="tag t-amber">黄</span>深弯或≥2 次/循环【建议】。<span class="tag t-red">红</span>蹲起≥1 次或弯腰≥3 次/累计≥5%CT【建议】（WT18–WT20）。深弯/蹲起升级为姿势负荷复评（PPL）</td><td>E：供料腰高化、滑槽/升降台消弯腰。R：重排。收益：每减 1 次按 1.0s（保守 MTM-1 口径）</td><td>弯腰作业 2 小时需休息 → 坐姿+升降台</td></tr>
+    <tr><td class="k">按/压/抬/推/拉/插/拔<br><span class="tag t-grey">MS1.1·RNVA</span></td><td>施力大小与持续时间；身体是否固定姿势；是否一次到位。典型：徒手持续按压等卡合；敲击代替导向；插件反复试插</td><td>元素级按部位档/距离：<span class="tag t-green">绿</span>档≤3 且≤35cm；<span class="tag t-amber">黄</span>档=大臂(4)或 35-60cm；<span class="tag t-red">红</span>档=肩(5)或&gt;60cm【既有】。另：持续用力&gt;2s=黄；需双手全力/全身用力=红【建议】。+物料时人工改判 VA（打「核心操作」标记进人工确认）</td><td>E：气动/电动助力取消人力操作。C：多次按压合并。R：按工具动线排顺序。S：助力机械/快接接头/脚踏开关。收益 C/R/S×0.5</td><td>徒手持续按压 5s → 气缸缓压双手同步</td></tr>
+    <tr><td class="k">清洁<br><span class="tag t-grey">MS1.1·RNVA</span></td><td>清洁是否产品要求；是否额外清洁；工具是否定置。典型：清除铁屑每次拿抹布；清洁与作业交替</td><td><span class="tag t-green">绿</span>产品要求工序内完成。<span class="tag t-amber">黄</span>额外清洁≥1 次/循环或单次≥2s【建议】。<span class="tag t-red">红</span>额外清洁≥2 次/循环或累计≥8%CT【建议】。产品要求工序可升 VA（须人工确认）</td><td>E：取消非必要清洁；负压吸屑/免清洁设计。C：清洁与作业合并。R：工具定置就近。收益 C/R/S×0.5</td><td>每次拿抹布清铁屑 → 负压吸屑装置</td></tr>
+    <tr><td class="k">拆<br><span class="tag t-grey">MS1.1·RNVA</span></td><td>同拆卸：有无撬/扭/晃/敲；有无损伤风险；顺序是否标准</td><td><span class="tag t-green">绿</span>≤1s。<span class="tag t-amber">黄</span>1~2s 或需撬/扭/晃【建议】。<span class="tag t-red">红</span>&gt;2s 或卡死需敲击/撬棒或零件损伤风险【建议】。拆修作业按 VA（须人工确认）</td><td>E：设计免拆结构。C：合并拆卸与检查。R：拆卸顺序标准化。S：快拆结构/助力手柄。收益 C/R/S×0.5</td><td>卡扣用指甲抠 → 快拆拨片</td></tr>
+    <tr><td class="k">翻转<br><span class="tag t-grey">MS1.1·RNVA</span></td><td>翻转是否必要；是否伴随弯腰/抬手（逆重力）；翻转后是否需重新握取</td><td><span class="tag t-green">绿</span>无翻转或治具内完成。<span class="tag t-amber">黄</span>手工翻转≥1 次/循环或伴深弯/抬手过肩【建议】。<span class="tag t-red">红</span>翻转≥2 次/循环或翻转后需重新对位【建议】</td><td>E：定向送料使零件以装配朝向到位。S：翻转治具/托板。R：工序顺序避免翻面。收益 C/R/S×0.5</td><td>手工翻面再装 → 定向送料+翻转治具</td></tr>
+    <tr><td class="k">目检/点检/检测<br><span class="tag t-grey">MS1.1·RNVA</span></td><td>同检查：占 CT 比、反复翻看、判定标准、重复检查</td><td>与检查同口径（既有阈值不受类别差异影响）：<span class="tag t-green">绿</span>&lt;8%CT 且同描述=1；<span class="tag t-amber">黄</span>8%~15%CT 或同描述≥2（WT12）；<span class="tag t-red">红</span>≥15%CT（WT11），≥25% 加严【建议】</td><td>S：限度样板/标准样件/影像自动判定。C：合并检查项/扫码直录。R：检查工位独立+节拍平衡。收益 C/R/S×0.5；免检类不计</td><td>目检外观无标准 → 限度样板+灯检箱</td></tr>
+    <tr><td class="k">机器自动<br><span class="tag t-grey">MS1.1·占位</span></td><td>不计人员动素触发；须与人员等待关联做人机作业分析。典型：站立等设备循环；设备时间双手闲置</td><td>不单独触发；关联判据：人员等待（可避免延迟≥1s 或≥10%CT 既有命中；不可避免延迟单次≥3s 或≥10%CT【建议】）与机器时间占比</td><td>C：机器时间插入其他工序（双手作业/预置下一件）。R：人机作业重排。S：快换/并行化工装。收益按等待归户型</td><td>站立等设备循环 8s → 设备时间双手预置下一件</td></tr>
+  </tbody>
+</table>
+</section>
+
+<h3>4.3 无效动素 NVA（4 类经典 + 4 个 MS1.1 类型）</h3>
+<section class="card">
+<table>
+  <thead><tr><th style="width:9%">动素名称</th><th style="width:24%">浪费识别要点（含典型表现）</th><th style="width:30%">量化判定参考（绿/黄/红 + 依据）</th><th style="width:22%">改善措施（ECRS）</th><th style="width:15%">示例</th></tr></thead>
+  <tbody>
+    <tr><td class="k">持住</td><td>单手是否长时间持物不动；另一手是否被占用；是否持重物。典型：一手扶工件一手拧螺丝；按压开关不松手等机器</td><td><span class="tag t-green">绿</span>&lt;1s 且&lt;3%CT。<span class="tag t-amber">黄</span>&gt;1s 或占 CT≥3%【建议】（WT32/WT33 黄区前移）。<span class="tag t-red">红</span>&gt;2s 或占 CT≥5%（既有命中）或持住时身体被迫静止或持重物【建议】</td><td>E：夹具/弹簧压块/定位压板代手。C：持住同时另一手插入作业。R：机器时间改做其他工序。S：快速夹/肘节夹/真空吸附。收益：消除型=E 全额</td><td>一手扶板一手焊 → 快速夹+定位挡板</td></tr>
+    <tr><td class="k">可避免延迟</td><td>等料/等指令/等机器造成的停顿；动作衔接处的犹豫。典型：等胶干/等物料；拿错料返回换；动作间犹豫衔接</td><td><span class="tag t-green">绿</span>&lt;0.5s 且&lt;5%CT。<span class="tag t-amber">黄</span>≥0.5s 或占 CT≥5%【建议】（WT34/WT35 黄区前移）。<span class="tag t-red">红</span>≥1s 或占 CT≥10%（既有命中）或每循环重复同一延迟【建议】</td><td>E：物料先行+节拍平衡+并行作业。C：等待时间插入其他作业。R：重排顺序。S：Andon/看板/线边仓缓冲。收益 E 全额</td><td>等上工序送料停 12s → 滑槽+线边仓</td></tr>
+    <tr><td class="k">不可避免延迟</td><td>换型/故障/等放行等系统性停顿的频次与时长。典型：换型/换刀；设备故障；等质检放行</td><td><span class="tag t-green">绿</span>单次&lt;3s 且&lt;10%CT。<span class="tag t-amber">黄</span>单次≥3s 或占 CT≥10%【建议】。<span class="tag t-red">红</span>占 CT≥20% 或每循环≥2 次打断节拍【建议】。TOC 立场：不设红档 waste 记录、不计 est（WT43/WT43b 补单次观察谓词）</td><td>E：SMED 快换+预防维护。C：换型作业外置/并行。R：换型步骤标准化。S：快换模具/备件预置。收益：SMED 按日换型频次单独折算</td><td>每 2 小时换刀停 8 分钟 → 快换刀+寿命管理（待验证）</td></tr>
+    <tr><td class="k">休息</td><td>计划外休息频次；连续作业时长；疲劳累积信号。典型：靠墙站一会；频繁喝水离岗；下午动作变慢；甩手/耸肩/捶腰</td><td><span class="tag t-green">绿</span>按计划休息。<span class="tag t-amber">黄</span>计划外休息≥2 次/班或连续作业≥2h 无休息【建议】。<span class="tag t-red">红</span>疲劳信号明显仍无休息安排或休息侵占节拍【建议/待验证】。休息不作收益对象；「伴疲劳信号」与 PPL 联动</td><td>E：根本是取消疲劳源（降等级/减弯腰持住）。C：休息与换型/停线点合并。R：难易作业轮换。S：改善姿势负荷（RULA/REBA≥7 复评）。不计收益</td><td>弯腰作业 2 小时需休息 → 坐姿+升降台</td></tr>
+    <tr><td class="k">拿取<br><span class="tag t-grey">MS1.1·NVA</span></td><td>公司视角拿取指取物流动作不增值；须区分「取料/取工具」与「握持工件本体」。典型：到远处/身后取料；盲抓混料盒；一次取一件多趟</td><td>元素级按部位档/距离：<span class="tag t-green">绿</span>档≤3 且≤35cm；<span class="tag t-amber">黄</span>档=大臂(4)或 35-60cm；<span class="tag t-red">红</span>档=肩(5)或&gt;60cm【既有】。工位级按维度 3/5。标签为拿取但对象为工件本体→人工复核</td><td>E：就近供料/线边仓。C：一次取多件。R：定置+形迹管理。S：弹射送料/振动盘。收益：取物流按 NVA-E 全额；工件本体按 VA 压缩</td><td>混料盒盲抓螺丝 → 分格定位振动盘</td></tr>
+    <tr><td class="k">走动<br><span class="tag t-grey">MS1.1·NVA</span></td><td>每循环走动步数；走动目的（取料/送件/看屏）；是否可布局消除。典型：到线边仓取料走 5 步；送件到下一工位</td><td><span class="tag t-green">绿</span>0 步/循环。<span class="tag t-amber">黄</span>≥1 步/循环或单次 2 步或单循环 3~5 次/4~9 步或累计≥5%CT【建议】。<span class="tag t-red">红</span>单次≥3 步或≥6 次/循环或累计≥10%CT【建议】（WT15–WT17）</td><td>E：U 型/花瓣式布局取消走动。R：物料左右对称配送。S：工位间滑槽、设备参数就近可视。收益：清零=E 全额；部分减少 R×0.5</td><td>手持工件走 3 步 → 工位间滑槽+升降台</td></tr>
+    <tr><td class="k">转身<br><span class="tag t-grey">MS1.1·NVA</span></td><td>转身角度与频次；是否因物料/设备位置被迫转身。典型：物料在身后每次转身取；设备屏幕在侧后方</td><td><span class="tag t-green">绿</span>无转身。<span class="tag t-amber">黄</span>≥90°/循环或 180°/360°/多圈≥1 次或 count≥2【建议】。<span class="tag t-red">红</span>≥4 次/循环或累计≥8%CT【建议】（WT21–WT23）</td><td>E：面向布局消转身。R：物料/设备移至视线内。S：设备参数就近可视。收益：清零=E 全额</td><td>物料箱在身后每次转身取 → U 型布局+物料前置</td></tr>
+    <tr><td class="k">等待<br><span class="tag t-grey">MS1.1·NVA</span></td><td>主动等待（等人/料/指令）→可避免延迟；被动等机器/故障→不可避免延迟</td><td>按归入户判：主动→可避免延迟（≥1s 或≥10%CT 既有命中）；被动→不可避免延迟（单次≥3s 或≥10%CT【建议】）</td><td>E：物料先行+节拍平衡。C：等待时间插入其他作业。S：Andon/看板/线边仓。收益按归入户</td><td>等上工序送料停 12s → 滑槽+线边仓</td></tr>
+  </tbody>
+</table>
+<div class="note">兜底行「其他」：凡无法归入 18 类经典动素与 MS1.1 类型的动素/异常动作（视频模糊/遮挡片段、复合动作无法拆分、异常事件），一律进人工复核队列不做自动触发；人工审核归类后回填词表。<b>主表覆盖性自检</b>：19 类经典动素全覆盖；MS1.1 一级类型 14 组全覆盖；与 RV3.1 42 类判定逐项核对无丢条目。</div>
+</section>
+
+<h2>五、附录 A：有效动素九大检查维度专项（核心增量）</h2>
+<div class="note">理论依据：动作经济原则（吉尔布雷斯）；人体动作等级 MOST/MODAPTS（M1 手指→M5 躯体，1MOD≈0.129s【待验证版本】）；双手作业分析；姿势负荷评估（RULA/REBA≥7 高风险复评【建议】）。口径说明：本表为九维度观察框架，绑定阈值以第 7 章 v2 红档基准表为准。</div>
+<section class="card">
+<table>
+  <thead><tr><th style="width:11%">维度</th><th style="width:37%">判定（黄→红）</th><th style="width:24%">改善</th><th style="width:16%">折算系数</th><th style="width:12%">对应触发器</th></tr></thead>
+  <tbody>
+    <tr><td class="k">① 伸手行程</td><td>元素级：黄=部位档=大臂(4)或 35cm&lt;距离≤60cm【既有】（&gt;40cm 优先改善）；红=部位档=肩(5)或&gt;60cm【既有】。工位级加严：黄=单次&gt;40cm 或占 CT≥10%；红=≥3 次/循环或伴转身/弯腰/踮脚/耸肩或占 CT≥15%【建议】</td><td>R：定置入黄金域 35-40cm；S：滑槽送料；C/E：一次取多件</td><td>每降 1 档=0.13s/要素×0.5（R/S）</td><td>行程过长 WT13/WT14b</td></tr>
+    <tr><td class="k">② 动作幅度</td><td>黄：单循环大臂/肩参与≥2 次或明显大甩臂【建议】。红：躯体扭转或弯腰≥1 次/循环或肩腰联合发力（抬举过肩）【建议】</td><td>S：工装导向降级到手腕/小臂；E：布局重排取消躯体参与</td><td>每降 1 档=0.13s/要素</td><td>等级过高（代理观察）</td></tr>
+    <tr><td class="k">③ 动作等级 M1-M5</td><td>绑定 v2：红=部位档 5 且≥2 次/循环，或 M4+M5≥10%CT，或循环平均等级≥3.5；黄=M4+M5≥5%CT 或平均≥3.0（全部【建议】；聚合口径挂起 BT03–BT05，过渡期仅 WT13 逐要素报警，见 D.6）。路径 M5→M4→M3→M2</td><td>E：升降台/工位高度重设取消弯腰；R：定置就近取消探身；S：工具轻量化+平衡器</td><td>每降 1 档=0.13s/要素</td><td>等级过高 BT03–BT05（字段阻塞）</td></tr>
+    <tr><td class="k">④ 走动与转身</td><td>绑定 v2：走动红=单次≥3 步/≥6 次/累计≥10%CT，黄=单次 2 步/3-5 次/4-9 步/≥5%CT；转身红=≥4 次/累计≥8%CT，黄=180°/360°/多圈单次/≥2 次（全部【建议】）。依据：转身=NVA、走动=NVA 必判浪费</td><td>E：U 型/花瓣式布局；R：物料左右对称配送；S：工位间滑槽、设备参数就近可视</td><td>走动每减 1 步=0.5s（步速待标定）；转身每减 1 次=0.6s；清零按 E 全额</td><td>走动 WT15–WT17；转身 WT21–WT23</td></tr>
+    <tr><td class="k">⑤ 双手平衡</td><td><b>WT24C 修正版双子指标</b>（早期 20%/30% 口径经核算过敏已废弃）：①单手闲余（主判定，承载 30%/50%）：占用_X=Σ(X-only)+Σ(B 不打折)；T_manual=CT−机器自动；闲余_X=1−占用_X/T_manual；绿≤30%/黄&gt;30%/红≥50%/加严&gt;70% 或占用&lt;10%。②负荷不均衡（黄区嗅探）：能量_X=(X-only+0.5B)/CT，基线 0.5，提示=能量&lt;0.6×基线且另手&gt;1.3×基线且持续≥2s</td><td>C：双手作业再分配（ecrsa M07）；S：持件治具/脚踏/膝控开关；R：左右手对称分工</td><td>不单独折算；持住手改夹具按 E 口径</td><td>双手不平衡 WT24C（code-side）</td></tr>
+    <tr><td class="k">⑥ 物料工具就近定置</td><td>黄：单件在 40-60cm（黄金域外）【建议】。红：&gt;60cm 或在身后/需转身/需弯腰取得，或每循环定置外取件≥3 件【建议】</td><td>R：按使用顺序定置、高频件入黄金域；S：形迹管理；C：批次配送</td><td>同维度 ①</td><td>行程过长+重复取放</td></tr>
+    <tr><td class="k">⑦ 借助工装</td><td>黄：手工扶持/定位≥2 次/循环【建议】。红：扶持导致无法双手作业，或手工压合需持续用力&gt;2s，或定位无导向纯靠试【建议】</td><td>S：快速夹/肘节夹、导向销/V 型块、定量涂胶阀、防呆定位；E：气缸助力</td><td>持住改夹具按 E 全额；定位改善 C/R/S×0.5</td><td>定位不良+持住</td></tr>
+    <tr><td class="k">⑧ 借助重力</td><td>黄：逆重力/悬空移送≥2 次/循环【建议】。红：重物手工搬运或放置后必须扶持防移位。重物阈值：NIOSH 理想条件最大推荐载荷 23kg【通用/待验证】，须现场称重；&gt;2kg 为 MODAPTS 时间折算锚点（非安全限值）</td><td>S：滑槽/斜面自流、升降台、弹射/振动送料、滚筒线；C：取消手提改托送</td><td>负载附加（&gt;2kg）=0.13s/kg·次</td><td>移物过长 BT（load_kg 阻塞）</td></tr>
+    <tr><td class="k">⑨ 综合 ECRS</td><td>黄：单工位可取消动素≥2 个/循环或可缩短 CT≥5%【建议】。红：可取消≥4 个/循环或可缩短 CT≥10% 或同时命中≥3 个维度【建议】</td><td>按「先 E 后 C 再 R 后 S」排序落地；改善后复测 CT 与动素数进 PDCA</td><td>按各分项系数汇总</td><td>全局</td></tr>
+  </tbody>
+</table>
+<div class="note">维度间关系：「升级链」（行程&gt;60cm 且同循环出现弯腰/转身/走动→工位级等级过高结论）由排序层叠加实现，DSL 不做跨类型共现；「同时命中≥3 个维度」本身即维度⑨红区条件。</div>
+</section>
+
+<h2>六、附录 B：MS1.1 一级类型 ↔ 经典动素映射表</h2>
+<section class="card">
+<table>
+  <thead><tr><th style="width:14%">MS1.1 一级类型</th><th style="width:9%">归属</th><th style="width:13%">对应经典动素</th><th>关键差异与人工确认点</th></tr></thead>
+  <tbody>
+    <tr><td>拿取</td><td><span class="cat cat-nva">NVA</span></td><td>握取+移物</td><td>公司视角拿取指取物流动作不增值，经典握取指握持工件本体 VA；标签为拿取但对象为工件本体时→人工复核（防 VA 触发器漏触发）</td></tr>
+    <tr><td>放置</td><td><span class="cat cat-rnva">RNVA</span></td><td>放手（+定位）</td><td>含粗放与精定位；粗放按 RNVA、精定位按 VA（须人工确认）</td></tr>
+    <tr><td>走动 / 转身</td><td><span class="cat cat-nva">NVA</span></td><td>—</td><td>必判浪费</td></tr>
+    <tr><td>弯腰</td><td><span class="cat cat-rnva">RNVA</span></td><td>—</td><td>深弯/蹲起段升级为姿势负荷复评项</td></tr>
+    <tr><td>等待</td><td><span class="cat cat-nva">NVA</span></td><td>可避免/不可避免延迟</td><td>主动等待→可避免延迟；被动等机器/故障→不可避免延迟</td></tr>
+    <tr><td>移物 / 扫描 / 粘贴 / 涂</td><td><span class="cat cat-va">VA</span></td><td>移物/检查·使用/装配/装配·使用</td><td>一致（扫码为信息价值判 VA）</td></tr>
+    <tr><td>按/压/抬/推/拉/插/拔</td><td><span class="cat cat-rnva">RNVA</span></td><td>使用/装配/定位</td><td>该操作即产品核心加工作业时→升格 VA；默认按 RNVA 触发并打「核心操作」标记进人工确认；插/压/推/拉+物料时人工改判 VA</td></tr>
+    <tr><td>清洁 / 拆 / 翻转</td><td><span class="cat cat-rnva">RNVA</span></td><td>—/拆卸/—</td><td>清洁为产品要求工序可升 VA；拆修作业按 VA；翻转无专项触发器按辅助等待管理</td></tr>
+    <tr><td>目检/点检/检测</td><td><span class="cat cat-rnva">RNVA</span></td><td>检查</td><td>工序必需检查按 VA 管理；既有检查阈值（WT11/WT12）不受类别差异影响继续触发</td></tr>
+    <tr><td>机器自动</td><td><span class="cat cat-rnva">RNVA 占位</span></td><td>—</td><td>不计人员动素触发，须与人员等待关联做人机作业分析</td></tr>
+  </tbody>
+</table>
+<div class="note">三条落地原则：①同一视频片段两套词表只能各触发一次，按映射表归一去重；②类别升降格一律留痕进人工审核，不允许 LLM 自动改类别；③新增一级类型须先过映射表评审再进词库。</div>
+</section>
+
+<h2>七、量化判定基准：22 类 waste_type 红档表（v2）</h2>
+<div class="note">红档谓词=确定性命中（【既有】或已标定）；观察池谓词=【建议】预警、不计收益。<b>红档谓词与观察池谓词命中项均进入浪费清单（全量入清单）；区别仅在 route——红档命中 route=finding（计收益）、观察池命中 route=pool（est_save_s 置空标「待标定」，仅收益汇总不计值）。</b>清单↔锚点全量对账：<b>绑定 17 + 让位 4 + 待定 1 闭环 = 22</b>，无漏网（让位 4 类：移物过长距离扩展→行程过长覆盖；思考停顿 3s/10%→加严观察；装配返修 25%→作废让位 20%CT 绑定；使用过载红档→全退黄档观察池）。</div>
+<section class="card">
+<table>
+  <thead><tr><th style="width:4%">#</th><th style="width:12%">waste_type</th><th style="width:31%">红档谓词（确定性命中）</th><th style="width:31%">观察池谓词（【建议】预警，不计收益）</th><th>依据/固化状态</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="k">持住</td><td>dur_s&gt;2s；或 Σ 占 CT≥5%</td><td>&gt;1s 或 ≥3%</td><td>【既有】WT01/WT02</td></tr>
+    <tr><td>2</td><td class="k">重复取放</td><td>同描述计数≥2；或单循环移物≥6 次</td><td>同描述≥3；单循环移物≥10（WT44 细化）</td><td>【既有】WT03/WT04</td></tr>
+    <tr><td>3</td><td class="k">移物过长（搬运）</td><td>移物 dur_s≥2s；或 Σ 占 CT≥5%</td><td>&gt;60cm；≥3s；换手/绕行/暂停；负载&gt;2kg 且&gt;60cm（BT 阻塞）</td><td>【既有】WT05/WT06；扩充【建议】</td></tr>
+    <tr><td>4</td><td class="k">可避免延迟（等待）</td><td>dur_s≥1s；或 Σ 占 CT≥10%</td><td>≥0.5s 或 ≥5%</td><td>【既有】WT07/WT08</td></tr>
+    <tr><td>5</td><td class="k">寻找/发现/选择</td><td>dur_s≥2s；或 Σ 占 CT≥8%</td><td>单循环≥2 次；累计≥15%</td><td>【既有】WT09/WT10</td></tr>
+    <tr><td>6</td><td class="k">思考停顿</td><td>dur_s≥2s 或 ≥8%CT（既有口径扩展）</td><td>≥3s 或 ≥10%CT 加严；单循环≥2 次</td><td>【既有口径扩展】basis status=已标定-阈值沿用/场景待首批次复核</td></tr>
+    <tr><td>7</td><td class="k">检查冗余（检验）</td><td>Σ(检查)占 CT≥15%；或同描述≥2 次</td><td>目检/点检/检测合计≥25%（WT25）；单次≥2s（WT50）</td><td>【既有】WT11/WT12；加严【建议】</td></tr>
+    <tr><td>8</td><td class="k">行程过长</td><td>&gt;60cm；或部位档=5</td><td>部位档=4；35-60cm（&gt;40cm 优先）；&gt;60cm≥3 次/循环；伸手/拿取合计占 CT≥10%（WT14b）</td><td>&gt;60cm/档 5=【既有边界】</td></tr>
+    <tr><td>9</td><td class="k">等级过高</td><td>部位档 5 且≥2 次/循环；M4+M5≥10%CT；循环平均等级≥3.5</td><td>M4+M5≥5%CT；平均≥3.0</td><td>全部【建议】；聚合口径挂起 BT03–BT05，过渡期仅 WT13+WT14（见 D.6）</td></tr>
+    <tr><td>10</td><td class="k">走动</td><td>单次≥3 步；≥6 次/循环；Σ≥10%CT</td><td>单次 2 步；3-5 次/4-9 步/≥5%CT</td><td>全部【建议】；已核实无既有触发器</td></tr>
+    <tr><td>11</td><td class="k">弯腰</td><td>蹲起≥1 次；≥3 次/循环；Σ≥5%CT</td><td>深弯；2 次/循环</td><td>全部【建议】（PPL 同源）</td></tr>
+    <tr><td>12</td><td class="k">转身</td><td>≥4 次/循环；Σ≥8%CT</td><td>180°/360°/多圈单次；≥2 次</td><td>全部【建议】</td></tr>
+    <tr><td>13</td><td class="k">双手不平衡</td><td>单手闲置≥50%CT；&gt;70%CT 或单手&lt;10%CT 加严</td><td>闲置&gt;30%CT；既有提示口径</td><td>红档【建议】标定后升格；计算式见 D.3 WT24C 修正版</td></tr>
+    <tr><td>14</td><td class="k">定位不良</td><td>定位 dur_s&gt;2s（VR04 同源）；调整≥2 次/循环、试插试配≥2 次（后两项挂起 BT08/BT09）</td><td>≥1s；调整≥1 次</td><td>VR04=【既有】</td></tr>
+    <tr><td>15</td><td class="k">握取不良</td><td>desc~=掉落\|滑落\|重取\|没拿稳（VR02 同源）</td><td>≥2s（WT47）；≥1s</td><td>VR02=【既有】</td></tr>
+    <tr><td>16</td><td class="k">放手不良</td><td>desc~=掉落\|抛\|滑落（VR08 同源）</td><td>≥1s；≥0.5s（WT48）</td><td>VR08=【既有】</td></tr>
+    <tr><td>17</td><td class="k">装配返修/低效</td><td>desc~=返工\|重装\|拆（VR05 同源）；占 CT≥20%（绑定，WT45）；装后另需紧固（WT46 dur_s≥3 pool）</td><td>15-20%CT；≥3s</td><td>VR05=【既有】；20%=绑定锚点；本体效率载体已闭环（r2）</td></tr>
+    <tr><td>18</td><td class="k">拆卸不良</td><td>desc~=返工\|重装\|拆了再装\|撬\|敲\|加热\|硬拆（VR06 同源，正则已扩展）</td><td>≥3s；≥2s（WT49）</td><td>VR06=【既有】</td></tr>
+    <tr><td>19</td><td class="k">使用过载</td><td>无红档（缓行）</td><td>desc~=用力\|全力\|费劲\|重；≥2s/10%CT</td><td>全部【建议】，待 RULA/REBA 复评；PPL=高作复评前置条件</td></tr>
+    <tr><td>20</td><td class="k">预置冗余</td><td>≥2s 或 ≥10%CT</td><td>≥1s/5%CT</td><td>【建议】</td></tr>
+    <tr><td>21</td><td class="k">不可避免延迟</td><td>不设红档（TOC 立场：根因在节拍设计层，工位级消除制造新的线体不平衡）</td><td>≥20%CT 或≥2 次/循环；单次≥3s/≥10%CT（WT43）；单次≥30s（WT43b）——est 恒 0</td><td>【建议】；SMED 走 M10 日频次口径</td></tr>
+    <tr><td>22</td><td class="k">休息异常</td><td>特殊定级：计划外≥2 次/班起，severity 按班次频次，est_save_s 恒 0</td><td>连续作业≥2h 无休息</td><td>【建议】班次口径；VR18 宽放率逻辑</td></tr>
+  </tbody>
+</table>
+<div class="note"><b>waste_type 三组分级（W2 白名单定稿）</b>：A 组 15 类有阈值可直接落库（行程过长/等级过高/走动/弯腰/转身/双手不平衡/检查冗余/重复取放/寻找发现选择/思考停顿/移物过长/定位不良/预置冗余/持住/可避免延迟）；B 组 4 类 va_rules 例外同源化（握取不良/放手不良/装配返修/拆卸不良——命中例外即 va_effective=NVA → est 自动 E 全额）；C 组 3 类缓行（使用过载/不可避免延迟/休息异常）。</div>
+</section>
+
+<h2>八、附录 C：改善收益估算口径与优先级矩阵</h2>
+<section class="card">
+<h3>C.1 单项折算系数表（保守单点值）</h3>
+<table>
+  <thead><tr><th>改善动作</th><th>单位</th><th>保守系数</th><th>参考区间</th><th>依据</th></tr></thead>
+  <tbody>
+    <tr><td>行程缩短/等级降低 每降 1 档</td><td>每要素</td><td>0.13s</td><td>0.13~0.5s</td><td>【行业】MODAPTS 1MOD=0.129s</td></tr>
+    <tr><td>走动 每减少 1 步</td><td>每步</td><td>0.5s</td><td>0.5~0.8s</td><td>【既有】W5≈5MOD≈0.65s/步；步速待标定</td></tr>
+    <tr><td>弯腰 每减少 1 次（含起身）</td><td>每次</td><td>1.0s</td><td>1.0~2.2s</td><td>【行业】MTM-1 B+S≈29TMU；平台引 B17≈2.2s【既有】；建议统一 MODAPTS</td></tr>
+    <tr><td>转身 每减少 1 次（45~90°）</td><td>每次</td><td>0.6s</td><td>0.3~0.7s</td><td>【行业】MTM-1 TB=18.6TMU</td></tr>
+    <tr><td>合并取放 每合并 1 次</td><td>每次</td><td>1.0s</td><td>0.7~1.5s</td><td>【行业】MODAPTS 短距取放链</td></tr>
+    <tr><td>负载附加（&gt;2kg）</td><td>每 kg·次</td><td>0.13s/kg</td><td>—</td><td>【行业】MODAPTS L1 重量修正</td></tr>
+    <tr><td>消除持住/可避免延迟/寻找</td><td>全额</td><td>1.0×Σstd_time</td><td>—</td><td>【既有】E=ΣST 全额</td></tr>
+  </tbody>
+</table>
+<div class="note">计算式：raw_s=单位系数×数量差；est_save_s=raw_s×折减因子（E:1.0 / C·R·S:0.5）。交叉校验：ecrsa_map factor 经验带 0.3~0.8 内，flat 0.5 处于中位。系数固化路径：现场标定（≥30 循环样本+步速+双手基线+load_kg）后写入 benefit_params 增补「按动作类型折算系数」子表，沿用 ecrsa_map W7 校准/W8 冻结纪律。</div>
+<h3>C.2 E/C/R/S 判定与 0.5 折减适用范围</h3>
+<ul class="plain">
+  <li><span class="k">判定规则</span>：改善后该要素整体消失→E 取 ΣST 全额；要素仍在只是更快/更近/更少→C/R/S 取 ΣST×0.5。0.5 是保守实现率（行业常用 0.5~0.7，平台取下限）。</li>
+  <li><span class="k">例外 5 条</span>：①消除型改善即使手段是重排/合并（走动清零、弯腰清零）→按 E 全额；②有前后实测对比→按实测值；③涉及工艺/设备变更→只计已批准范围；④触碰品质特性/安全规程→不计收益转风险评审；⑤换型/SMED 类按日换型频次单独折算。</li>
+  <li><span class="k">班次/年化</span>：班收益=est_save_s×班实际循环数；年化=节省秒数×日产量×365×费率÷3600×落地率（benefit_params 未配置产线阻止计算，现仅 L01 有值）。</li>
+</ul>
+<h3>C.3 算例（假设数据，仅演示算法，非实测）</h3>
+<div class="mono">CT=60s；持住 3 次×4.0s=12.0s；可避免延迟 2 次×2.0s=4.0s；走动 8 步 4.8s；弯腰 4 次 4.0s；大臂拿取 2 次 1.6s
+E：持住 12.0 + 延迟 4.0 + 走动清零 4.8 + 弯腰清零 4.0 = 24.8s
+R：拿取大臂→小臂 2 次×(1 档×0.13s)×0.5 = 0.13s
+est_save_s = 24.93s；priority ≈ 41.6 → P1
+对照：若走动只减到 2 步（未清零）→ 按 R：6 步×0.5s×0.5 = 1.5s，tier 立刻掉出 P2</div>
+<div class="note">结论：P1 几乎全部由 NVA 系统消除贡献；VA 压缩单项&lt;0.2%，必须靠高频次累积或与消除项打包——同等浪费时间下 NVA 消除项 tier 天然是 VA 压缩项的 2 倍，排序优先消除型，符合「先消除、后压缩」精益次序；单点微改善凑不出 P1，产出受制于瓶颈、改善要看全局。</div>
+<h3>C.4 改善优先级矩阵</h3>
+<table>
+  <thead><tr><th style="width:14%">排序码</th><th style="width:36%">条件</th><th>处置</th></tr></thead>
+  <tbody>
+    <tr><td class="k">S1 立即实施</td><td>P1 且 难度低 且 风险无</td><td>本周实施，随即标准化巩固</td></tr>
+    <tr><td class="k">S2 快速改善</td><td>P2 且 难度低 且 风险无</td><td>QCC/提案渠道，2 周闭环</td></tr>
+    <tr><td class="k">S3 立项排期</td><td>P1/P2 且 难度中</td><td>月度改善计划，定责任人与验证时点</td></tr>
+    <tr><td class="k">S4 专项评审</td><td>难度高 或 风险≠无</td><td>评审通过前不排产、不计收益；通过后重新定级</td></tr>
+    <tr><td class="k">S5 顺手改善</td><td>P3 且 难度低 且 风险无</td><td>并入标准化文件批量更新</td></tr>
+    <tr><td class="k">S6 记录搁置</td><td>P3 且 难度中/高</td><td>留档，待产线重设计时合并处理</td></tr>
+  </tbody>
+</table>
+<ul class="plain">
+  <li><span class="k">难度口径</span>：低=工位内重排/定置/标准化/目视化（不停线无工装）；中=工装改造/排产调整/多能工调配；高=工艺/设备变更/停线/产线重排。</li>
+  <li><span class="k">风险口径</span>：无 / 品质（触碰检查项、定位基准、防错、关键尺寸）/ 安全（负重、搬运路径、设备干涉、作业许可）。risk ∈ {低,中,高,安全}=max(品质映射, PPL 映射)，输出字段增加 risk_source 与 ppl_level。</li>
+  <li><span class="k">TOC 加权</span>：同 tier 同难度下瓶颈工位优先（is_bottleneck：CT=线内最大；balanceRate=ΣCT÷(maxCT×工位数)）。非瓶颈工位 CT 节省只降单位工时成本、不增线体产出，须在线平衡/排产层面另评，并防「改善后瓶颈转移未被识别」。</li>
+  <li><span class="k">VA/RNVA 扩展覆盖三层</span>：触发层（WT13 起并入同一规则集，共用 severity/tier 口径）；收益层按 va_effective（NVA→E 全额；VA→C/R/S×0.5；RNVA→可消除部分按 E、必要辅助按 C/R/S 或只判方法不良）；提示层（VA 压缩项即使 P3 也保留提示；va_confidence=low 走人工裁决队列）。</li>
+  <li><span class="k">输出字段</span>：waste_type / severity / involved_s / pct_of_ct / ecrs / est_save_s / priority / tier / 难度 / 风险 / 排序码 S1~S6 / basis。</li>
+  <li><span class="k">est_save_s 主从五级优先级</span>（同一 seq 多 waste_type 命中）：①固化状态【既有】&gt;【建议】→ ②ECRS 可消除性 E&gt;C&gt;R&gt;S → ③归类 NVA&gt;RNVA&gt;VA → ④est 较大者 → ⑤seq 较小者。与红档重叠时红档优先、severity 取高不降级；从属 finding 保留、est=0 标注「包含于#主issue」；工位封顶 Σest≤Σ(NVA+可消除RNVA)ST + 0.5×Σ(VA+必要RNVA)ST（RV1.2-r1 修订版）。VR 同源 finding 带人工复核标记，est 分列「已确认/待复核」，未复核项不进正式汇总。</li>
+</ul>
+<h3>C.5 姿势负荷代理指标 PPL-1.0（人因接口）</h3>
+<ul class="plain">
+  <li><span class="k">定位</span>：waste 触发判「是否浪费」（用第 7 章锚点阈值），PPL 判「风险多高」，两套独立不互替。<b>无 waste 但 PPL=高 的工位单独进 S4 观察名单——无浪费≠无风险，这是 0 命中场景下人因侧的补位视角。</b></li>
+</ul>
+<table>
+  <thead><tr><th>因子</th><th>低</th><th>中</th><th>高</th></tr></thead>
+  <tbody>
+    <tr><td class="k">弯腰蹲起</td><td>浅弯≤2 次且无深弯/蹲起</td><td>深弯 1-2 次或浅弯 3-5 次</td><td>蹲起≥1 次或深弯≥3 次</td></tr>
+    <tr><td class="k">转身</td><td>90°≤2 次</td><td>180°1-2 次或 90°3-4 次</td><td>360°/多圈≥1 次或 180°≥3 次或 90°≥5 次</td></tr>
+    <tr><td class="k">负重</td><td>≤2kg</td><td>2-10kg</td><td>&gt;10kg 或 5-10kg 且弯腰/转身≥1 次/循环</td></tr>
+    <tr><td class="k">动作等级</td><td>M4≤2 次</td><td>M4 3-5 次</td><td>M4≥6 次或 M5≥2 次</td></tr>
+    <tr><td class="k">静态保持</td><td>持住≤2s</td><td>2-4s</td><td>&gt;4s 或受限姿势&gt;5s</td></tr>
+    <tr><td class="k">重复频次</td><td>姿势类合计&lt;10 次/循环</td><td>10-19 次</td><td>≥20 次</td></tr>
+  </tbody>
+</table>
+<ul class="plain">
+  <li><span class="k">综合分级</span>：高=任一因子高或中因子≥4 个；中=中因子 1-3 个；低=全部低。</li>
+  <li><span class="k">硬安全信号覆盖</span>（出现即高、直接 S4）：负重&gt;10kg 手工搬运、蹲起≥3 次/循环、深弯≥3 次/循环且负重&gt;2kg、转身≥4 次/循环且负重&gt;2kg、正式 REBA≥7 或 RULA≥5、持住&gt;4s 且负重&gt;5kg。</li>
+  <li><span class="k">边界声明</span>：代理指标≠正式评估，正式安全放行仍须 RULA/REBA 或 NIOSH 方程评估并经安全责任人批准；宁可过筛不可漏筛。数据缺口：load_kg 未采集、受限姿势标注未入平台、正式评估未做、阈值待≥30 循环样本验证。</li>
+</ul>
+</section>
+
+<h2>九、附录 D：触发器清单、工程项与数据缺口</h2>
+<section class="card">
+<h3>D.1 触发器清单（RV1.2-r2 工程稿，可直接 merge）</h3>
+<div class="note">线上规则文件未做任何修改；合入须人工执行且不动已发布规则版本号。route=finding（确定性命中计收益）/ route=pool（<b>仍进浪费清单，est_save_s 置空标「待标定」，仅收益汇总不计值</b>）；<b>route 决定「是否计收益」，不决定「是否进清单」——黄档与观察池谓词命中项一律全量入清单，杜绝黄档漏报。</b>basis 四要素（src 来源类型/theory 理论依据/status 标定状态/data 标定数据来源）作为审计轨迹。ctx 可用字段 type/dur_s/std_time/hand/desc/same_desc_count/seq/element_id + ctxOf 增补 pct_of_ct；引用不存在字段直接抛错。</div>
+<table>
+  <thead><tr><th style="width:16%">分区</th><th style="width:14%">编号</th><th style="width:16%">waste_type</th><th style="width:10%">路由</th><th>要点</th></tr></thead>
+  <tbody>
+    <tr><td>行程</td><td>WT13/WT14b</td><td>行程过长</td><td>finding/pool</td><td>（肩）=红【既有边界】；（大臂）=黄；WT14b=伸手/拿取合计占 CT≥10%（工位级池）</td></tr>
+    <tr><td>等级过高（过渡期）</td><td>WT14</td><td>等级过高</td><td>finding</td><td>组合条件：type=拿取 AND desc~=（肩）AND（深弯/蹲起/180°/360°/多圈/3步以上）=红——过渡期唯一可用判据；聚合口径挂起 BT03–BT05</td></tr>
+    <tr><td>走动</td><td>WT15–WT17</td><td>走动</td><td>pool</td><td>单次≥3步；≥6次/循环；≥10%CT</td></tr>
+    <tr><td>弯腰</td><td>WT18–WT20</td><td>弯腰</td><td>pool</td><td>蹲起；≥3次/循环；≥5%CT</td></tr>
+    <tr><td>转身</td><td>WT21–WT23</td><td>转身</td><td>pool</td><td>大角度单次；≥4次/循环；≥8%CT</td></tr>
+    <tr><td>双手</td><td>WT24C</td><td>双手不平衡</td><td>code-side</td><td>双子指标（闲余①30/50/70 + 负荷比②0.6/1.3 持续 2s），agg 无法表达 T_manual 与 B 全时占用，代码侧实现</td></tr>
+    <tr><td>检验</td><td>WT25</td><td>检查冗余</td><td>pool</td><td>目检/点检/检测合计≥25%CT 加严</td></tr>
+    <tr><td>寻找</td><td>WT26/WT27</td><td>寻找选择</td><td>pool</td><td>≥2次/循环；≥15%CT</td></tr>
+    <tr><td>思考</td><td>WT28/WT29</td><td>思考停顿</td><td>finding</td><td>2s/8% 既有口径扩展；basis status=已标定-阈值沿用/场景待首批次复议</td></tr>
+    <tr><td>预置</td><td>WT30/WT31</td><td>预置冗余</td><td>pool</td><td>≥2s；≥10%CT</td></tr>
+    <tr><td>既有黄区前移</td><td>WT32–WT35</td><td>持住/可避免延迟</td><td>pool</td><td>&gt;1s/3%；≥0.5s/5%</td></tr>
+    <tr><td>VR 同源</td><td>WT36–WT40</td><td>定位/握取/放手/装配返修/拆卸不良</td><td>finding</td><td>谓词复用 va_rules VR04/02/08/05/06 例外正则（WT40 已扩展撬/敲/加热/硬拆）；命中即 va_effective=NVA → est 自动 E 全额；va_confidence=low 带人工复核标记</td></tr>
+    <tr><td>嗅探/特殊</td><td>WT41–WT44b</td><td>使用过载/移物过长/不可避免延迟/重复取放</td><td>pool</td><td>使用过载待 RULA/REBA；WT43=单次≥3s/≥10%CT、WT43b=单次≥30s；WT44=重复取放≥10 次细化；不可避免延迟 est 恒 0</td></tr>
+    <tr><td>载体补齐（r2）</td><td>WT45/WT46</td><td>装配返修·低效</td><td>finding/pool</td><td>WT45=装配合计占 CT≥20%（station agg，basis=Part1 绑定锚点）；WT46=装配 dur_s≥3（element）；定位效率不另开（WT36 已覆盖）</td></tr>
+    <tr><td>时长谓词补齐（r2）</td><td>WT47–WT52</td><td>握取/放手/拆卸/检查冗余/移物/装配</td><td>pool</td><td>WT47 握取≥1s；WT48 放手≥0.5s；WT49 拆卸≥2s；WT50 检查≥2s；WT51 移物 desc~=换手\|绕行\|暂停；WT52 装配 desc~=紧固</td></tr>
+  </tbody>
+</table>
+<div class="note"><b>阻塞项 BT01–BT09</b>（字段就绪后激活）：BT01 距离&gt;60cm 及≥3 次（缺口 A）；BT03–BT05 等级过高聚合口径（M4+M5 占比、循环平均等级、reach_level 数值化）；负载移物（load_kg）；休息异常（班次数据模型）；BT08/BT09 定位-调整≥2 次/循环、试插试配≥2 次。<b>载体闭环声明（r2）</b>：22 类 waste_type 载体全部有着落（finding/pool/BT 挂起/code-side 四渠道明确），对账绑定 17+让位 4+待定 1 闭环=22，无漏网。</div>
+<h3>D.2 工程项（落库前必须完成）</h3>
+<ul class="plain">
+  <li>①<b>黄区观察池为新建构造</b>（区别于既有 va_confidence=low 归类待办队列），需 ai-waste 模块新增存储；机器稳定键用 trigger id，waste_type 保持中文，不加英文列。<b>注：观察池记录仍属「浪费清单」展示范围（全量入清单），前端以「待标定/观察中」角标呈现、不得从清单隐藏，与待办队列分表存储、同页展示。</b></li>
+  <li>②<b>观察池字段组</b>：PPL 字段组（pl_grade/六因子快照/硬安全标记/risk 建议值/s4_flag）、双手字段组（energy/idle_L·R/持续≥2s 标记）、load_kg、姿势类计数、谓词级固化状态、改判留痕、来源区分；r1 新增三字段 qualitative_flag + source（人工/LLM 提示）+ auto_judge=false。</li>
+  <li>③<b>池内记录口径</b>：severity/tier/est_save_s=null，est_note='未标定不计'；<b>route=pool 条目在清单中正常展示浪费类型/证据/涉及要素，仅收益三栏置空标「待标定」。</b></li>
+  <li>④<b>池规则四条（r1 修订版）</b>：同 seq 已有确定性命中 finding 则抑制不入池（限定要素级，工位级聚合条目不被吞）；标定后（≥30 循环+IE 主管确认）晋升 finding 并重算历史条目；连续 3 批次未命中或复评确认不浪费则归档；VR 同源 finding 带人工复核标记、est 分列「已确认/待复核」。</li>
+  <li>⑤<b>主从规则与封顶</b>：五级优先级（C.4）；工位封顶 Σest≤Σ(NVA+可消除RNVA)ST + 0.5×Σ(VA+必要RNVA)ST；需改 scoreIssues（W1.5 去重键挡不住同 seq 不同 waste_type 双计）。</li>
+  <li>⑥<b>白名单登记</b>：ai-waste 浪费白名单=waste_triggers∪ecrsa_map 的 waste 名，新增 22 类必须同步登记否则 W2 拒收；未登记类型（翻转/清洁/扫描）暂按映射表近似口径管理。</li>
+  <li>⑦<b>hand=B 口径</b>：ST 记录 B 计 1×不双计；能量/闲置计算时 B 按 0.5 分摊进 L/R 分子——记录口径与计算口径分离。</li>
+  <li>⑧<b>引擎改造六项</b>：ctxOf 增补 reach_level/turn_angle/walk_steps/bend_depth/load_kg/pct_of_ct；PPL 六因子与硬安全信号计算（现行规则文件零 PPL，纯新增）；工位级跨循环聚合；P1 聚合 AST 引擎+snapshot_version 统一；WT24C 代码侧双手判定；t_ai_waste_issue 加 route/qualitative_flag/source/auto_judge 列。红线：修改仅限配置/引擎层，不动已发布规则版本号。</li>
+</ul>
+<h3>D.3 双手不平衡（WT24C，原 WT21）定义修正版（落库前置检查项）</h3>
+<div class="warn card">
+  <b>缺陷演示（公式激励倒挂）</b>：v2 早期公式「单手闲置=1−单手能量（B 按 0.5 分摊）」量的是份额不是物理闲余——双手全程同步工位（最理想平衡态）→ 单手能量=0.5 → 闲置=0.5 → <b>触红档≥50% 定严重</b>；而单手独揽工位（最差形态）主动手闲置=0 判绿——<b>公式激励倒挂：双手同步反被判红，单手独揽的主动手判绿</b>。根因：B 要素 std_time 只计一次，0.5 分摊后能量上限即 0.5。若不修，规则引擎上线即从「0 命中漏报」翻转为「大规模误报滥报」，摧毁用户信任。
+  <div class="note">修正方案（阈值 30/50/70/10% 不动、只换算式），已验算三种工位形态均正确（双手全程同步→闲余 0→绿；半同步→闲余 20%→绿；单手独揽→闲余 100%→红）。</div>
+</div>
+<ul class="plain">
+  <li><span class="k">①单手闲余（主判定，承载 30%/50%）</span>：占用_X=Σ(X-only)+Σ(B 不打折)；T_manual=CT−机器自动；闲余_X=1−占用_X/T_manual。绿≤30% / 黄&gt;30% / 红≥50% / 加严&gt;70% 或占用&lt;10%。</li>
+  <li><span class="k">②负荷不均衡（黄区嗅探）</span>：能量_X=(X-only+0.5B)/CT，基线 0.5，提示=能量&lt;0.6×基线且另手&gt;1.3×基线且持续≥2s（时间轴代码侧实现，agg 表达不了）。</li>
+  <li>①抓循环均值、②抓连续片段，互补，两者并列进黄区。<b>工程注记（r2 补订）</b>：所有 Σ 限定 outlier_flag=0（异常段不进 CT、禁计入任何计算）；T_manual&lt;20%CT（建议值）→ 闲余判 null 不判绿 + 提示「人机配合分析」（防机时任工位假绿）。</li>
+</ul>
+<h3>D.4 分解与标签唯一性规范（数据卫生）</h3>
+<ul class="plain">
+  <li>一 seq 一标签，复合动作拆多个 seq，禁止单 seq 双标签；拿取（取物料/物流）与握取（握持工件加工）按目的判一次，不得双标。</li>
+  <li>放置/放手/定位拆分：放下即走=放手，放下并找正=定位。</li>
+  <li>hand=B 分摊：双手同时同幅=1×ST 不双计；同时不同幅=主导手 1×ST；一手持住一手作业=持住另计 waste+作业手全额；单手闲置记闲置率不计 ST；记录口径（B 计 1×）与计算口径（B 按 0.5 分摊）分离。</li>
+  <li>est_save_s 按 seq 集合去重（复用 W1.5 dupKey），同一 seq 多 waste_type 命中按主 waste_type 计一次（五级优先级见 C.4）。</li>
+  <li>人工改判须留痕（原标签/新标签/改判人/理由），LLM 不得自动改判；收益测算一律按 classifyElements 最终归类。</li>
+</ul>
+<h3>D.5 等级过高过渡态说明（防误判覆盖度，单列项）</h3>
+<ul class="plain">
+  <li><span class="k">现状</span>：等级过高（v2 #9）三个聚合口径——部位档 5 且≥2 次/循环、M4+M5≥10%CT、循环平均等级≥3.5——全部挂起于 BT03–BT05（M4/M5 频次、部位档计数、循环平均等级均依赖 reach_level 数值化，desc 正则表达不了循环级统计）。</li>
+  <li><span class="k">过渡期判定链</span>：仅 WT13 逐要素报警（desc~=（肩）=红）+ WT14 组合条件（type=拿取 AND desc~=（肩）AND（深弯/蹲起/180°/360°/多圈/3步以上）=红）。能判「单次够远勉强」，判不了「等级高频/平均等级」。</li>
+  <li><span class="k">明示要求</span>：①文档必须写明「过渡期等级过高维度仅部分覆盖」，不得误以为已全覆盖；②标定前所有等级判定只作观察、不计收益；③reach_level 数值化+≥30 循环标定到位后 BT03–BT05 激活并重算历史条目；④过渡期不放松九大检查维度的人工审查（LLM 输出侧仍须按第 3 章最低条数要求覆盖 VA/RNVA）。</li>
+</ul>
+<h3>D.6 定性通道说明（人工复核观察项机制，单列项）</h3>
+<ul class="plain">
+  <li><span class="k">边界</span>：六处语义级定性项——身体被迫静止不能双手作业、顺序每次不一、检查后无判定标准、定位无导向盲调、零件损伤风险、疲劳信号明显——<b>视频与 LLM 均不自动判</b>（qualitative_flag + source + auto_judge=false），全部转人工复核观察项。</li>
+  <li><span class="k">分流规则</span>：①已注册红档判定能覆盖语义的（如持住-身体被迫静止→WT01 dur_s&gt;2s 既有红档）→走红档；②纯语义定性（疲劳信号、无判定标准、顺序不一）→走定性通道；③LLM 只能把观察写入 qualitative_flag 池，不得自行定级、不得计入 severity/tier/est；④人工复核结论回写后按 C.4 主从规则参与收益测算。</li>
+  <li><span class="k">设计意图</span>：LLM 语义识别强但不可作最终判定，定性通道把「语义优势」限制在观察池，既不放任也不浪费——这是三层架构（规则引擎+LLM+人工审核）中 LLM 的正确定位。<b>该边界必须明示，不可让读者误以为六项已可自动判定。</b></li>
+</ul>
+<h3>D.7 数据缺口合并清单（A–L）</h3>
+<table>
+  <thead><tr><th style="width:14%">类</th><th style="width:44%">缺口内容</th><th>补齐动作</th></tr></thead>
+  <tbody>
+    <tr><td>A 结构化字段</td><td>reach_level/turn_angle/walk_steps/bend_depth/load_kg/pct_of_ct 未入 ctx；动作等级 M1–M5 未采集</td><td><b>规格已补全</b>（见 D.8 落地规格：字段字典/数据模型/ctxOf/解封对照/三档闭合矩阵）；落地待排期「字段化项」（migrate→实体→ctxOf→前端录入→RV 发布），详见 D.8.6。缺字段前以 desc 正则过渡、引用不存在字段会抛错</td></tr>
+    <tr><td>B 阈值标定</td><td>全部 VA/RNVA【建议】阈值需每工位≥30 循环工时样本校准；距离分布/步速/定位装配拆卸弯腰时长分布未测</td><td>制定工时测定与标定计划；未标定前默认「只提示、不计收益」</td></tr>
+    <tr><td>C 双手口径</td><td>闲置率未采集；双手基线定义与 hand=B 分摊口径待定</td><td>先定基线口径再采集；WT24C 代理判据与完整判据差异注明</td></tr>
+    <tr><td>D 安全人因</td><td>重物搬运阈值须现场称重+评估；RULA/REBA 未做正式评估；安全放行/作业许可须人工批准</td><td>现场称重+姿势负荷评估排期；红线项一律转 S4</td></tr>
+    <tr><td>E 词表类别</td><td>公司标准与经典动素类别差异须人工确认后回填；LLM 不得自动升降格</td><td>人工确认回填；映射表评审机制</td></tr>
+    <tr><td>F 收益参数</td><td>benefit_params 仅 L01 有值</td><td>配置其余产线参数前阻止年化计算</td></tr>
+    <tr><td>G 字段关系</td><td>移物「部位档×步数」双字段并存关系</td><td>字段化时定义双字段冲突时的取值优先级</td></tr>
+    <tr><td>H 品质依据</td><td>检查项品质依据文件</td><td>补品质依据；免检/省检查须品质评审</td></tr>
+    <tr><td>I PTS 体系统一</td><td>MODAPTS 与 MTM-1 对身体动作取值不同</td><td>建议统一 MODAPTS；未统一前取区间下限保守值</td></tr>
+    <tr><td>J 档位关系文档化</td><td>档位×route×severity×tier 四者独立计算关系需文档化</td><td>已在第二章明确</td></tr>
+    <tr><td>K est 主从与叠加</td><td>五级主从优先级与叠加防重四规则已裁定，待 scoreIssues 落地</td><td>编码实现+回归测试</td></tr>
+    <tr><td>L 班次数据</td><td>班次循环数未采集（休息异常 severity 定级分母）；est=0 的班次级浪费无分级载体</td><td>班次模型扩展；先池内观察不定级</td></tr>
+  </tbody>
+</table>
+<div class="note"><b>遗留事项闭环记录</b>：原六项待确认均已裁定（分母统一单循环、走动/转身无触发器已核实、休息按班次频次、est 主从五级、叠加防重四规则、时序依赖独立可验证）；新增遗留事项均已明确路径（ctxOf pct_of_ct 及 6 类结构化字段——见 D.8 落地规格、部位档数值化 BT03–BT05/BT08/BT09 激活前提——见 D.8、班次数据模型、VR06 变更单审批、T_manual&lt;20%CT 标定、思考停顿首批次复议、≥30 循环标定计划）。</div>
+
+<h3>D.8 缺口 A：结构化字段落地规格（reach_level / distance / walk_steps / turn_angle / bend_depth / load_kg / pct_of_ct）</h3>
+<div class="note">
+<b>定位</b>：缺口 A 是 22 类 waste_type 中 7 类（等级过高、走动、弯腰、转身、移物过长-负载、定位-调整计数、定位-试插试配）与 WT24C 双手判定的<b>字段阻塞点</b>。第 4 章主表、第 7 章 v2 红档表、附录 A 九维度的三档逻辑已完整描述，但其中依赖「部位档/距离/步数/角度/弯腰深度/负重」的判定项，当前只能靠 <code>desc</code> 正则过渡（如 WT13/WT14 组合条件 <code>desc~=（肩）</code>），无法做<b>循环级统计</b>（≥N 次/循环、平均等级、累计占比），导致这些维度的黄/红聚合口径整体挂起于 BT01 / BT03–BT05 / BT08 / BT09。补全缺口 A = 把 6 个结构化字段 + 1 个派生字段注入 <code>ctxOf</code>，使三档判定从「文本近似」升级为「数值精确」，绿/黄/红三档才可<b>完整落地</b>。
+<b>与缺口 B 的正交关系</b>：缺口 A 解决「字段能否进 ctx（能否精确计算）」；缺口 B（每工位≥30 循环标定）解决「阈值值是否固化（能否计收益）」。A 到位后【建议】阈值可用字段精确判定，但仍 route=pool 不计收益；B 到位后升格 finding。两者不可互相替代，均须各自排期。
+</div>
+
+<h3>D.8.1 字段字典（7 字段）</h3>
+<table>
+  <thead><tr><th style="width:11%">ctx 键名</th><th style="width:11%">中文名</th><th style="width:11%">类型/单位</th><th style="width:16%">取值域</th><th style="width:7%">缺省</th><th style="width:15%">来源</th><th style="width:14%">解封的 BT</th><th>三档作用</th></tr></thead>
+  <tbody>
+    <tr><td><code>reach_level</code></td><td>动作等级（M1–M5）</td><td>int</td><td>1=手指/M1，2=腕/M2，3=小臂/M3，4=大臂/M4，5=躯体/M5；null=未采集</td><td>null</td><td>工作台结构化下拉 / 视频 AI 识别幅度回填（低置信→null 交人工）</td><td>BT03 / BT04 / BT05</td><td>等级过高维度③</td></tr>
+    <tr><td><code>distance</code></td><td>伸手/移物距离</td><td>decimal cm</td><td>≥0；null=未采集</td><td>null</td><td>起点-终点带尺/估测录入 / AI 识别距离回填</td><td>BT01 / WT13 元素级精度提升</td><td>行程过长维度①⑥</td></tr>
+    <tr><td><code>walk_steps</code></td><td>走动步数</td><td>int 步</td><td>≥0；null=未采集</td><td>null</td><td>走动类要素录入步数 / AI 计步回填</td><td>WT15（≥3 步）/ WT16（≥6 次/循环）/ WT17（Σ≥10%CT）</td><td>走动维度④</td></tr>
+    <tr><td><code>turn_angle</code></td><td>转身角度</td><td>int 度</td><td>∈{0,45,90,180,360,720…}；null=未采集</td><td>null</td><td>转身要素录入角度 / AI 识别角度回填</td><td>WT21（≥4 次/循环）/ WT22（≥8%CT）/ WT23（180°/360°/多圈单次）</td><td>转身维度④</td></tr>
+    <tr><td><code>bend_depth</code></td><td>弯腰深度</td><td>int 枚举</td><td>0=浅弯，1=深弯，2=蹲起；null=未采集</td><td>null</td><td>弯腰要素录入深度 / AI 识别姿态回填</td><td>WT18（蹲起≥1）/ WT19（≥3 次/循环）/ WT20（Σ≥5%CT）</td><td>弯腰维度④ + PPL 弯腰因子同源</td></tr>
+    <tr><td><code>load_kg</code></td><td>负重</td><td>decimal kg</td><td>≥0；null=未采集</td><td>null</td><td>搬运/持重要素录入负重 / 现场称重回填</td><td>移物过长-负载（&gt;2kg 且 &gt;60cm）/ PPL 负重因子（&gt;10kg 硬安全信号）</td><td>移物过长维度⑧ + PPL D</td></tr>
+    <tr><td><code>pct_of_ct</code></td><td>元素级占 CT 比</td><td>decimal %</td><td>引擎注入 = dur_s÷CT×100；非录入字段</td><td>自动</td><td>引擎计算派生（RV1.2-r1 已纳入 ctx 设计，<b>当前 engine.ts 尚未注入，属缺口 A 一并闭合</b>）</td><td>所有「Σ 占 CT」工位级谓词改用引用</td><td>全域占比谓词统一</td></tr>
+  </tbody>
+</table>
+<div class="note">
+<b>采集纪律（人因/AI 边界）</b>：①人工结构化录入为<b>首要来源</b>（工作台表单扩展 6 个可选字段），AI 切分接受后回填仅作<b>辅助且低置信项</b>——AI 对动作等级/步数/角度/深度/负重识别置信度不足时一律写 null 交人工补全，<b>不臆造</b>（与第 10.2 章「LLM 不产数字」纪律一致）。②字段优先、desc 兜底：字段与 desc 文本双写过渡期，规则判定优先读字段值；字段为 null 时回落 desc 正则。③CSV 导入新增 6 列映射（部位档/距离 cm/步数/转身度/弯腰深度/负重 kg），缺列即 null。
+</div>
+
+<h3>D.8.2 数据模型变更（t_element 列）</h3>
+<div class="note">新增 6 列（pct_of_ct 为派生不落表）：</div>
+<div class="mono">reach_level   INT          NULL   -- 1..5，null=未采集
+distance      DECIMAL(6,1) NULL   -- cm
+walk_steps    INT          NULL   -- 步
+turn_angle    INT          NULL   -- 度
+bend_depth    INT          NULL   -- 0/1/2
+load_kg       DECIMAL(6,2) NULL   -- kg</div>
+<div class="note">幂等迁移（scripts/migrate.ts）：<code>IF COL_LENGTH('t_element','reach_level') IS NULL ALTER TABLE t_element ADD reach_level INT NULL</code>（其余 5 列同式）。<b>存量数据回填</b>：desc 文本已含「大臂/肩/深弯/蹲起/3 步以上/60cm」等片段，提供一次性迁移脚本 desc→字段（正则解析），双写过渡期字段优先；迁移脚本幂等可重跑。</div>
+
+<h3>D.8.3 ctxOf 扩展 schema（engine.ts）</h3>
+<div class="note">目标形态（现状缺 pct_of_ct，且 6 字段均未注入）：</div>
+<div class="mono">function ctxOf(el: any, sameDescCount: number, ct: number): Record&lt;string, any&gt; {
+  return {
+    type: el.type,
+    dur_s: Number(el.dur_s),
+    std_time: Number(el.std_time),
+    start_ms: Number(el.start_ms),
+    hand: el.hand,
+    desc: el.desc,
+    element_id: el.element_id,
+    seq: el.seq,
+    same_desc_count: sameDescCount,
+    reach_level: el.reach_level ?? null,   // 缺口 A
+    distance: el.distance ?? null,         // 缺口 A
+    walk_steps: el.walk_steps ?? null,     // 缺口 A
+    turn_angle: el.turn_angle ?? null,     // 缺口 A
+    bend_depth: el.bend_depth ?? null,     // 缺口 A
+    load_kg: el.load_kg ?? null,           // 缺口 A
+    pct_of_ct: ct &gt; 0 ? round1((Number(el.dur_s) / ct) * 100) : 0,  // 派生
+  };
+}</div>
+<div class="note"><b>红线</b>：DSL 引用不存在字段直接抛错（现有纪律）；规则文件（RV）发布前必须先落字段，否则激活触发器即 500。字段就绪与 RV 发布两步必须配套（migrate → 重启 → publish 升 rv）。</div>
+
+<h3>D.8.4 BT 触发器解封对照表（字段 → BT → 解封后的三档 DSL）</h3>
+<table>
+  <thead><tr><th style="width:8%">BT</th><th style="width:18%">阻塞字段</th><th>解封后元素级/工位级谓词</th><th style="width:18%">三档归属</th></tr></thead>
+  <tbody>
+    <tr><td>BT01</td><td><code>distance</code></td><td>工位级红：<code>(type=伸手 OR type=拿取) AND distance&gt;60</code> 聚合 count≥3；元素级黄/红分档精度由 desc 正则升级为数值比较（&gt;60cm 红 / 35–60cm 黄 / ≤35cm 绿）</td><td>行程过长（维度①⑥）</td></tr>
+    <tr><td>BT03</td><td><code>reach_level</code></td><td>工位级红：<code>reach_level=5</code> 聚合 count≥2/循环</td><td>等级过高</td></tr>
+    <tr><td>BT04</td><td><code>reach_level</code></td><td>工位级红：聚合 <code>filter:"reach_level&gt;=4" sum:"std_time" ratioOf:"CT" op:"&gt;=" value:0.10</code>（M4+M5≥10%CT）</td><td>等级过高</td></tr>
+    <tr><td>BT05</td><td><code>reach_level</code></td><td>工位级红：聚合层 <code>avg:"reach_level"</code> ≥3.5（<b>需引擎扩展聚合 avg 函数</b>，DSL 当前无 mean）</td><td>等级过高</td></tr>
+    <tr><td>负载 BT</td><td><code>load_kg</code>+<code>distance</code></td><td>移物过长红：<code>type=移物 AND load_kg&gt;2 AND distance&gt;60</code>；PPL 负重因子：<code>load_kg&gt;10</code> → 硬安全信号</td><td>移物过长（维度⑧）+ PPL D</td></tr>
+    <tr><td>BT08</td><td><code>desc</code> 代理→字段稳化</td><td>定位要素 <code>desc~=调整 OR desc~=对中</code> 聚合 count≥2/循环（字段化后改 <code>adjust_count&gt;=2</code>）</td><td>定位不良（v2 #14）</td></tr>
+    <tr><td>BT09</td><td><code>desc</code> 代理→字段稳化</td><td>定位要素 <code>desc~=试插 OR desc~=试配 OR desc~=对孔</code> 聚合 count≥2/循环</td><td>定位不良（v2 #14）</td></tr>
+  </tbody>
+</table>
+<div class="note">注：WT15–WT23（走动/转身/弯腰）的<b>频次类</b>谓词（≥N 次/循环）靠现有 <code>count</code> 聚合已可表达，缺口 A 解封的是<b>步数/角度/深度精确分档</b>与<b>累计占比</b>谓词；BT03–BT05 才是真正的循环级统计阻塞点。</div>
+
+<h3>D.8.5 完整绿/黄/红三档落地矩阵（缺口 A 解封后闭合）</h3>
+<table>
+  <thead><tr><th style="width:20%">维度/ waste_type</th><th style="width:38%">过渡态（缺口 A 未解封）</th><th>完整态（缺口 A 解封后）</th></tr></thead>
+  <tbody>
+    <tr><td>行程过长（维度①）</td><td>desc~=（肩/大臂）正则近似；距离分档靠「35cm/60cm」文本</td><td><code>distance</code> 数值比较：≤35 绿 / 35–60 黄 / &gt;60 红；工位级 distance&gt;60 且≥3 次/循环（BT01）</td></tr>
+    <tr><td>等级过高（维度③）</td><td>仅 WT13 逐要素（desc~=肩）+ WT14 组合条件（desc 正则）</td><td>BT03–BT05 聚合：<code>reach_level=5</code> 且≥2 次 / M4+M5≥10%CT / 平均等级≥3.5 → 完整聚合口径</td></tr>
+    <tr><td>走动（维度④）</td><td>WT15–WT17 靠 desc~=（3 步以上/2 步）正则 + count</td><td><code>walk_steps</code> 数值：≥3 步 红 / 2 步 黄；<code>turn_angle</code> 数值：≥4 次/≥8%CT/180°+ 精确分档</td></tr>
+    <tr><td>弯腰（维度④）</td><td>WT18–WT20 靠 desc~=（蹲起/深弯）正则</td><td><code>bend_depth</code> 枚举：2=蹲起红 / 1=深弯黄 / ≥3 次或 Σ≥5%CT</td></tr>
+    <tr><td>移物过长（维度⑧）</td><td>负载&gt;2kg 且&gt;60cm 仅靠 desc</td><td><code>load_kg</code>+<code>distance</code> 数值联合：&gt;2kg AND &gt;60cm → 红；PPL 负重&gt;10kg 硬信号</td></tr>
+    <tr><td>定位不良（v2 #14）</td><td>BT08/BT09 靠 desc 代理（易漏写）</td><td>字段稳化（adjust_count / 试插试配计数≥2/循环）</td></tr>
+    <tr><td>双手不平衡 WT24C</td><td>code-side（不受影响）</td><td>不变（独立实现）</td></tr>
+  </tbody>
+</table>
+<div class="note"><b>闭合结论</b>：缺口 A 解封后，第 7 章 v2 红档表 22 类中此前挂起/过渡的 7 类全部具备精确字段判定能力；结合 v3.57 已落地的 route=finding/pool 两轴分流 + routeOf 自动判定，「浪费识别（全量入清单）」与「收益计值（finding 计 / pool 待标定）」解耦落地完备，绿/黄/红三档实现<b>完整可落地</b>。</div>
+
+<h3>D.8.6 落地顺序与依赖（字段化项）</h3>
+<ul class="plain">
+  <li><b>数据层</b>：migrate.ts 加 6 列（幂等 ALTER）+ 存量 desc→字段回填脚本（幂等）。</li>
+  <li><b>实体层</b>：element.entity.ts 加 6 个 @Column；elements.dto.ts 加可选字段（@IsOptional，ValidationPipe whitelist 必须带装饰器）；submit/importCsv 透传。</li>
+  <li><b>引擎层</b>：engine.ts ctxOf 注入 6 字段 + pct_of_ct 派生；扩展聚合 avg 函数（BT05 平均等级）。</li>
+  <li><b>前端录入</b>：WorkbenchPage 要素表单加 6 个可选结构化字段；ai-segment 回填低置信→null；CSV 导入列映射。</li>
+  <li><b>规则层</b>：waste_triggers 发布 RV（BT01/BT03–BT05/BT08/BT09 激活，原 desc 正则谓词升级为字段谓词）+ 重启刷新内存缓存。</li>
+  <li><b>回归</b>：detectWastes 全 22 类可触发；保持 v3.57 已落地的 route 自动判定（routeOf）零回归。</li>
+</ul>
+
+<h3>D.8.7 风险与校验</h3>
+<ul class="plain">
+  <li><b>字段与 desc 双写一致性</b>：字段优先、desc 兜底；迁移脚本与录入校验确保不冲突（如 distance&gt;0 但 desc 无「cm」片段，以字段为准）。</li>
+  <li><b>AI 回填置信度</b>：动作等级/步数/角度/深度/负重 AI 识别低置信一律 null，不臆造数字。</li>
+  <li><b>聚合 avg 函数</b>：BT05 平均等级需引擎新增 <code>avg</code> 聚合算子（DSL 现有 sum/count，无 mean），属引擎扩展项，须与 ctxOf 改造同批测试。</li>
+  <li><b>存量兼容</b>：字段化前已发布的 RV（含 v3.57 WT01–WT18）不引用新字段，不受影响；新 RV 须字段落地后发布，避免「引用不存在字段抛错」。</li>
+</ul>
+
+</section>
+
+<h2>十、数据缺口声明与人工审核点</h2>
+<section class="card gap">
+  <ul class="plain">
+    <li><b>严禁编造</b>：全部 VA/RNVA 量化阈值为建议验证值，无现场 CT 分布与动素时长分布数据，黄/红分界须用工时测定样本（每工位≥30 循环）校准后方可固化。</li>
+    <li><b>未测项</b>：伸手/移物距离分布、动作等级 M1-M5 占比、双手闲置率、重物搬运阈值（NIOSH 23kg 为通用参考，须现场称重+评估）、RULA/REBA 正式评估、班次循环数。</li>
+    <li><b>人工审核点</b>：①红线项（省检查/免检、免防错、改定位基准、负重路径变更、取消防护）转 S4 专项评审不计收益；②安全放行/作业许可/重大变更须安全责任人批准，人因改善不得为提效率牺牲安全冗余；③类别升降格一律留痕进人工审核，LLM 不得自动改类别；④停线/改工艺/改设备仅作辅助判断最终人工审批；⑤AI 建议永远「待审」；⑥六处语义级定性项转人工复核观察项。</li>
+  </ul>
+</section>
+
+<h2>十一、落地路线建议</h2>
+<section class="card">
+<table>
+  <thead><tr><th style="width:14%">批次</th><th style="width:14%">时间窗</th><th>内容</th><th style="width:12%">排序码</th></tr></thead>
+  <tbody>
+    <tr><td class="k">速赢项</td><td>本周~2 周</td><td>物料定置+形迹管理、腰高供料、面向布局、作业标准书可视化——不动 WT01-12、不增字段、当天可开改善单</td><td>S1/S2</td></tr>
+    <tr><td class="k">标定项</td><td>2~6 周</td><td>每工位≥30 循环工时测定；部位档/距离/步速/弯腰时长分布采集；双手基线与 hand=B 分摊口径定义；benefit_params 扩产线配置</td><td>支撑全部【建议】阈值</td></tr>
+    <tr><td class="k">字段化项</td><td>排期入 ctx</td><td>reach_level/turn_angle/walk_steps/bend_depth/load_kg/pct_of_ct；WT24C 与 BT 系列依赖字段就绪后激活</td><td>—</td></tr>
+    <tr><td class="k">评审项</td><td>S4</td><td>省检查/免检、免防错、改定位基准、负重路径变更、停线/改工艺/改设备——通过后重新定级，不计收益</td><td>S4</td></tr>
+  </tbody>
+</table>
+<div class="note"><b>风险提示</b>：①P1 几乎全部由 NVA 系统消除贡献（VA 压缩单项&lt;0.2%），方案叙事应突出消除型改善，VA 压缩项保留提示层但不虚构收益；②等级过高过渡期仅 WT13+WT14 部分覆盖（见 D.5），叙事不得宣称该维度全覆盖；③所有停线与重大变更建议最终须人工审批；④WT24C 双手不平衡公式为落库前置检查项；⑤VR06 拆卸正则扩展转 va_rules 变更单（独立 change class），不阻塞本批触发器合入。</div>
+</section>
+
+<h2>十二、可直接复制给 AI 大模型的分析规则说明</h2>
+<section class="card rule">
+  <div class="note" style="margin-top:0">以下为自包含文本，可整段复制为 AI 大模型系统提示词。</div>
+  <p><b>【角色定位】</b>你是 IE 动作分析引擎的判定助手，输入为工序视频/工时数据产生的动素序列（type/dur_s/std_time/hand/desc/same_desc_count/seq/element_id），输出结构化浪费识别与改善建议。你负责分类核对、判据比对与改善建议生成；所有数值（秒数、占比、收益、severity、tier）由规则引擎与服务端计算，你只引用、不计算、不新造。</p>
+  <p><b>【分析步骤】</b>先分类→后判定→再输出。①分类：按 19 类经典动素（VA 9/RNVA 5/NVA 4+其他兜底）与 MS1.1 一级类型映射表（va_rules.json RV3.1）核对每个元素的类别归属；类别存疑（如「拿取」对象是工件本体、「放置」属粗放还是精定位、「检查」是否工序必需、「插/压/推/拉」是否+物料）时，标记进人工裁决队列，不得自行升降格类别。②判定：逐类对照《量化判定参考表》绿/黄/红三档，同时附依据等级【既有/行业/建议/待验证】双标注（档位看阈值严重度，是否算数看依据等级）；元素级看单次属性（部位档/距离/步数/时长），工位级看频次与占 CT 比（Σstd_time÷CT）；VA 时长判定以占 CT 比为主、绝对秒值为辅；【建议】/【待验证】命中项只提示、不计收益。③改善：按 ECRS 归属给出措施——NVA（拿取/走动/转身/等待/持住/可避免延迟）→ E 全额；VA（伸手/握取/移物/定位/装配/拆卸/使用/放手/检查/扫描/粘贴/涂）→ C/R/S×0.5 压缩口径，E 仅限非必要 VA（多余伸手/冗余检查/返修/无谓定位调整）；RNVA → 可消除部分（寻找、蹲起、翻转）按 E，必要辅助按 C/R/S 或只判方法不良；换算系数引用附录 C，不自行编造。C 组特殊规则：使用过载无红档（待 RULA/REBA）；不可避免延迟 est 恒 0、走线平衡/SMED（M10 日频次口径）；休息异常 est=0、severity 按班次频次。④输出：按统一五栏结构（动素类别→动素名称→浪费识别要点→量化判定参考→改善措施），并遵守「0 命中不等于无浪费」原则。</p>
+  <p><b>【禁止事项】</b>①禁 LLM 产数字：不得输出任何自行计算的秒数、百分比、收益值；数值一律引用规则引擎结果或标注「待规则引擎计算」。②禁自动升降格类别：不得自行将 RNVA 改判 VA 或反之；类别存疑一律进人工队列。③阈值未标定（【建议】/【待验证】）的命中项：只提示、不计收益，显式标注依据等级。④AI 建议永远「待审」：所有输出默认待审状态，人工审核通过后方可生效；你不拥有终裁权。⑤触碰品质/安全红线（省检查/免检、免防错、改定位基准、负重路径变更、取消防护、停线/改工艺/改设备）：不得输出具体改善指令，转 S4 专项评审并提示须安全责任人/品质责任人批准；人因改善不得为提效率牺牲安全冗余。</p>
+  <p><b>【判定原则引用】</b>严格执行「0 命中不等于无浪费，也不等于无风险」原则：即使未命中无效动素，也必须输出 VA/RNVA 优化项（最低条数要求见该原则）；无优化项时输出规定声明模板；无 waste 但 PPL=高的工位单独进 S4 观察名单。</p>
+  <p><b>【证据链要求】</b>每条结论必须附：①数据来源（元素 ID/视频时间戳/工时样本编号）；②推理路径（分类依据→判定档位与阈值→依据等级→改善逻辑）；③复现条件（如 desc~=大臂 正则或 reach_level 字段值）。无证据链的结论不得输出。</p>
+  <p><b>【输出示例】</b>[动素类别]VA｜[动素名称]伸手｜[浪费识别要点]伸到桌角 70cm 外取螺丝刀（典型：探身+耸肩）｜[量化判定参考]红区【既有】：部位档=肩(5)（行程过长 WT13）；来源 element_017｜[改善措施]R：料架移入前臂作业区（ecrsa M04）+S：滑槽送料；est_save_s 待规则引擎计算｜[状态]待审。</p>
+</section>
+
+<footer>
+  <span>工业工程专家天团（AIE）· 动作要素浪费识别与改善措施实施方案 V1.0 · 2026-10-27</span>
+  <span>可追溯：任何结论可回溯至成员产出与平台规则文件（MS1.1/RV3.1/RV1.1/RV1.2-r2）</span>
+</footer>
+
+</div>
+</body>
+</html>

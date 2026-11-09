@@ -1,0 +1,69 @@
+/************************************************************
+ * diff.css · 版本对比页
+ * 由 legacy.css 于 v3.60 机械拆分而来（类名零变更，仅换文件）
+ ************************************************************/
+/* ================= 版本 Diff 页 ================= */
+.diffp { max-width: 1560px; }
+.diffp-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.diffp-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.diffp-title h1 { font-size: 20px; }
+.diffp-back { font-size: 12.5px; }
+.diffp-title .sub { font-size: 12.5px; color: var(--ink3); }
+.diffp-versions { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink2); }
+.diffp-versions label { display: inline-flex; align-items: center; gap: 6px; }
+.diffp-versions select { padding: 5px 8px; font-size: 12.5px; border: 1px solid var(--line2); border-radius: 8px; background: #fff; }
+.diffp-arrow { color: var(--ink3); font-weight: 700; }
+.diffp-ct { padding: 12px 16px; margin-bottom: 12px; }
+.diffp-ct-main { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.diffp-ct-main b { font-size: 20px; }
+.diffp-ct-v { font-size: 12px; color: var(--ink3); font-weight: 700; }
+.diffp-delta { font-style: normal; font-size: 14px; font-weight: 700; margin-left: 6px; }
+.diffp-delta.up { color: var(--red); }
+.diffp-delta.down { color: var(--teal); }
+.diffp-ct-main .muted { font-size: 12px; }
+.diffp-ct-split { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: 12.5px; }
+.diffp-ct-split .muted { font-size: 12px; }
+.dp { font-weight: 600; }
+.dp.nva { color: var(--red); }
+.dp.rnva { color: var(--amber); }
+.dp.va { color: var(--teal); }
+.diffp-warn { margin-top: 6px; font-size: 12px; color: var(--amber); }
+.diffp-table { padding: 0; overflow-x: auto; margin-bottom: 12px; }
+.diffp-table table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.diffp-table th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--ink3); font-size: 11.5px; white-space: nowrap; background: var(--bg); }
+.diffp-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.diffp-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.diffp-table tr:hover { background: var(--bg); }
+.dr-add { background: var(--teal-bg); }
+.dr-del { background: var(--red-bg); }
+.dr-mod-s { background: #f3edfd; }
+.dr-mod-n { background: var(--amber-bg); }
+.dr-move { background: var(--blue-bg); }
+.dp-state { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 4px; white-space: nowrap; }
+.dp-state.add { color: var(--teal); background: #fff; border: 1px solid var(--teal-line); }
+.dp-state.del { color: var(--red); background: #fff; border: 1px solid var(--red-line); }
+.dp-state.mod-s { color: #6b3fc0; background: #fff; border: 1px solid #d9c8f5; }
+.dp-state.mod-n { color: var(--amber); background: #fff; border: 1px solid var(--amber-line); }
+.dp-state.move { color: var(--blue); background: #fff; border: 1px solid var(--blue-line); }
+.dp-state.same { color: var(--ink3); background: var(--bg); border: 1px solid var(--line2); }
+.dp-changed { display: block; font-style: normal; font-size: 10.5px; color: var(--ink3); margin-top: 2px; }
+.dp-del { color: var(--red); text-decoration: line-through; text-decoration-color: var(--red-line); }
+.dp-add { color: var(--teal); font-weight: 600; }
+.dp-desc-changed { color: var(--amber); font-weight: 600; }
+.dp-fchg { color: #6b3fc0; font-weight: 700; white-space: nowrap; }
+.diffp-tl { padding: 10px 16px; margin-bottom: 12px; }
+.diffp-tl-t { font-size: 11.5px; color: var(--ink3); margin-bottom: 8px; }
+.diffp-track { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.diffp-track-v { font-size: 11px; color: var(--ink3); width: 28px; flex: 0 0 auto; }
+.diffp-lane { position: relative; flex: 1; height: 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.dp-blk { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; min-width: 2px; }
+.dp-blk.va { background: var(--teal); }
+.dp-blk.rnva { background: var(--amber); }
+.dp-blk.nva { background: var(--red); }
+.dp-blk.outlier { opacity: 0.35; }
+.diffp-ecn { padding: 12px 16px; }
+.diffp-ecn-t { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.diffp-ecn-row { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--line); }
+.diffp-ecn-l { flex: 0 0 auto; font-size: 12px; font-weight: 700; color: var(--ink2); white-space: nowrap; }
+.diffp-ecn-row code { flex: 1; font-size: 12px; color: var(--ink2); white-space: pre-wrap; word-break: break-all; font-family: inherit; }
+.diffp-ecn-row .btn { flex: 0 0 auto; }

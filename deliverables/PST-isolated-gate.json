@@ -1,0 +1,9 @@
+{
+  "generated_at": "2026-10-30T06:03:23.783Z",
+  "base": "http://127.0.0.1:3101/api",
+  "database": "temporary SQLite",
+  "permission_matrix_exit": 0,
+  "xss_exit": 0,
+  "passed": true,
+  "note": "API 日志仅保留到临时目录清理前；结构化结果归档于 deliverables/PST-permission-matrix.json 与 PST-xss-report.json"
+}

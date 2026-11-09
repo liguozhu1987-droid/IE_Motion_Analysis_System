@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI赋能IE改善效率工具 · MVP精简版蓝图</title>
+<style>
+  :root{
+    --ink:#1a2332; --ink2:#3d4a5c; --ink3:#6b7787;
+    --line:#e3e8f0; --line2:#cbd5e3; --bg:#f6f8fb; --card:#fff;
+    --blue:#1f5fd0; --blue-bg:#eef4ff; --blue-line:#c7d8f5;
+    --teal:#0e8074; --teal-bg:#e8f6f4; --teal-line:#bfe3de;
+    --amber:#9a6a00; --amber-bg:#fdf6e3; --amber-line:#f0dfae;
+    --red:#b3372f; --red-bg:#fdeeec; --red-line:#f2c8c3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;
+    font-size:14.5px;line-height:1.75;}
+  .page{max-width:1000px;margin:0 auto;padding:34px 26px 56px;}
+  .cover{background:linear-gradient(135deg,#12315e 0%,#1f5fd0 65%,#2f7ae0 100%);
+    color:#fff;border-radius:14px;padding:38px 36px 30px;margin-bottom:24px;}
+  .cover .kicker{font-size:12.5px;letter-spacing:3px;opacity:.85;margin-bottom:8px;}
+  .cover h1{font-size:27px;margin:0 0 8px;font-weight:700;line-height:1.35;}
+  .cover .sub{font-size:14.5px;opacity:.93;margin-bottom:20px;}
+  .cover .meta{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:12.5px;opacity:.85;
+    border-top:1px solid rgba(255,255,255,.28);padding-top:14px;}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-top:18px;}
+  .kpi{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);
+    border-radius:9px;padding:11px 13px;}
+  .kpi .v{font-size:17px;font-weight:700;line-height:1.3;}
+  .kpi .l{font-size:11.5px;opacity:.85;margin-top:2px;}
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:24px 28px;margin-bottom:20px;}
+  h2{font-size:18px;margin:0 0 4px;padding-left:12px;border-left:4px solid var(--blue);}
+  h2 .no{color:var(--ink3);font-size:12.5px;font-weight:400;margin-left:8px;}
+  h3{font-size:15px;margin:18px 0 6px;}
+  p{margin:8px 0;}
+  .lead{background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:10px;
+    padding:13px 17px;margin:12px 0 15px;}
+  .lead b{color:var(--blue);}
+  table{width:100%;border-collapse:collapse;margin:9px 0 13px;font-size:13px;line-height:1.6;}
+  th{background:#f0f4fa;border:1px solid var(--line2);padding:7px 10px;text-align:left;
+    font-weight:600;color:var(--ink2);white-space:nowrap;}
+  td{border:1px solid var(--line);padding:7px 10px;vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfe;}
+  .tag{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;font-weight:600;white-space:nowrap;}
+  .t-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-line);}
+  .t-teal{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line);}
+  .t-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line);}
+  .t-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-line);}
+  .note{border-left:4px solid var(--amber);background:var(--amber-bg);
+    padding:10px 15px;border-radius:0 8px 8px 0;margin:11px 0;font-size:13px;}
+  .note b{color:var(--amber);}
+  .law{border-left:4px solid var(--red);background:var(--red-bg);
+    padding:10px 15px;border-radius:0 8px 8px 0;margin:11px 0;font-size:13px;}
+  .law b{color:var(--red);}
+  .ok{border-left:4px solid var(--teal);background:var(--teal-bg);
+    padding:10px 15px;border-radius:0 8px 8px 0;margin:11px 0;font-size:13px;}
+  .ok b{color:var(--teal);}
+  ul,ol{margin:7px 0;padding-left:23px;}
+  li{margin:3px 0;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+  .mini{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fbfcfe;}
+  .mini h5{margin:0 0 5px;font-size:13.5px;color:var(--blue);}
+  .mini p{font-size:12.8px;margin:2px 0;color:var(--ink2);}
+  .cut{color:var(--red);font-weight:600;}
+  .keep{color:var(--teal);font-weight:600;}
+  .delay{color:var(--amber);font-weight:600;}
+  @media print{body{background:#fff;} section{break-inside:avoid;}}
+  @media (max-width:760px){.kpis{grid-template-columns:repeat(2,1fr);} .grid2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- 封面 -->
+<div class="cover">
+  <div class="kicker">LEAN MVP BLUEPRINT · 只做最能提效的事</div>
+  <h1>AI赋能IE改善效率工具<br>MVP精简版蓝图</h1>
+  <div class="sub">一个"分析加速器"，不是管理系统。给IE工程师用的，不是给管理层看的。</div>
+  <div class="meta">
+    <span>版本：<b>MVP v2.1</b>（v2.0断链审查补丁版）</span>
+    <span>日期：<b>2026-10-21</b></span>
+    <span>范围：<b>1条试点线 · 5~10工位 · 8周</b></span>
+    <span>投资：<b>约2~3人月</b></span>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">2~4h → ≤30min</div><div class="l">单工位：分解+分析+建议全流程</div></div>
+    <div class="kpi"><div class="v">6项</div><div class="l">只保留6个核心能力</div></div>
+    <div class="kpi"><div class="v">4个页面</div><div class="l">工位清单/分解台/分析页/对比页</div></div>
+    <div class="kpi"><div class="v">8周</div><div class="l">试点线上线</div></div>
+  </div>
+</div>
+
+<!-- 0 定位与铁律 -->
+<section>
+  <h2>0. 定位：只做加速器<span class="no">一句话原则</span></h2>
+  <div class="lead">
+    <b>判断标准：</b>这个功能是<b>帮IE更快看出问题、更快做出改善</b>，还是<b>帮管理层管住IE</b>？<br>
+    前者——保留；后者——砍掉或延后。
+  </div>
+  <p>工具的全部价值就三句话：<b>视频分解快、增值分析快、改善建议快。</b> 除此之外的一切——审批、追踪、核算、报表、认证、仪表盘——要么砍掉，要么用一张Excel代替。</p>
+  <h3>0.1 三条铁律（只留三条，不设关卡体系）</h3>
+  <div class="law">
+    <b>① AI只建议、不执行：</b>建议清单上的每一条都要IE点"确认"才会进实施，系统里不存在"一键执行"。<br>
+    <b>② 数字由规则算、LLM不产数字：</b>工时、节省、平衡率全部由公式计算；AI只写建议文字描述。<br>
+    <b>③ 数据质量靠校验拦截+抽审、不靠审批：</b>工时由IE本人负责录入，<b>3条即时校验</b>（必填完整性/时间轴重叠/循环数&lt;15）命中即拦截提交；IE主管每月抽查10%兜底。版本只记录"谁改、何时、改了什么"，不走审批流。
+  </div>
+</section>
+
+<!-- 1 保留的核心 -->
+<section>
+  <h2>1. 保留的6个核心能力<span class="no">全部围绕"提效"</span></h2>
+  <table>
+    <tr><th style="width:5%">#</th><th style="width:17%">能力</th><th style="width:44%">规格要点</th><th>省掉的时间</th></tr>
+    <tr><td>1</td><td><b>视频分解工作台</b><br>（核心中的核心）</td><td>时间线+要素编辑器：<b>双击分割、拖拽调边界</b>（帧级）；双手双列；循环识别（≥15循环，CV&gt;0.15加测至25）；<b>一键抽BEST/WORST Lap</b>；浪费框选即计时（时间线橙色）；异常要素标记（必填原因，不进ST）；<b>提交前即时校验</b>（必填完整性/时间轴重叠/循环数&lt;15，命中即拦截）；<b>分解结果直接写库，零二次导入</b>；Excel导入兼容存量工时</td><td>手写记录+Excel转录<br>（原来2~3h）</td></tr>
+    <tr><td>2</td><td><b>精简BOL工时表</b></td><td>只3张表（工位/要素/建议），要素15个核心字段；要素类型10类；保留VA分类、工时、循环、评比、宽放、版本；<b>不做物料主数据、不做SOP步骤表</b></td><td>告别散落Excel</td></tr>
+    <tr><td>3</td><td><b>一键增值分析</b></td><td>分解完自动按规则表归类VA/NNVA/NVA（规则可配置）+饼图+<b>6类浪费清单</b>（持住/重复取放/搬运/等待/寻找选择/检验冗余）+每条带量化证据；低置信度直接进"待复核"小队列</td><td>逐条人工判断<br>（原来2~4h）</td></tr>
+    <tr><td>4</td><td><b>一键平衡诊断</b></td><td>山积图（VA/NNVA/NVA三色分段+TT线）+平衡率+瓶颈榜+<b>双手作业图自动生成</b>；<b>计算口径：工位工时=Σ生效且非异常要素ST</b>，异常要素单列显示（数量+原因）、不进山积图但可见；换型/改善后一键重算</td><td>手绘山积图<br>（原来半天）</td></tr>
+    <tr><td>5</td><td><b>改善建议清单</b></td><td><b>12条高频ECRSA映射</b>（治具代手持住/合并取放/工具定点/料架移入前臂区/供料唯一化/对称布局/双巢作业/包装开槽/来料定向/快换/重叠内外时间/SOP把判断变动作）+简化优先级（节省工时×频次÷难度）+建议书生成（<b>LLM可选开关，不开也能用</b>）</td><td>想不出改善点、写不出建议书</td></tr>
+    <tr><td>6</td><td><b>改善前后对比</b></td><td>改善后复测一次→<b>点"开始复测"自动把当前分解封存为只读v(n)</b>→新旧两版要素工时并排对比→<b>一行收益估算</b>：节省秒数×日产量×365×综合费率（元/工时，含÷3600秒→时换算）×70%落地率（三项参数由IE主管一次性写入配置，公式固定）；自动生成一页对比报告（导出PDF/PPT）</td><td>改善效果说不清</td></tr>
+  </table>
+  <div class="ok"><b>这6项覆盖了原8步流程中90%的耗时：</b>步骤1~2（分解）、3（更新工时）、4（增值分析）、5（改善计划）、6（操作分析）、8（更新BOL）。步骤7（跟踪）降级为一个"状态列"，不做系统。</div>
+</section>
+
+<!-- 2 不做什么 -->
+<section>
+  <h2>2. 明确不做什么<span class="no">砍掉的部分 + 轻量替代</span></h2>
+  <table>
+    <tr><th style="width:24%">砍掉/延后</th><th style="width:40%">替代做法（能跑就行）</th><th>为什么砍</th></tr>
+    <tr><td class="cut">六节点工时审批流</td><td>IE录入，<b>3条即时校验命中即拦截提交</b>（必填完整性/时间轴重叠/循环数&lt;15）；主管<b>每月抽审10%</b>兜底；版本只记"谁改何时改了什么"</td><td>审批不产生分析价值，只产生等待</td></tr>
+    <tr><td class="cut">ECN/SOP变更管理闭环</td><td>SOP导出时自动带版本号；方法变了IE口头通知班长</td><td>这是管理动作，不是分析能力</td></tr>
+    <tr><td class="cut">S1~S10状态机+关闭码+会签矩阵</td><td>建议清单加一列状态：<b>待实施 / 已完成 / 已验证</b></td><td>三态足够，十态是负担</td></tr>
+    <tr><td class="cut">效益核算体系（Hard/Soft/NWC、财务签认）</td><td><b>一行估算公式</b>，IE自己算，不进财务口径</td><td>要财务认账时再用Excel做，不必内建</td></tr>
+    <tr><td class="cut">三层KPI+仪表盘+人效月报</td><td>不做；需要时从系统导Excel</td><td>给管理层看的东西，先不做</td></tr>
+    <tr><td class="cut">五级认证/技能矩阵/培训签认</td><td>不做；新人直接跟一次分解就会</td><td>工具上手门槛本身就是设计目标</td></tr>
+    <tr><td class="cut">G1~G12十二道审核关卡</td><td>只留<b>2条红线</b>：①取消检验类改善须品质确认 ②涉及弯腰/扭转/高举的改善须人因复核</td><td>12道是官僚，2条是底线</td></tr>
+    <tr><td class="delay">知识库/RAG案例库</td><td>延后（P2，等积累了30+条改善案例再说）</td><td>冷启动阶段检索不到东西</td></tr>
+    <tr><td class="delay">标准要素库（新品报价复用）</td><td>延后（P2，等要素数据积累到200条再说）</td><td>没有数据量的库没有用</td></tr>
+    <tr><td class="delay">数据迁移五步双轨并行</td><td>试点线直接用+Excel导入存量工时</td><td>一条线的迁移不需要方法论</td></tr>
+    <tr><td class="cut">周站会/月报会/季度评审会</td><td>不做制度化会议；有事在工位现场说</td><td>工具不负责制造会议</td></tr>
+  </table>
+  <div class="note"><b>瘦身后仍保留的"重"功能只有一个：视频分解工作台。</b>因为它是全流程的入口，也是替代2~3小时手工活的关键——这一块要做扎实（对标OTRS10交互），其余全部轻量化。</div>
+</section>
+
+<!-- 3 瘦身对照 -->
+<section>
+  <h2>3. 与原完整版蓝图的对照<span class="no">每条原模块的去向</span></h2>
+  <table>
+    <tr><th style="width:32%">原蓝图模块</th><th style="width:12%">处理</th><th>说明</th></tr>
+    <tr><td>视频动作分解工作站（16项规格）</td><td class="keep">保留8项</td><td>视频引擎基础/时间线+编辑器/循环识别/浪费标记/异常标记/VA自动分类/数据直写/Excel导入；多轴时间线、改善模拟、比较回放、视频手册延后</td></tr>
+    <tr><td>BOL四表+物料主数据+快照锁定</td><td class="keep">简化为3表15字段</td><td>产线/工位/要素；作业单元层合并进要素；14类→10类；<b>快照简化为bol_version封存</b>：复测时旧版自动锁为只读v(n)、新版写v(n+1)，对比基于两版做差——审批签认砍得，"留底"砍不得</td></tr>
+    <tr><td>VA/NVA规则引擎（含置信度三档）</td><td class="keep">保留，简化为两档</td><td>自动归类+人工改（低置信度进"待复核"），规则表可配置</td></tr>
+    <tr><td>W1~W10浪费触发器</td><td class="keep">合并为6类</td><td>持住/重复取放/搬运/等待/寻找选择/检验冗余——量化条件保留</td></tr>
+    <tr><td>M1~M20改善映射库</td><td class="keep">保留12条高频</td><td>覆盖80%现场场景，其余按需追加</td></tr>
+    <tr><td>PI五因子优先级公式</td><td class="keep">简化为三因子</td><td>节省工时×发生频次÷实施难度</td></tr>
+    <tr><td>L2 LLM建议生成+RAG</td><td class="keep">保留为可选开关</td><td>默认关闭也能完整使用；开启后仅生成文字描述</td></tr>
+    <tr><td>G1~G12审核关卡</td><td class="cut">保留2条红线</td><td>取消检验需品质确认；人因风险需复核</td></tr>
+    <tr><td>S1~S10状态机+关闭码C1~C4</td><td class="cut">删除</td><td>改为建议清单三态列</td></tr>
+    <tr><td>两阶段复测+双人复核+证据四件套</td><td class="keep">保留单次复测</td><td>改善后测一次、前后对比；不做财务复测</td></tr>
+    <tr><td>ECN三级+版本配对拦截+48h签认</td><td class="cut">删除</td><td>SOP导出提示版本号即可</td></tr>
+    <tr><td>效益核算四步链</td><td class="cut">一行公式</td><td>节省秒数×日产量×365×费率（元/工时，含÷3600）×70%；三项参数由IE主管一次性写入配置，公式固定</td></tr>
+    <tr><td>三层仪表盘+月报自动生成</td><td class="delay">延后</td><td>P2后再议</td></tr>
+    <tr><td>五级认证+技能矩阵</td><td class="cut">删除</td><td>—</td></tr>
+    <tr><td>SOP模板库三级+四棵判断树</td><td class="delay">延后（保留SOP一键导出）</td><td>导出图文作业指导即可</td></tr>
+    <tr><td>六节点审批流/双轨迁移</td><td class="cut">删除</td><td>抽审替代审批；试点线直接上</td></tr>
+  </table>
+</section>
+
+<!-- 4 数据模型 -->
+<section>
+  <h2>4. 精简数据模型<span class="no">3张表，够用</span></h2>
+  <table>
+    <tr><th style="width:16%">表</th><th>核心字段（15个/表以内；t_element因封存需求为16个）</th></tr>
+    <tr><td>t_station 工位</td><td>station_id / line_id / name / CT / TT / version / updated_by / updated_at</td></tr>
+    <tr><td>t_element 动作要素</td><td>element_id / station_id / seq / start_ms / dur_s / hand / type（10类）/ desc / va_class / outlier_flag / outlier_reason / video_id / rating / allowance / std_time / <b>bol_version</b></td></tr>
+    <tr><td>t_improvement 改善建议</td><td>imp_id / station_id / element_ids / waste_type / method（E/C/R/S）/ measure / est_save_s / priority / status（待实施/已完成/已验证）/ owner / due / before_ct / after_ct</td></tr>
+  </table>
+  <p><b>要素类型10类：</b>装配 / 使用（含加工）/ 取放（伸手-握取-移物-放手）/ 预对 / 检验 / 搬运 / 等待 / 寻找选择 / 持住 / 其他。每类带默认VA判定，人工可改（改必填理由）。</p>
+  <div class="note"><b>没有审批表、没有状态流转表、没有审批日志表、没有物料主数据表、没有KPI表</b>——这些都能用"字段+Excel"替代。<b>唯一新增的是t_element的bol_version字段（分解版本号）：</b>点"开始复测"时当前分解自动封存为只读v(n)，新分解写v(n+1)，前后对比基于两版做差。<b>审批和财务签认砍得，"留底"砍不得</b>——没有旧版数据，改善前后对比就是无源之水。</div>
+</section>
+
+<!-- 5 四个页面 -->
+<section>
+  <h2>5. 只有4个页面<span class="no">点到点，不绕路</span></h2>
+  <div class="grid2">
+    <div class="mini"><h5>① 工位清单</h5><p>选线体→工位卡片（CT / VA占比 / 上次分析日期 / 状态）。一键新建工位、Excel导入存量工时。</p></div>
+    <div class="mini"><h5>② 分解工作台（核心页）</h5><p>左边视频（倍速/逐帧/局部放大），右边双手时间线；双击分割、拖拽边界；下方属性面板（类型/描述/工时/异常标记）；顶部一键"抽BEST/WORST"。</p></div>
+    <div class="mini"><h5>③ 分析结果页（一屏看全）</h5><p>VA/NNVA/NVA饼图 + 6类浪费清单（带证据）+ 山积图 + 瓶颈榜 + 改善建议清单（可勾选采纳）。</p></div>
+    <div class="mini"><h5>④ 改善对比页</h5><p>改善前后要素工时并排 + 一行收益估算 + 导出PDF/PPT对比报告。</p></div>
+  </div>
+  <p style="font-size:13px;color:#6b7787;">页面之间只有一条主路径：工位清单 → 分解 → 分析 → 建议 → （改善后）复测对比。没有权限矩阵、没有多级菜单、没有配置中心（规则表用JSON文件维护即可）。</p>
+</section>
+
+<!-- 6 实施 -->
+<section>
+  <h2>6. 8周实施计划<span class="no">2人开发 + 1名资深IE</span></h2>
+  <table>
+    <tr><th style="width:10%">周次</th><th style="width:32%">交付</th><th>要点</th></tr>
+    <tr><td>W1~W2</td><td>数据模型 + 工位清单 + Excel导入</td><td>3张表定稿（含t_element.bol_version封存字段）；存量BOL一键入库；要素10类词表；3条即时校验规则定稿</td></tr>
+    <tr><td>W3~W4</td><td><b>视频分解工作台</b>（最重）</td><td>时间线/双击分割/拖拽边界/循环识别/浪费标记/异常标记；帧级精度；对标OTRS10交互（可申请演示版看操作）</td></tr>
+    <tr><td>W5</td><td>一键分析</td><td>VA自动分类+饼图+6类浪费+山积图+瓶颈榜+双手作业图</td></tr>
+    <tr><td>W6</td><td>建议清单 + 对比页</td><td>12条映射+三因子优先级+改善前后对比+一页报告导出</td></tr>
+    <tr><td>W7</td><td>试点线实跑</td><td>5~10工位真实视频走全流程；每天记录卡点；交互按IE反馈改</td></tr>
+    <tr><td>W8</td><td>固化验收</td><td>规则表冻结；操作手册1页；验收指标核定</td></tr>
+  </table>
+  <div class="ok"><b>投资对比：</b>完整版P1约10~12人月 → <b>MVP约2~3人月</b>（2人×8周+资深IE兼职）。<b>不买任何商业软件、不接LLM也能跑</b>（LLM后加为可选开关）；唯一建议花时间的是申请OTRS10演示版看一遍交互，照着做。</div>
+</section>
+
+<!-- 7 验收与演进 -->
+<section>
+  <h2>7. 验收标准与"加回重功能"的闸门</h2>
+  <h3>7.1 验收指标（达不到就不扩线）</h3>
+  <table>
+    <tr><th style="width:34%">指标</th><th style="width:20%">目标</th><th>说明</th></tr>
+    <tr><td>单工位全流程耗时</td><td><b>≤30分钟</b></td><td>分解+分析+建议（现状2~4小时）</td></tr>
+    <tr><td>分解录入耗时</td><td>≤1小时/工位</td><td>1~2年经验IE可胜任</td></tr>
+    <tr><td>试点线跑通工位</td><td>5~10个</td><td>至少覆盖1个瓶颈工位</td></tr>
+    <tr><td>建议产出</td><td>≥1条/工位，且≥1条被实施</td><td>验证"分析真的能变成改善"</td></tr>
+    <tr><td>IE主动使用</td><td>每周≥3次打开</td><td>不被要求也在用，才算成功</td></tr>
+  </table>
+  <h3>7.2 什么条件下才加回重模块（闸门）</h3>
+  <table>
+    <tr><th style="width:34%">加回条件</th><th>才允许增加</th></tr>
+    <tr><td>试点线周活≥3次、建议采纳≥50%</td><td>扩到第二条线</td></tr>
+    <tr><td>案例库自然积累≥30条（IE主动记录）</td><td>加RAG案例检索</td></tr>
+    <tr><td>财务/管理层明确要求报数口径</td><td>加效益台账（仍不做Hard/Soft体系）</td></tr>
+    <tr><td>IE主动抱怨"版本乱了/找不到谁改的"</td><td>才加审批或版本治理</td></tr>
+    <tr><td>要素数据≥200条且新品报价频繁</td><td>加标准要素库</td></tr>
+  </table>
+  <div class="law"><b>反向铁律：</b>没到闸门条件，一律不加功能。管理层的报表需求先用Excel导出顶住——<b>工具的价值在于让IE多分析几个工位，不在于让管理层多几块看板。</b></div>
+</section>
+
+<!-- 8 修订记录 -->
+<section>
+  <h2>8. v2.1 修订记录<span class="no">断链审查补丁 · 2026-10-21</span></h2>
+  <table>
+    <tr><th style="width:5%">#</th><th style="width:16%">补丁</th><th>内容与修复的问题</th></tr>
+    <tr><td>1</td><td><b>数据封存</b></td><td>t_element增加bol_version；点"开始复测"自动把当前分解封存为只读v(n)，新分解写v(n+1)，对比基于两版本做差。<b>修复：</b>改善前数据被原地覆盖→前后对比与收益估算无数据源（会断链的缺口）</td></tr>
+    <tr><td>2</td><td><b>3条即时校验</b></td><td>必填完整性/时间轴重叠/循环数&lt;15——命中即拦截提交，零成本；月抽审退为兜底。<b>修复：</b>7条AI校验全砍后，录完即污染BOL（该补未补的环节）</td></tr>
+    <tr><td>3</td><td><b>异常计算口径</b></td><td>工位工时=Σ生效且非异常要素ST；异常要素单列显示（数量+原因），不进山积图但可见。<b>修复：</b>工位CT/山积图口径不明→平衡率失真（规则模糊）</td></tr>
+    <tr><td>4</td><td><b>收益参数定死</b></td><td>综合费率、日产量、70%落地率由IE主管一次性写入配置；公式固定：节省秒数×日产量×365×费率（元/工时，÷3600换算）×落地率。<b>修复：</b>参数各算各的→对比报告互相不可比（规则模糊）</td></tr>
+  </table>
+  <div class="ok"><b>审查同时确认"砍对了"的部分（无断链）：</b>审批流→抽审（试点线1~2名IE够用）、状态机→三态列、效益核算→一行公式、仪表盘→Excel导出、认证删除。<b>已知运营风险</b>（非设计缺陷）：方法变更靠口头通知，试点期用"IE+班长现场确认一次"兜底；扩线时第一件事就是把SOP版本签认加回来。</div>
+  <div class="note"><b>配套详细设计（v2.1落地包，deliverables目录）：</b>MVP详细设计-00-总览与接口裁决（主理人汇编，含共享口径冻结版与跨文档裁决记录）· 01-视频分解工作台与精简BOL（毕准时）· 02-增值分析与平衡诊断引擎（劳永逸）· 03-改善前后对比与收益估算（任效高）· 04-改善建议清单与实施验收（苏定标）。五份文档共享口径已冻结：3表16字段、10类要素默认VA、6类浪费触发器、12条ECRSA映射、收益公式（含÷3600单位定稿）、bol_version封存规则。<br><b>可运行工程：</b>MVP系统架构设计.md + <code>app/</code>（4页面+3表+规则引擎；接口冒烟39项、端到端11项通过）。<br><b>企业级架构（扩线/上线前，v3.0）：</b>系统架构设计-v3.0-企业级演进版.md + <code>app/api/</code>（NestJS+TypeORM 双数据源：SQL Server 生产/SQLite 开发；JWT认证+RBAC默认拒绝+多租户行级隔离+规则库入库+AI任务队列+审计；冒烟28项通过）。MVP演示版（3001）与目标架构（默认3001，可配置）并存，业务口径不变。</div>
+</section>
+
+<div style="text-align:center;color:#6b7787;font-size:12px;padding:8px 0 26px;">
+  MVP精简版蓝图 v2.1 · 2026-10-21 · v2.1新增"数据封存/即时校验/异常口径/收益参数"四项补丁（见第8节）· 完整版蓝图（含治理/核算/认证模块）保留为P2以后扩展参考
+</div>
+
+</div>
+</body>
+</html>

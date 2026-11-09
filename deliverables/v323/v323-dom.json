@@ -1,0 +1,60 @@
+[
+  {
+    "label": "controls-bar",
+    "data": {
+      "found": true,
+      "boundaryBtns": 0,
+      "warnExists": false,
+      "fpsText": "30fps",
+      "fpsLow": false,
+      "recOrder": [
+        "＋新增",
+        "I起点",
+        "O止点",
+        "分割",
+        "⧉同上"
+      ],
+      "addRect": {
+        "left": 825,
+        "right": 881,
+        "w": 57
+      },
+      "controlsRect": {
+        "left": 255,
+        "right": 1153
+      },
+      "addVisible": true
+    }
+  },
+  {
+    "label": "wizard-code-empty",
+    "data": {
+      "value": "",
+      "placeholder": "由您命名，如现场习称；留空则生成 BJFA1-ST01",
+      "disabled": false
+    }
+  },
+  {
+    "label": "wizard-created",
+    "data": {
+      "after": {
+        "wzGone": true
+      },
+      "station": {
+        "station_id": "BJFA1-ST01",
+        "tenant_id": "DEFAULT",
+        "line_id": "BJFA1",
+        "name": "UI冒烟v323临时",
+        "ct": null,
+        "tt": null,
+        "version": 1,
+        "updated_by": "admin",
+        "updated_at": "2026-10-24T16:30:12.000Z",
+        "created_by": null,
+        "created_at": "2026-10-24T08:30:12.802Z",
+        "program_number": null,
+        "cmc_line_id": 307
+      }
+    }
+  }
+]

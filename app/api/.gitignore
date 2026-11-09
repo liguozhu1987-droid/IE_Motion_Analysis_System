@@ -1,0 +1,15 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# 环境配置（含数据库口令与 JWT 密钥，绝不入库；.env.example 为模板可入库）
+.env
+
+# 运行数据
+data/
+logs/
+*.log
+
+# 系统杂项
+.DS_Store
+Thumbs.db

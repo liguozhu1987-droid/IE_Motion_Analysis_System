@@ -1,0 +1,1810 @@
+{
+  "generated_at": "2026-11-02T01:53:47.658Z",
+  "base": "http://127.0.0.1:3103/api",
+  "database": "temporary SQLite",
+  "llm": "local mock HTTP only",
+  "passed": true,
+  "checks": [
+    {
+      "name": "成功响应逐字段保存输入/输出/总量/缓存 Token",
+      "passed": true,
+      "detail": [
+        {
+          "usage_id": "a641d189-58b1-4844-a935-0dcfb044b761",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-normal",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 0,
+          "request_id": "mock-request",
+          "status": "success",
+          "http_status": 200,
+          "latency_ms": 18,
+          "error_code": null,
+          "prompt_tokens": 7,
+          "completion_tokens": 5,
+          "total_tokens": 12,
+          "cached_tokens": 3,
+          "usage_status": "reported",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        }
+      ]
+    },
+    {
+      "name": "无正式 usage context 的连接/自测调用不入统计",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "业务 JSON 解析重试按两次真实调用累加，不覆盖",
+      "passed": true,
+      "detail": [
+        {
+          "usage_id": "8b8cbea2-a3f6-461e-8600-51a0886231e5",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-outer-retry",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 0,
+          "request_id": "mock-request",
+          "status": "success",
+          "http_status": 200,
+          "latency_ms": 3,
+          "error_code": null,
+          "prompt_tokens": 6,
+          "completion_tokens": 4,
+          "total_tokens": 10,
+          "cached_tokens": null,
+          "usage_status": "reported",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        },
+        {
+          "usage_id": "2895912b-e509-4dfa-b5cb-fccc30add95e",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-outer-retry",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 2,
+          "internal_retry": 0,
+          "request_id": "mock-request",
+          "status": "success",
+          "http_status": 200,
+          "latency_ms": 3,
+          "error_code": null,
+          "prompt_tokens": 6,
+          "completion_tokens": 4,
+          "total_tokens": 10,
+          "cached_tokens": null,
+          "usage_status": "reported",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        }
+      ]
+    },
+    {
+      "name": "thinking 去除后的内部 HTTP 重试也分别留痕",
+      "passed": true,
+      "detail": [
+        {
+          "usage_id": "5deb04ad-1db6-435a-8fa9-e043d0bf44a1",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-thinking-retry",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 0,
+          "request_id": "mock-request",
+          "status": "error",
+          "http_status": 400,
+          "latency_ms": 2,
+          "error_code": "HTTP_400",
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "cached_tokens": null,
+          "usage_status": "missing",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        },
+        {
+          "usage_id": "f5d5c78e-0ba6-4abc-bc5c-2c74b7e899b6",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-thinking-retry",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 1,
+          "request_id": "mock-request",
+          "status": "success",
+          "http_status": 200,
+          "latency_ms": 2,
+          "error_code": null,
+          "prompt_tokens": 9,
+          "completion_tokens": 6,
+          "total_tokens": 15,
+          "cached_tokens": null,
+          "usage_status": "reported",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        }
+      ]
+    },
+    {
+      "name": "后续业务 JSON 校验失败前的成功调用已保存 Token",
+      "passed": true,
+      "detail": [
+        {
+          "usage_id": "5f823a2a-df3a-4047-a9d4-6ee0f4b8a2d7",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-later-validation",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 0,
+          "request_id": "mock-request",
+          "status": "success",
+          "http_status": 200,
+          "latency_ms": 3,
+          "error_code": null,
+          "prompt_tokens": 8,
+          "completion_tokens": 2,
+          "total_tokens": 10,
+          "cached_tokens": null,
+          "usage_status": "reported",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        }
+      ]
+    },
+    {
+      "name": "total_tokens 缺失时可由输入＋输出精确求和",
+      "passed": true,
+      "detail": [
+        {
+          "usage_id": "e0433161-037f-4577-8fd8-03ec9a387f03",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-derived-total",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 0,
+          "request_id": "mock-request",
+          "status": "success",
+          "http_status": 200,
+          "latency_ms": 2,
+          "error_code": null,
+          "prompt_tokens": 4,
+          "completion_tokens": 6,
+          "total_tokens": 10,
+          "cached_tokens": null,
+          "usage_status": "reported",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        }
+      ]
+    },
+    {
+      "name": "上游缺失 usage 保存 NULL/missing，不虚构为 0",
+      "passed": true,
+      "detail": [
+        {
+          "usage_id": "27c2af44-57ad-4186-a94a-f2084fa556ec",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-missing-usage",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 0,
+          "request_id": "mock-request",
+          "status": "success",
+          "http_status": 200,
+          "latency_ms": 2,
+          "error_code": null,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "cached_tokens": null,
+          "usage_status": "missing",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        }
+      ]
+    },
+    {
+      "name": "HTTP 失败记录真实调用与错误码，Token 保持未知",
+      "passed": true,
+      "detail": [
+        {
+          "usage_id": "7d07dd65-76d5-4a3b-9d4d-c47153a7d7da",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-http-error",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 0,
+          "request_id": "mock-request",
+          "status": "error",
+          "http_status": 500,
+          "latency_ms": 3,
+          "error_code": "HTTP_500",
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "cached_tokens": null,
+          "usage_status": "missing",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        }
+      ]
+    },
+    {
+      "name": "响应体不可解析记录 INVALID_JSON",
+      "passed": true,
+      "detail": [
+        {
+          "usage_id": "63ecd6da-b43f-4f61-bd74-0e3760169372",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-invalid-json",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 0,
+          "request_id": null,
+          "status": "error",
+          "http_status": 200,
+          "latency_ms": 2,
+          "error_code": "INVALID_JSON",
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "cached_tokens": null,
+          "usage_status": "missing",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        }
+      ]
+    },
+    {
+      "name": "网络失败记录 NETWORK 且不虚构 Token",
+      "passed": true,
+      "detail": [
+        {
+          "usage_id": "25f137c2-2ab1-4861-8058-c7d614a70cbf",
+          "tenant_id": "DEFAULT",
+          "feature": "improvement_suggestion",
+          "purpose": "business",
+          "batch_id": "gw-network",
+          "user_id": "u_admin",
+          "station_id": "L01-ST01",
+          "line_id": "L01",
+          "provider": "openai_compatible",
+          "model": "mock-model",
+          "attempt_no": 1,
+          "internal_retry": 0,
+          "request_id": null,
+          "status": "error",
+          "http_status": null,
+          "latency_ms": 0,
+          "error_code": "NETWORK",
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": null,
+          "cached_tokens": null,
+          "usage_status": "missing",
+          "created_at": "2026-11-02T01:53:36.000Z"
+        }
+      ]
+    },
+    {
+      "name": "无 suggestion:generate 权限返回 403",
+      "passed": true,
+      "detail": {
+        "status": 403,
+        "body": {
+          "title": "Forbidden",
+          "status": 403,
+          "detail": "权限不足：需要 suggestion:generate",
+          "request_id": "01590ca6"
+        }
+      }
+    },
+    {
+      "name": "多分组时 KPI 是筛选范围全局总计而非第一行",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": null,
+          "to": null,
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "user",
+          "line",
+          "station",
+          "feature"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 10,
+          "api_call_count": 8,
+          "success_call_count": 7,
+          "failed_call_count": 1,
+          "prompt_tokens": 245,
+          "completion_tokens": 116,
+          "total_tokens": 1411,
+          "cached_tokens": 100,
+          "legacy_batch_count": 3,
+          "usage_missing_count": 1,
+          "data_quality": "partial"
+        },
+        "rows": [
+          {
+            "user_id": "u_admin",
+            "line_id": "L01",
+            "station_id": "L01-ST01",
+            "feature": "improvement_suggestion",
+            "model": null,
+            "batch_count": 7,
+            "api_call_count": 6,
+            "success_call_count": 6,
+            "failed_call_count": 0,
+            "prompt_tokens": 235,
+            "completion_tokens": 111,
+            "total_tokens": 1096,
+            "cached_tokens": 100,
+            "legacy_batch_count": 2,
+            "usage_missing_count": 0,
+            "data_quality": "partial",
+            "display_name": "系统管理员",
+            "username": "admin",
+            "station_name": "上壳装配",
+            "line_name": "示例装配线 L01"
+          },
+          {
+            "user_id": "u_admin",
+            "line_id": "L01",
+            "station_id": "L01-ST01",
+            "feature": "waste_analysis",
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 0,
+            "success_call_count": 0,
+            "failed_call_count": 0,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": 300,
+            "cached_tokens": null,
+            "legacy_batch_count": 1,
+            "usage_missing_count": 0,
+            "data_quality": "legacy_total_only",
+            "display_name": "系统管理员",
+            "username": "admin",
+            "station_name": "上壳装配",
+            "line_name": "示例装配线 L01"
+          },
+          {
+            "user_id": "u_ie1",
+            "line_id": "L01",
+            "station_id": "L01-ST02",
+            "feature": "improvement_suggestion",
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 1,
+            "success_call_count": 1,
+            "failed_call_count": 0,
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "total_tokens": 15,
+            "cached_tokens": 0,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 0,
+            "data_quality": "complete",
+            "display_name": "IE 工程师 王工",
+            "username": "ie1",
+            "station_name": "锁螺丝",
+            "line_name": "示例装配线 L01"
+          },
+          {
+            "user_id": "u_ie1",
+            "line_id": "L01",
+            "station_id": "L01-ST01",
+            "feature": "waste_analysis",
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 1,
+            "success_call_count": 0,
+            "failed_call_count": 1,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": 0,
+            "cached_tokens": null,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 1,
+            "data_quality": "partial",
+            "display_name": "IE 工程师 王工",
+            "username": "ie1",
+            "station_name": "上壳装配",
+            "line_name": "示例装配线 L01"
+          }
+        ],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 4,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "单工位总量：重试＋失败＋两功能历史＋跨边界事件精确汇总",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": null,
+          "to": null,
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "line",
+          "station"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 9,
+          "api_call_count": 7,
+          "success_call_count": 6,
+          "failed_call_count": 1,
+          "prompt_tokens": 235,
+          "completion_tokens": 111,
+          "total_tokens": 1396,
+          "cached_tokens": 100,
+          "legacy_batch_count": 3,
+          "usage_missing_count": 1,
+          "data_quality": "partial"
+        },
+        "rows": [
+          {
+            "user_id": null,
+            "line_id": "L01",
+            "station_id": "L01-ST01",
+            "feature": null,
+            "model": null,
+            "batch_count": 9,
+            "api_call_count": 7,
+            "success_call_count": 6,
+            "failed_call_count": 1,
+            "prompt_tokens": 235,
+            "completion_tokens": 111,
+            "total_tokens": 1396,
+            "cached_tokens": 100,
+            "legacy_batch_count": 3,
+            "usage_missing_count": 1,
+            "data_quality": "partial",
+            "display_name": null,
+            "username": null,
+            "station_name": "上壳装配",
+            "line_name": "示例装配线 L01"
+          }
+        ],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 1,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "同工位多批次去重：新事件存在的批次不再叠加历史 tokens_used",
+      "passed": true,
+      "detail": {
+        "user_id": null,
+        "line_id": null,
+        "station_id": null,
+        "feature": null,
+        "model": null,
+        "batch_count": 9,
+        "api_call_count": 7,
+        "success_call_count": 6,
+        "failed_call_count": 1,
+        "prompt_tokens": 235,
+        "completion_tokens": 111,
+        "total_tokens": 1396,
+        "cached_tokens": 100,
+        "legacy_batch_count": 3,
+        "usage_missing_count": 1,
+        "data_quality": "partial"
+      }
+    },
+    {
+      "name": "同工位新事件与旧批次同号时只计新事件，15 而非 95",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": null,
+          "to": null,
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "line",
+          "station"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 1,
+          "api_call_count": 1,
+          "success_call_count": 1,
+          "failed_call_count": 0,
+          "prompt_tokens": 10,
+          "completion_tokens": 5,
+          "total_tokens": 15,
+          "cached_tokens": 0,
+          "legacy_batch_count": 0,
+          "usage_missing_count": 0,
+          "data_quality": "complete"
+        },
+        "rows": [
+          {
+            "user_id": null,
+            "line_id": "L01",
+            "station_id": "L01-ST02",
+            "feature": null,
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 1,
+            "success_call_count": 1,
+            "failed_call_count": 0,
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "total_tokens": 15,
+            "cached_tokens": 0,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 0,
+            "data_quality": "complete",
+            "display_name": null,
+            "username": null,
+            "station_name": "锁螺丝",
+            "line_name": "示例装配线 L01"
+          }
+        ],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 1,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "未来空范围返回零且不报错",
+      "passed": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "range": {
+            "from": "2099-01-01",
+            "to": null,
+            "timezone": "Asia/Shanghai",
+            "to_exclusive": true
+          },
+          "group_by": [
+            "station"
+          ],
+          "totals": {
+            "user_id": null,
+            "line_id": null,
+            "station_id": null,
+            "feature": null,
+            "model": null,
+            "batch_count": 0,
+            "api_call_count": 0,
+            "success_call_count": 0,
+            "failed_call_count": 0,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": 0,
+            "cached_tokens": null,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 0,
+            "data_quality": "complete"
+          },
+          "rows": [],
+          "page": 1,
+          "page_size": 50,
+          "total_rows": 0,
+          "notes": [
+            "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+            "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+            "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+          ]
+        }
+      }
+    },
+    {
+      "name": "自测用途事件不计 Token，且不抑制同批历史 50",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": "2026-11-01",
+          "to": "2026-11-30",
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "line",
+          "station"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 6,
+          "api_call_count": 4,
+          "success_call_count": 3,
+          "failed_call_count": 1,
+          "prompt_tokens": 213,
+          "completion_tokens": 92,
+          "total_tokens": 1355,
+          "cached_tokens": 40,
+          "legacy_batch_count": 3,
+          "usage_missing_count": 1,
+          "data_quality": "partial"
+        },
+        "rows": [
+          {
+            "user_id": null,
+            "line_id": "L01",
+            "station_id": "L01-ST01",
+            "feature": null,
+            "model": null,
+            "batch_count": 6,
+            "api_call_count": 4,
+            "success_call_count": 3,
+            "failed_call_count": 1,
+            "prompt_tokens": 213,
+            "completion_tokens": 92,
+            "total_tokens": 1355,
+            "cached_tokens": 40,
+            "legacy_batch_count": 3,
+            "usage_missing_count": 1,
+            "data_quality": "partial",
+            "display_name": null,
+            "username": null,
+            "station_name": "上壳装配",
+            "line_name": "示例装配线 L01"
+          }
+        ],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 1,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "浪费清单与问题清单共享一个 waste_analysis 成本口径",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": null,
+          "to": null,
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "feature"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 2,
+          "api_call_count": 1,
+          "success_call_count": 0,
+          "failed_call_count": 1,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": 300,
+          "cached_tokens": null,
+          "legacy_batch_count": 1,
+          "usage_missing_count": 1,
+          "data_quality": "partial"
+        },
+        "rows": [
+          {
+            "user_id": null,
+            "line_id": null,
+            "station_id": null,
+            "feature": "waste_analysis",
+            "model": null,
+            "batch_count": 2,
+            "api_call_count": 1,
+            "success_call_count": 0,
+            "failed_call_count": 1,
+            "prompt_tokens": null,
+            "completion_tokens": null,
+            "total_tokens": 300,
+            "cached_tokens": null,
+            "legacy_batch_count": 1,
+            "usage_missing_count": 1,
+            "data_quality": "partial",
+            "display_name": null,
+            "username": null,
+            "station_name": null,
+            "line_name": null
+          }
+        ],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 1,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "普通用户只统计可见工位，不能看到他人工位 Token",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": null,
+          "to": null,
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "user",
+          "line",
+          "station",
+          "feature"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 1,
+          "api_call_count": 1,
+          "success_call_count": 1,
+          "failed_call_count": 0,
+          "prompt_tokens": 10,
+          "completion_tokens": 5,
+          "total_tokens": 15,
+          "cached_tokens": 0,
+          "legacy_batch_count": 0,
+          "usage_missing_count": 0,
+          "data_quality": "complete"
+        },
+        "rows": [
+          {
+            "user_id": "u_ie1",
+            "line_id": "L01",
+            "station_id": "L01-ST02",
+            "feature": "improvement_suggestion",
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 1,
+            "success_call_count": 1,
+            "failed_call_count": 0,
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "total_tokens": 15,
+            "cached_tokens": 0,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 0,
+            "data_quality": "complete",
+            "display_name": "IE 工程师 王工",
+            "username": "ie1",
+            "station_name": "锁螺丝",
+            "line_name": "示例装配线 L01"
+          }
+        ],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 1,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "客户端强制指定不可见工位仍为空",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": null,
+          "to": null,
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "user",
+          "line",
+          "station",
+          "feature"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 0,
+          "api_call_count": 0,
+          "success_call_count": 0,
+          "failed_call_count": 0,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": 0,
+          "cached_tokens": null,
+          "legacy_batch_count": 0,
+          "usage_missing_count": 0,
+          "data_quality": "complete"
+        },
+        "rows": [],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 0,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "他租户普通用户无可见工位时不泄露统计",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": null,
+          "to": null,
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "user",
+          "line",
+          "station",
+          "feature"
+        ],
+        "totals": {
+          "batch_count": 0,
+          "api_call_count": 0,
+          "success_call_count": 0,
+          "failed_call_count": 0,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": 0,
+          "cached_tokens": null,
+          "legacy_batch_count": 0,
+          "usage_missing_count": 0,
+          "data_quality": "complete"
+        },
+        "rows": [],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 0,
+        "notes": [
+          "浪费清单与问题清单共用 waste_analysis 调用成本，不重复拆分。",
+          "缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "DEFAULT 管理员不能跨租户查询 OTHER 工位",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": null,
+          "to": null,
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "user",
+          "line",
+          "station",
+          "feature"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 0,
+          "api_call_count": 0,
+          "success_call_count": 0,
+          "failed_call_count": 0,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "total_tokens": 0,
+          "cached_tokens": null,
+          "legacy_batch_count": 0,
+          "usage_missing_count": 0,
+          "data_quality": "complete"
+        },
+        "rows": [],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 0,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "历史去重按 tenant+batch，OTHER 同号历史仍保留 777",
+      "passed": true,
+      "detail": {
+        "user_id": null,
+        "line_id": null,
+        "station_id": null,
+        "feature": null,
+        "model": null,
+        "batch_count": 2,
+        "api_call_count": 1,
+        "success_call_count": 1,
+        "failed_call_count": 0,
+        "prompt_tokens": 9000,
+        "completion_tokens": 999,
+        "total_tokens": 10776,
+        "cached_tokens": 20,
+        "legacy_batch_count": 1,
+        "usage_missing_count": 0,
+        "data_quality": "partial"
+      }
+    },
+    {
+      "name": "Asia/Shanghai 日期左闭右开：起点计入、次日零点排除",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": "2026-01-01",
+          "to": "2026-01-01",
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "station"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 1,
+          "api_call_count": 1,
+          "success_call_count": 1,
+          "failed_call_count": 0,
+          "prompt_tokens": 7,
+          "completion_tokens": 6,
+          "total_tokens": 13,
+          "cached_tokens": 20,
+          "legacy_batch_count": 0,
+          "usage_missing_count": 0,
+          "data_quality": "complete"
+        },
+        "rows": [
+          {
+            "user_id": null,
+            "line_id": null,
+            "station_id": "L01-ST01",
+            "feature": null,
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 1,
+            "success_call_count": 1,
+            "failed_call_count": 0,
+            "prompt_tokens": 7,
+            "completion_tokens": 6,
+            "total_tokens": 13,
+            "cached_tokens": 20,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 0,
+            "data_quality": "complete",
+            "display_name": null,
+            "username": null,
+            "station_name": "上壳装配",
+            "line_name": null
+          }
+        ],
+        "page": 1,
+        "page_size": 50,
+        "total_rows": 1,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "不存在的日历日期返回 400",
+      "passed": true,
+      "detail": {
+        "status": 400,
+        "body": {
+          "title": "Bad Request",
+          "status": 400,
+          "detail": "无效日期：2026-02-30",
+          "request_id": "e9161796"
+        }
+      }
+    },
+    {
+      "name": "开始日期晚于结束日期返回 400",
+      "passed": true,
+      "detail": {
+        "status": 400,
+        "body": {
+          "title": "Bad Request",
+          "status": 400,
+          "detail": "开始日期不能晚于结束日期",
+          "request_id": "cdd82b51"
+        }
+      }
+    },
+    {
+      "name": "重复/非法分组返回 400",
+      "passed": true,
+      "detail": {
+        "status": 400,
+        "body": {
+          "title": "Bad Request",
+          "status": 400,
+          "detail": "group_by 仅支持：user,line,station,feature,model",
+          "request_id": "c3179ccb"
+        }
+      }
+    },
+    {
+      "name": "分组总数与分页稳定，页间不重复",
+      "passed": true,
+      "detail": {
+        "page1": {
+          "range": {
+            "from": null,
+            "to": null,
+            "timezone": "Asia/Shanghai",
+            "to_exclusive": true
+          },
+          "group_by": [
+            "model"
+          ],
+          "totals": {
+            "user_id": null,
+            "line_id": null,
+            "station_id": null,
+            "feature": null,
+            "model": null,
+            "batch_count": 10,
+            "api_call_count": 8,
+            "success_call_count": 7,
+            "failed_call_count": 1,
+            "prompt_tokens": 245,
+            "completion_tokens": 116,
+            "total_tokens": 1411,
+            "cached_tokens": 100,
+            "legacy_batch_count": 3,
+            "usage_missing_count": 1,
+            "data_quality": "partial"
+          },
+          "rows": [
+            {
+              "user_id": null,
+              "line_id": null,
+              "station_id": null,
+              "feature": null,
+              "model": "legacy-model",
+              "batch_count": 3,
+              "api_call_count": 0,
+              "success_call_count": 0,
+              "failed_call_count": 0,
+              "prompt_tokens": null,
+              "completion_tokens": null,
+              "total_tokens": 1050,
+              "cached_tokens": null,
+              "legacy_batch_count": 3,
+              "usage_missing_count": 0,
+              "data_quality": "legacy_total_only",
+              "display_name": null,
+              "username": null,
+              "station_name": null,
+              "line_name": null
+            }
+          ],
+          "page": 1,
+          "page_size": 1,
+          "total_rows": 3,
+          "notes": [
+            "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+            "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+            "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+          ]
+        },
+        "page2": {
+          "range": {
+            "from": null,
+            "to": null,
+            "timezone": "Asia/Shanghai",
+            "to_exclusive": true
+          },
+          "group_by": [
+            "model"
+          ],
+          "totals": {
+            "user_id": null,
+            "line_id": null,
+            "station_id": null,
+            "feature": null,
+            "model": null,
+            "batch_count": 10,
+            "api_call_count": 8,
+            "success_call_count": 7,
+            "failed_call_count": 1,
+            "prompt_tokens": 245,
+            "completion_tokens": 116,
+            "total_tokens": 1411,
+            "cached_tokens": 100,
+            "legacy_batch_count": 3,
+            "usage_missing_count": 1,
+            "data_quality": "partial"
+          },
+          "rows": [
+            {
+              "user_id": null,
+              "line_id": null,
+              "station_id": null,
+              "feature": null,
+              "model": "model-a",
+              "batch_count": 6,
+              "api_call_count": 7,
+              "success_call_count": 7,
+              "failed_call_count": 0,
+              "prompt_tokens": 245,
+              "completion_tokens": 116,
+              "total_tokens": 361,
+              "cached_tokens": 100,
+              "legacy_batch_count": 0,
+              "usage_missing_count": 0,
+              "data_quality": "complete",
+              "display_name": null,
+              "username": null,
+              "station_name": null,
+              "line_name": null
+            }
+          ],
+          "page": 2,
+          "page_size": 1,
+          "total_rows": 3,
+          "notes": [
+            "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+            "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+            "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+          ]
+        }
+      }
+    },
+    {
+      "name": "仅按用户分组可执行并保留全局 totals",
+      "passed": true,
+      "detail": {
+        "range": {
+          "from": null,
+          "to": null,
+          "timezone": "Asia/Shanghai",
+          "to_exclusive": true
+        },
+        "group_by": [
+          "user"
+        ],
+        "totals": {
+          "user_id": null,
+          "line_id": null,
+          "station_id": null,
+          "feature": null,
+          "model": null,
+          "batch_count": 10,
+          "api_call_count": 8,
+          "success_call_count": 7,
+          "failed_call_count": 1,
+          "prompt_tokens": 245,
+          "completion_tokens": 116,
+          "total_tokens": 1411,
+          "cached_tokens": 100,
+          "legacy_batch_count": 3,
+          "usage_missing_count": 1,
+          "data_quality": "partial"
+        },
+        "rows": [
+          {
+            "user_id": "u_admin",
+            "line_id": null,
+            "station_id": null,
+            "feature": null,
+            "model": null,
+            "batch_count": 8,
+            "api_call_count": 6,
+            "success_call_count": 6,
+            "failed_call_count": 0,
+            "prompt_tokens": 235,
+            "completion_tokens": 111,
+            "total_tokens": 1396,
+            "cached_tokens": 100,
+            "legacy_batch_count": 3,
+            "usage_missing_count": 0,
+            "data_quality": "partial",
+            "display_name": "系统管理员",
+            "username": "admin",
+            "station_name": null,
+            "line_name": null
+          }
+        ],
+        "page": 1,
+        "page_size": 1,
+        "total_rows": 2,
+        "notes": [
+          "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+          "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+          "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+        ]
+      }
+    },
+    {
+      "name": "真实 Chrome 页面验收子进程通过",
+      "passed": true,
+      "detail": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "name": "正式生成链路实际写入用户/产线/工位归属与 200 Token",
+      "passed": true,
+      "detail": {
+        "first": {
+          "status": 200,
+          "data": {
+            "batch_id": "1961c24b-e8f9-4a30-b4c3-ef5029dbcffa",
+            "status": "done",
+            "suggestion_count": 1,
+            "completed_at": "2026-11-02T01:53:47.459Z",
+            "suggestions": [
+              {
+                "suggestion_id": "0bf0b416-2c1b-45a4-a95e-78976df8c99a",
+                "batch_id": "1961c24b-e8f9-4a30-b4c3-ef5029dbcffa",
+                "station_id": "L01-ST91",
+                "version": 1,
+                "element_ids": [
+                  "L01-ST91-V1-001"
+                ],
+                "waste_type": "持住",
+                "method": "E",
+                "action_class": "自动化",
+                "measure": "治具夹持替代手持扶住壳体",
+                "eliminate_basis": "SOP规定双手装配无需人工持住",
+                "est_save_s": 3.68,
+                "priority": 100,
+                "tier": "P1",
+                "difficulty": 2,
+                "verif": 3,
+                "risk_flags": [],
+                "status": "待审",
+                "validation_trace": [
+                  {
+                    "round": "R2",
+                    "rule": "R2.3",
+                    "hit": true,
+                    "disposition": "pass",
+                    "reason": "可避免 NVA 允许 E（依据齐备，分型消除）"
+                  },
+                  {
+                    "round": "R3",
+                    "rule": "R3.4",
+                    "hit": false,
+                    "disposition": "pass",
+                    "reason": "waste_type 与分析证据一致"
+                  }
+                ],
+                "reviewed_by": null,
+                "reviewed_at": null,
+                "created_at": "2026-11-02T01:53:47.000Z"
+              }
+            ],
+            "station_id": "L01-ST91",
+            "version": 1,
+            "element_source": "mixed"
+          },
+          "text": "{\"batch_id\":\"1961c24b-e8f9-4a30-b4c3-ef5029dbcffa\",\"status\":\"done\",\"suggestion_count\":1,\"completed_at\":\"2026-11-02T01:53:47.459Z\",\"suggestions\":[{\"suggestion_id\":\"0bf0b416-2c1b-45a4-a95e-78976df8c99a\",\"batch_id\":\"1961c24b-e8f9-4a30-b4c3-ef5029dbcffa\",\"station_id\":\"L01-ST91\",\"version\":1,\"element_ids\":[\"L01-ST91-V1-001\"],\"waste_type\":\"持住\",\"method\":\"E\",\"action_class\":\"自动化\",\"measure\":\"治具夹持替代手持扶住壳体\",\"eliminate_basis\":\"SOP规定双手装配无需人工持住\",\"est_save_s\":3.68,\"priority\":100,\"tier\":\"P1\",\"difficulty\":2,\"verif\":3,\"risk_flags\":[],\"status\":\"待审\",\"validation_trace\":[{\"round\":\"R2\",\"rule\":\"R2.3\",\"hit\":true,\"disposition\":\"pass\",\"reason\":\"可避免 NVA 允许 E（依据齐备，分型消除）\"},{\"round\":\"R3\",\"rule\":\"R3.4\",\"hit\":false,\"disposition\":\"pass\",\"reason\":\"waste_type 与分析证据一致\"}],\"reviewed_by\":null,\"reviewed_at\":null,\"created_at\":\"2026-11-02T01:53:47.000Z\"}],\"station_id\":\"L01-ST91\",\"version\":1,\"element_source\":\"mixed\"}"
+        },
+        "usage": {
+          "range": {
+            "from": null,
+            "to": null,
+            "timezone": "Asia/Shanghai",
+            "to_exclusive": true
+          },
+          "group_by": [
+            "station"
+          ],
+          "totals": {
+            "user_id": null,
+            "line_id": null,
+            "station_id": null,
+            "feature": null,
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 1,
+            "success_call_count": 1,
+            "failed_call_count": 0,
+            "prompt_tokens": 120,
+            "completion_tokens": 80,
+            "total_tokens": 200,
+            "cached_tokens": 10,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 0,
+            "data_quality": "complete"
+          },
+          "rows": [
+            {
+              "user_id": null,
+              "line_id": null,
+              "station_id": "L01-ST91",
+              "feature": null,
+              "model": null,
+              "batch_count": 1,
+              "api_call_count": 1,
+              "success_call_count": 1,
+              "failed_call_count": 0,
+              "prompt_tokens": 120,
+              "completion_tokens": 80,
+              "total_tokens": 200,
+              "cached_tokens": 10,
+              "legacy_batch_count": 0,
+              "usage_missing_count": 0,
+              "data_quality": "complete",
+              "display_name": null,
+              "username": null,
+              "station_name": "AI 用量契约 L01-ST91",
+              "line_name": null
+            }
+          ],
+          "page": 1,
+          "page_size": 50,
+          "total_rows": 1,
+          "notes": [
+            "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+            "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+            "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+          ]
+        }
+      }
+    },
+    {
+      "name": "幂等命中不发模型请求且不新增用量事件",
+      "passed": true,
+      "detail": {
+        "again": {
+          "status": 200,
+          "data": {
+            "idempotent_hit": true,
+            "batch_id": "1961c24b-e8f9-4a30-b4c3-ef5029dbcffa",
+            "status": "done",
+            "suggestion_count": 1,
+            "completed_at": "2026-11-02T01:53:47.454Z",
+            "suggestions": [
+              {
+                "suggestion_id": "0bf0b416-2c1b-45a4-a95e-78976df8c99a",
+                "batch_id": "1961c24b-e8f9-4a30-b4c3-ef5029dbcffa",
+                "station_id": "L01-ST91",
+                "version": 1,
+                "element_ids": [
+                  "L01-ST91-V1-001"
+                ],
+                "waste_type": "持住",
+                "method": "E",
+                "action_class": "自动化",
+                "measure": "治具夹持替代手持扶住壳体",
+                "eliminate_basis": "SOP规定双手装配无需人工持住",
+                "est_save_s": 3.68,
+                "priority": 100,
+                "tier": "P1",
+                "difficulty": 2,
+                "verif": 3,
+                "risk_flags": [],
+                "status": "待审",
+                "validation_trace": [
+                  {
+                    "round": "R2",
+                    "rule": "R2.3",
+                    "hit": true,
+                    "disposition": "pass",
+                    "reason": "可避免 NVA 允许 E（依据齐备，分型消除）"
+                  },
+                  {
+                    "round": "R3",
+                    "rule": "R3.4",
+                    "hit": false,
+                    "disposition": "pass",
+                    "reason": "waste_type 与分析证据一致"
+                  }
+                ],
+                "reviewed_by": null,
+                "reviewed_at": null,
+                "created_at": "2026-11-02T01:53:47.000Z"
+              }
+            ],
+            "station_id": "L01-ST91",
+            "version": 1,
+            "element_source": "mixed"
+          },
+          "text": "{\"idempotent_hit\":true,\"batch_id\":\"1961c24b-e8f9-4a30-b4c3-ef5029dbcffa\",\"status\":\"done\",\"suggestion_count\":1,\"completed_at\":\"2026-11-02T01:53:47.454Z\",\"suggestions\":[{\"suggestion_id\":\"0bf0b416-2c1b-45a4-a95e-78976df8c99a\",\"batch_id\":\"1961c24b-e8f9-4a30-b4c3-ef5029dbcffa\",\"station_id\":\"L01-ST91\",\"version\":1,\"element_ids\":[\"L01-ST91-V1-001\"],\"waste_type\":\"持住\",\"method\":\"E\",\"action_class\":\"自动化\",\"measure\":\"治具夹持替代手持扶住壳体\",\"eliminate_basis\":\"SOP规定双手装配无需人工持住\",\"est_save_s\":3.68,\"priority\":100,\"tier\":\"P1\",\"difficulty\":2,\"verif\":3,\"risk_flags\":[],\"status\":\"待审\",\"validation_trace\":[{\"round\":\"R2\",\"rule\":\"R2.3\",\"hit\":true,\"disposition\":\"pass\",\"reason\":\"可避免 NVA 允许 E（依据齐备，分型消除）\"},{\"round\":\"R3\",\"rule\":\"R3.4\",\"hit\":false,\"disposition\":\"pass\",\"reason\":\"waste_type 与分析证据一致\"}],\"reviewed_by\":null,\"reviewed_at\":null,\"created_at\":\"2026-11-02T01:53:47.000Z\"}],\"station_id\":\"L01-ST91\",\"version\":1,\"element_source\":\"mixed\"}"
+        },
+        "usage": {
+          "range": {
+            "from": null,
+            "to": null,
+            "timezone": "Asia/Shanghai",
+            "to_exclusive": true
+          },
+          "group_by": [
+            "station"
+          ],
+          "totals": {
+            "user_id": null,
+            "line_id": null,
+            "station_id": null,
+            "feature": null,
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 1,
+            "success_call_count": 1,
+            "failed_call_count": 0,
+            "prompt_tokens": 120,
+            "completion_tokens": 80,
+            "total_tokens": 200,
+            "cached_tokens": 10,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 0,
+            "data_quality": "complete"
+          },
+          "rows": [
+            {
+              "user_id": null,
+              "line_id": null,
+              "station_id": "L01-ST91",
+              "feature": null,
+              "model": null,
+              "batch_count": 1,
+              "api_call_count": 1,
+              "success_call_count": 1,
+              "failed_call_count": 0,
+              "prompt_tokens": 120,
+              "completion_tokens": 80,
+              "total_tokens": 200,
+              "cached_tokens": 10,
+              "legacy_batch_count": 0,
+              "usage_missing_count": 0,
+              "data_quality": "complete",
+              "display_name": null,
+              "username": null,
+              "station_name": "AI 用量契约 L01-ST91",
+              "line_name": null
+            }
+          ],
+          "page": 1,
+          "page_size": 50,
+          "total_rows": 1,
+          "notes": [
+            "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+            "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+            "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+          ]
+        }
+      }
+    },
+    {
+      "name": "缓存克隆新增数据库批次但 tokens_used=0、模型请求/事件/计量批次均不新增",
+      "passed": true,
+      "detail": {
+        "cached": {
+          "status": 200,
+          "data": {
+            "batch_id": "e794e3c9-e960-47ec-b022-85c999b63a35",
+            "status": "done",
+            "cache_from": "1961c24b-e8f9-4a30-b4c3-ef5029dbcffa",
+            "suggestion_count": 1,
+            "suggestions": [
+              {
+                "suggestion_id": "39b14f10-2030-4704-8993-6b825502aff8",
+                "batch_id": "e794e3c9-e960-47ec-b022-85c999b63a35",
+                "station_id": "L01-ST91",
+                "version": 1,
+                "element_ids": [
+                  "L01-ST91-V1-001"
+                ],
+                "waste_type": "持住",
+                "method": "E",
+                "action_class": "自动化",
+                "measure": "治具夹持替代手持扶住壳体",
+                "eliminate_basis": "SOP规定双手装配无需人工持住",
+                "est_save_s": 3.68,
+                "priority": 100,
+                "tier": "P1",
+                "difficulty": 2,
+                "verif": 3,
+                "risk_flags": [],
+                "status": "待审",
+                "validation_trace": [
+                  {
+                    "round": "R2",
+                    "rule": "R2.3",
+                    "hit": true,
+                    "disposition": "pass",
+                    "reason": "可避免 NVA 允许 E（依据齐备，分型消除）"
+                  },
+                  {
+                    "round": "R3",
+                    "rule": "R3.4",
+                    "hit": false,
+                    "disposition": "pass",
+                    "reason": "waste_type 与分析证据一致"
+                  }
+                ],
+                "reviewed_by": null,
+                "reviewed_at": null,
+                "created_at": "2026-11-02T01:53:47.000Z"
+              }
+            ],
+            "station_id": "L01-ST91",
+            "version": 1,
+            "element_source": "mixed"
+          },
+          "text": "{\"batch_id\":\"e794e3c9-e960-47ec-b022-85c999b63a35\",\"status\":\"done\",\"cache_from\":\"1961c24b-e8f9-4a30-b4c3-ef5029dbcffa\",\"suggestion_count\":1,\"suggestions\":[{\"suggestion_id\":\"39b14f10-2030-4704-8993-6b825502aff8\",\"batch_id\":\"e794e3c9-e960-47ec-b022-85c999b63a35\",\"station_id\":\"L01-ST91\",\"version\":1,\"element_ids\":[\"L01-ST91-V1-001\"],\"waste_type\":\"持住\",\"method\":\"E\",\"action_class\":\"自动化\",\"measure\":\"治具夹持替代手持扶住壳体\",\"eliminate_basis\":\"SOP规定双手装配无需人工持住\",\"est_save_s\":3.68,\"priority\":100,\"tier\":\"P1\",\"difficulty\":2,\"verif\":3,\"risk_flags\":[],\"status\":\"待审\",\"validation_trace\":[{\"round\":\"R2\",\"rule\":\"R2.3\",\"hit\":true,\"disposition\":\"pass\",\"reason\":\"可避免 NVA 允许 E（依据齐备，分型消除）\"},{\"round\":\"R3\",\"rule\":\"R3.4\",\"hit\":false,\"disposition\":\"pass\",\"reason\":\"waste_type 与分析证据一致\"}],\"reviewed_by\":null,\"reviewed_at\":null,\"created_at\":\"2026-11-02T01:53:47.000Z\"}],\"station_id\":\"L01-ST91\",\"version\":1,\"element_source\":\"mixed\"}"
+        },
+        "usage": {
+          "range": {
+            "from": null,
+            "to": null,
+            "timezone": "Asia/Shanghai",
+            "to_exclusive": true
+          },
+          "group_by": [
+            "station"
+          ],
+          "totals": {
+            "user_id": null,
+            "line_id": null,
+            "station_id": null,
+            "feature": null,
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 1,
+            "success_call_count": 1,
+            "failed_call_count": 0,
+            "prompt_tokens": 120,
+            "completion_tokens": 80,
+            "total_tokens": 200,
+            "cached_tokens": 10,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 0,
+            "data_quality": "complete"
+          },
+          "rows": [
+            {
+              "user_id": null,
+              "line_id": null,
+              "station_id": "L01-ST91",
+              "feature": null,
+              "model": null,
+              "batch_count": 1,
+              "api_call_count": 1,
+              "success_call_count": 1,
+              "failed_call_count": 0,
+              "prompt_tokens": 120,
+              "completion_tokens": 80,
+              "total_tokens": 200,
+              "cached_tokens": 10,
+              "legacy_batch_count": 0,
+              "usage_missing_count": 0,
+              "data_quality": "complete",
+              "display_name": null,
+              "username": null,
+              "station_name": "AI 用量契约 L01-ST91",
+              "line_name": null
+            }
+          ],
+          "page": 1,
+          "page_size": 50,
+          "total_rows": 1,
+          "notes": [
+            "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+            "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+            "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+          ]
+        },
+        "cacheBatch": [
+          {
+            "tokens_used": 0,
+            "cache_from": "1961c24b-e8f9-4a30-b4c3-ef5029dbcffa"
+          }
+        ]
+      }
+    },
+    {
+      "name": "正式业务 JSON 两轮解析失败仍累计 400 Token，失败批次不抹消耗",
+      "passed": true,
+      "detail": {
+        "failed": {
+          "status": 503,
+          "data": {
+            "title": "Service Unavailable",
+            "status": 503,
+            "detail": "AI 生成失败：LLM 输出无法解析为 JSON 数组：not-json",
+            "request_id": "30b2ae0a"
+          },
+          "text": "{\"title\":\"Service Unavailable\",\"status\":503,\"detail\":\"AI 生成失败：LLM 输出无法解析为 JSON 数组：not-json\",\"request_id\":\"30b2ae0a\"}"
+        },
+        "usage": {
+          "range": {
+            "from": null,
+            "to": null,
+            "timezone": "Asia/Shanghai",
+            "to_exclusive": true
+          },
+          "group_by": [
+            "station"
+          ],
+          "totals": {
+            "user_id": null,
+            "line_id": null,
+            "station_id": null,
+            "feature": null,
+            "model": null,
+            "batch_count": 1,
+            "api_call_count": 2,
+            "success_call_count": 2,
+            "failed_call_count": 0,
+            "prompt_tokens": 240,
+            "completion_tokens": 160,
+            "total_tokens": 400,
+            "cached_tokens": null,
+            "legacy_batch_count": 0,
+            "usage_missing_count": 0,
+            "data_quality": "complete"
+          },
+          "rows": [
+            {
+              "user_id": null,
+              "line_id": null,
+              "station_id": "L01-ST92",
+              "feature": null,
+              "model": null,
+              "batch_count": 1,
+              "api_call_count": 2,
+              "success_call_count": 2,
+              "failed_call_count": 0,
+              "prompt_tokens": 240,
+              "completion_tokens": 160,
+              "total_tokens": 400,
+              "cached_tokens": null,
+              "legacy_batch_count": 0,
+              "usage_missing_count": 0,
+              "data_quality": "complete",
+              "display_name": null,
+              "username": null,
+              "station_name": "AI 用量契约 L01-ST92",
+              "line_name": null
+            }
+          ],
+          "page": 1,
+          "page_size": 50,
+          "total_rows": 1,
+          "notes": [
+            "总 Token 与是否采纳无关；失败、重试和业务校验失败前已发生的调用均计入。",
+            "legacy_total_only 表示历史批次只有总 Token；partial 表示含历史明细或上游缺失 usage。",
+            "浪费清单与问题清单共用 waste_analysis 调用成本；缓存与幂等命中不新增 Token。"
+          ]
+        },
+        "failedEvents": [
+          {
+            "attempt_no": 1,
+            "total_tokens": 200,
+            "status": "success"
+          },
+          {
+            "attempt_no": 2,
+            "total_tokens": 200,
+            "status": "success"
+          }
+        ]
+      }
+    }
+  ],
+  "not_verified": [
+    "SQL Server 实际迁移与方言执行（本轮未连接生产库）",
+    "真实上游模型计费一致性"
+  ]
+}

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系统首页与信息架构设计方案 · IE改善效率平台</title>
+<style>
+  :root{
+    --ink:#1a2332; --ink2:#3d4a5c; --ink3:#6b7787;
+    --line:#e3e8f0; --line2:#cbd5e3; --bg:#f6f8fb; --card:#fff;
+    --blue:#1f5fd0; --blue-bg:#eef4ff; --blue-line:#c7d8f5;
+    --teal:#0e8074; --teal-bg:#e8f6f4; --teal-line:#bfe3de;
+    --amber:#9a6a00; --amber-bg:#fdf6e3; --amber-line:#f0dfae;
+    --red:#b3372f; --red-bg:#fdeeec; --red-line:#f2c8c3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;
+    font-size:14.5px;line-height:1.75;}
+  .page{max-width:1060px;margin:0 auto;padding:34px 26px 56px;}
+  .cover{background:linear-gradient(135deg,#12315e 0%,#1f5fd0 65%,#2f7ae0 100%);
+    color:#fff;border-radius:14px;padding:38px 36px 30px;margin-bottom:24px;}
+  .cover .kicker{font-size:12.5px;letter-spacing:3px;opacity:.85;margin-bottom:8px;}
+  .cover h1{font-size:27px;margin:0 0 8px;font-weight:700;line-height:1.35;}
+  .cover .sub{font-size:14.5px;opacity:.93;margin-bottom:20px;}
+  .cover .meta{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:12.5px;opacity:.85;
+    border-top:1px solid rgba(255,255,255,.28);padding-top:14px;}
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:24px 28px;margin-bottom:20px;}
+  h2{font-size:18px;margin:0 0 4px;padding-left:12px;border-left:4px solid var(--blue);}
+  h2 .no{color:var(--ink3);font-size:12.5px;font-weight:400;margin-left:8px;}
+  h3{font-size:15px;margin:18px 0 6px;}
+  h4{font-size:13.5px;margin:14px 0 4px;color:var(--ink2);}
+  p{margin:8px 0;}
+  .lead{background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:10px;
+    padding:13px 17px;margin:12px 0 15px;}
+  .lead b{color:var(--blue);}
+  table{width:100%;border-collapse:collapse;margin:9px 0 13px;font-size:13px;line-height:1.6;}
+  th{background:#f0f4fa;border:1px solid var(--line2);padding:7px 10px;text-align:left;
+    font-weight:600;color:var(--ink2);white-space:nowrap;}
+  td{border:1px solid var(--line);padding:7px 10px;vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfe;}
+  .tag{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;font-weight:600;white-space:nowrap;}
+  .t-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-line);}
+  .t-teal{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line);}
+  .t-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line);}
+  .t-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-line);}
+  .t-gray{background:#f0f3f8;color:var(--ink3);border:1px solid var(--line2);}
+  .note{border-left:4px solid var(--amber);background:var(--amber-bg);
+    padding:10px 15px;border-radius:0 8px 8px 0;margin:11px 0;font-size:13px;}
+  .note b{color:var(--amber);}
+  .law{border-left:4px solid var(--red);background:var(--red-bg);
+    padding:10px 15px;border-radius:0 8px 8px 0;margin:11px 0;font-size:13px;}
+  .law b{color:var(--red);}
+  .ok{border-left:4px solid var(--teal);background:var(--teal-bg);
+    padding:10px 15px;border-radius:0 8px 8px 0;margin:11px 0;font-size:13px;}
+  .ok b{color:var(--teal);}
+  ul,ol{margin:8px 0;padding-left:22px;}
+  li{margin:4px 0;}
+  code{background:#f0f4fa;border:1px solid var(--line);border-radius:5px;
+    padding:0 5px;font-family:Consolas,monospace;font-size:12.5px;color:#24387e;}
+  .tree{background:#f8fafd;border:1px solid var(--line);border-radius:10px;
+    padding:14px 18px;font-family:Consolas,"Microsoft YaHei",monospace;font-size:13px;
+    line-height:1.9;white-space:pre;overflow-x:auto;margin:10px 0;}
+  /* 线框图 */
+  .wire{border:1.5px solid var(--line2);border-radius:10px;background:#fbfcfe;
+    margin:10px 0 14px;overflow:hidden;font-size:12px;}
+  .wire .wbar{background:#eef2f9;border-bottom:1px solid var(--line2);padding:5px 10px;
+    color:var(--ink3);display:flex;gap:10px;align-items:center;}
+  .wire .wbar b{color:var(--ink2);}
+  .wire .wbody{display:flex;min-height:200px;}
+  .wire .wside{width:64px;border-right:1px dashed var(--line2);background:#f4f7fc;
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:8px;
+    color:var(--ink3);font-size:10.5px;text-align:center;}
+  .wire .wside .ic{width:30px;height:30px;border-radius:7px;background:#e3ebf8;
+    border:1px solid var(--blue-line);display:flex;align-items:center;justify-content:center;
+    font-size:13px;color:var(--blue);}
+  .wire .wside .ic.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+  .wire .wmain{flex:1;padding:10px;display:grid;gap:8px;align-content:start;}
+  .wire .box{border:1px dashed var(--blue-line);background:var(--blue-bg);border-radius:6px;
+    padding:6px 10px;color:var(--ink2);}
+  .wire .box.amber{border-color:var(--amber-line);background:var(--amber-bg);}
+  .wire .box.teal{border-color:var(--teal-line);background:var(--teal-bg);}
+  .wire .box.gray{border-color:var(--line2);background:#f0f3f8;}
+  .wire .box.red{border-color:var(--red-line);background:var(--red-bg);}
+  .wire .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .wire .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .wire .cols4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .wire .box .t{font-weight:700;color:var(--ink);font-size:12px;}
+  .wire .box .d{color:var(--ink3);font-size:11px;}
+  .wire .crumb{padding:5px 10px;border-bottom:1px dashed var(--line2);color:var(--ink3);font-size:11px;}
+  .opt{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0;}
+  .opt .cardopt{border:1.5px solid var(--line2);border-radius:11px;padding:14px 16px;background:#fcfdfe;}
+  .opt .cardopt.rec{border-color:var(--teal);background:var(--teal-bg);}
+  .opt .cardopt h4{margin:0 0 4px;font-size:14.5px;color:var(--ink);}
+  .opt .cardopt .who{font-size:12px;color:var(--ink3);margin-bottom:8px;}
+  .pick{border:2px solid var(--blue);border-radius:12px;padding:18px 22px;margin-top:14px;
+    background:linear-gradient(180deg,#f2f7ff 0%,#fff 100%);}
+  .pick h3{margin-top:0;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:860px){.grid2,.opt{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="cover">
+  <div class="kicker">DESIGN PROPOSAL · 待选型</div>
+  <h1>系统首页与信息架构设计方案</h1>
+  <div class="sub">IE改善效率平台 v3.0 → v3.2 · 解决"用户进入后无从下手"的入口与导航问题<br>
+  参照 OTRS10（视频工时研究软件，丰田系 6000+ 用户）流程化界面范式 + B 端中后台经典布局规范</div>
+  <div class="meta">
+    <span>版本 v1.0</span><span>日期 2026-10-22</span><span>状态：待用户选型（A / B / C）</span>
+    <span>影响面：仅前端 app/web，后端近零改动</span>
+  </div>
+</div>
+
+<!-- ===================== 1. 现状诊断 ===================== -->
+<section>
+  <h2>1. 现状诊断<span class="no">为什么用户不知道从何下手</span></h2>
+  <p>当前系统登录后的首页即"工位清单"页（<code>#/stations</code>），一页平铺：选线下拉 + 4 个指标卡 + 工位卡片网格 + 改善建议表。功能能跑，但<strong>结构对新手不友好、入口对角色不区分、上下文对操作不连续</strong>。逐条诊断如下：</p>
+  <table>
+    <tr><th style="width:36px">#</th><th>问题</th><th>具体表现（代码事实）</th><th>后果</th><th style="width:70px">严重度</th></tr>
+    <tr><td>1</td><td><b>首页没有回答"我现在该做什么"</b></td>
+      <td>首页只呈现"有哪些工位"，没有待办、没有任务引导、没有"继续上次"</td>
+      <td>IE 人员流动大（项目已知痛点），新人首次登录面对空列表/陌生列表直接迷失</td><td><span class="tag t-red">高</span></td></tr>
+    <tr><td>2</td><td><b>模块入口埋没</b></td>
+      <td>改善建议表嵌在工位清单页底部；收益参数埋在对比页内；用户管理只是顶栏一个文字链接；规则库有 API 无前端页</td>
+      <td>"生成建议→采纳→流转→复测→对比"闭环被拆散在不同页面深处，用户找不到</td><td><span class="tag t-red">高</span></td></tr>
+    <tr><td>3</td><td><b>工位上下文不连续</b></td>
+      <td>工作台/分析/对比三个页面靠 hash 路由的 ctxId 串联，当前工位只在顶栏导航隐现，无面包屑、无页签</td>
+      <td>刷新、分享链接、多点对比后"我在测哪个工位"不直观；三页之间切换要回顶栏找</td><td><span class="tag t-amber">中</span></td></tr>
+    <tr><td>4</td><td><b>角色无差异化首页</b></td>
+      <td>sys_admin / ie_engineer / line_leader / viewer 看到完全相同的首页</td>
+      <td>管理员找不到待审批入口（要手动输 #/admin/users）；班长只关心本线却被全量数据淹没</td><td><span class="tag t-amber">中</span></td></tr>
+    <tr><td>5</td><td><b>空状态无引导</b></td>
+      <td>无工位时仅一行"该产线暂无工位"；无建议时提示"先到分析页生成建议"</td>
+      <td>冷启动用户不知道第一步是建工位、导 CSV 还是看演示</td><td><span class="tag t-amber">中</span></td></tr>
+    <tr><td>6</td><td><b>布局无扩展性</b></td>
+      <td>顶栏横排导航，模块增至 6+ 个必然拥挤；无侧边栏/无分组</td>
+      <td>后续加规则库、审计页、报表页时只能继续堆顶栏</td><td><span class="tag t-amber">中</span></td></tr>
+  </table>
+  <div class="note"><b>诊断结论：</b>问题不在功能缺失，而在<b>信息架构</b>——页面按"技术模块"组织而不是按"IE 改善工作流"组织，首页按"数据展示"设计而不是按"任务待办"设计。本方案只重排入口与层级，<b>不新增任何管理模块、不动业务计算口径</b>（符合产品哲学"工具做薄不做全"）。</div>
+</section>
+
+<!-- ===================== 2. 设计原则 ===================== -->
+<section>
+  <h2>2. 设计原则<span class="no">行业最佳实践 → 本平台落地</span></h2>
+  <table>
+    <tr><th style="width:44px">编号</th><th>原则</th><th>行业依据</th><th>本平台落地</th></tr>
+    <tr><td>P1</td><td><b>工作流驱动，而非功能驱动</b></td>
+      <td>OTRS10 按 KAIZEN 循环组织：拍视频→分析→消除浪费/标准化→输出手册→培训传承，用户始终知道自己在循环哪一步</td>
+      <td>按 IE 改善闭环六步组织导航：<b>定对象 → 测现状 → 找浪费 → 出方案 → 验效果 → 固标准</b>，每步对应现有页面</td></tr>
+    <tr><td>P2</td><td><b>三层信息架构</b></td>
+      <td>B 端经典分层：全局总览 → 项目/产线维度 → 单对象工作区</td>
+      <td>全局仪表盘（首页）→ 产线驾驶舱（#/stations）→ 工位工作区（工作台/分析/对比）</td></tr>
+    <tr><td>P3</td><td><b>待办驱动首页</b></td>
+      <td>门户型 B 端系统（OA/MES 看板）首页=待办+指标+快捷入口，而非数据罗列</td>
+      <td>首页回答"现在做什么"：待审批、待实施建议、待复测验证、最近访问</td></tr>
+    <tr><td>P4</td><td><b>左树右表 + 面包屑保上下文</b></td>
+      <td>左树右表是中后台最经典模式；工业软件导航规范：树形承载层级（产线→工位），选中态明确</td>
+      <td>产线树/工位切换常驻或面包屑显性化，任何页面可见"我在哪个工位"</td></tr>
+    <tr><td>P5</td><td><b>权限自适应入口</b></td>
+      <td>RBAC 系统的导航应按权限过滤，无权限入口不渲染（后端仍有 403 双保险）</td>
+      <td>复用现有 <code>can()</code>：导航、首页卡片、操作按钮全部按 permission 过滤</td></tr>
+    <tr><td>P6</td><td><b>零新增管理模块、近零后端改动</b></td>
+      <td>MVP 纪律：只保留能直接促进 IE 分析与改善效率的能力</td>
+      <td>只重排入口/新增 1 个仪表盘页 + 2 个已有能力的独立入口页；后端一期 0 个新接口</td></tr>
+  </table>
+</section>
+
+<!-- ===================== 3. 目标信息架构 ===================== -->
+<section>
+  <h2>3. 目标信息架构<span class="no">模块目录树 + 入口权限矩阵</span></h2>
+  <p>全部能力映射到一棵目录树，★=新增入口，△=远期。括号内为路由与权限点：</p>
+  <div class="tree">IE改善效率平台
+├── <b>首页 · 工作台</b>        #/                     ★新增（待办+指标+产线概览+新手引导）
+├── <b>产线驾驶舱</b>           #/stations             （原工位清单升级：左产线树 + 右工位区）
+│   └── 工位工作区（上下文三页签，共享当前工位）
+│       ├── 分解工作台          #/workbench/:id        element:read/write
+│       ├── 分析结果            #/analysis/:id         analysis:read（含建议生成）
+│       └── 改善对比            #/compare/:id          compare:read
+├── <b>改善建议</b>             #/improvements         ★新增一级入口（跨线清单+三态流转+建议书打印）
+├── <b>系统管理</b>（顶栏下拉，sys_admin 可见）
+│   ├── 用户管理               #/admin/users          user:read/write（v3.1 已实现）
+│   ├── 收益参数               #/settings/benefit     ★补独立入口（编辑能力已在对比页，抽取复用）
+│   └── 规则库                 #/rules                △远期（API 已具备，前端未做）
+└── 个人中心：修改密码（顶栏 userchip，已实现）</div>
+
+  <h3>3.1 闭环六步 × 页面映射</h3>
+  <table>
+    <tr><th>闭环步骤</th><th>用户动作</th><th>落在哪</th><th>现状问题</th></tr>
+    <tr><td>① 定对象</td><td>选产线 / 建工位 / 导入 CSV</td><td>产线驾驶舱</td><td>建工位入口在小按钮，导入 CSV 藏在工位卡片</td></tr>
+    <tr><td>② 测现状</td><td>视频分解、提交要素</td><td>分解工作台</td><td>入口 OK</td></tr>
+    <tr><td>③ 找浪费</td><td>看 VA/NVA、浪费、平衡诊断</td><td>分析结果</td><td>入口 OK，但与④跳转深</td></tr>
+    <tr><td>④ 出方案</td><td>生成建议→采纳→指派</td><td>分析结果 → 改善建议</td><td><b>建议无一级入口，状态流转要回工位清单底部</b></td></tr>
+    <tr><td>⑤ 验效果</td><td>复测 → 对比 → 收益估算</td><td>改善对比</td><td>入口 OK；"哪些建议待复测"无提醒</td></tr>
+    <tr><td>⑥ 固标准</td><td>封存版本、建议书打印</td><td>工作台/建议书</td><td>入口 OK</td></tr>
+  </table>
+
+  <h3>3.2 入口 × 角色矩阵（●=可见并可操作，○=可见只读，—=不可见）</h3>
+  <table>
+    <tr><th>模块 / 入口</th><th>所需权限</th><th>sys_admin</th><th>ie_admin</th><th>ie_engineer</th><th>line_leader</th><th>viewer</th></tr>
+    <tr><td>首页 · 工作台</td><td>station:read</td><td>●</td><td>●</td><td>●</td><td>●</td><td>●</td></tr>
+    <tr><td>产线驾驶舱</td><td>station:read</td><td>●</td><td>●</td><td>●</td><td>○</td><td>○</td></tr>
+    <tr><td>分解工作台（写）</td><td>element:write</td><td>●</td><td>●</td><td>●</td><td>—</td><td>—</td></tr>
+    <tr><td>分析结果（跑分析）</td><td>analysis:run</td><td>●</td><td>●</td><td>●</td><td>—</td><td>—</td></tr>
+    <tr><td>建议生成/采纳</td><td>suggestion:generate/adopt</td><td>●</td><td>●</td><td>●</td><td>●*</td><td>—</td></tr>
+    <tr><td>改善建议（清单页）</td><td>suggestion:generate</td><td>●</td><td>●</td><td>●</td><td>●*</td><td>—</td></tr>
+    <tr><td>改善对比</td><td>compare:read</td><td>●</td><td>●</td><td>●</td><td>○</td><td>○</td></tr>
+    <tr><td>用户管理</td><td>user:read/write</td><td>●</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+    <tr><td>收益参数</td><td>settings:benefit-write</td><td>●</td><td>●</td><td>○</td><td>—</td><td>—</td></tr>
+  </table>
+  <p class="note" style="font-size:12.5px">* line_leader 仅有 suggestion:generate/status（无 adopt），页面内按权限过滤按钮，与现有按钮级权限一致。</p>
+</section>
+
+<!-- ===================== 4. 三方案 ===================== -->
+<section>
+  <h2>4. 首页架构三方案<span class="no">供选型</span></h2>
+  <p>三个方案都满足第 2 节原则，差别在<b>布局骨架</b>与<b>落地成本</b>。</p>
+
+  <h3>方案 A：仪表盘门户式 <span class="tag t-teal">推荐</span></h3>
+  <p>顶栏（一级导航）+ 左侧可折叠图标菜单 + 内容区。首页=待办中心 + 核心指标 + 产线概览 + 新手引导卡 + 最近访问。</p>
+  <div class="wire">
+    <div class="wbar"><b>IE改善效率平台</b><span>首页</span><span>产线驾驶舱</span><span>改善建议</span><span>系统管理▾</span><span style="margin-left:auto">👤 王工 · IE工程师 ▾</span></div>
+    <div class="wbody">
+      <div class="wside">
+        <div class="ic on">⌂</div>首页
+        <div class="ic">🏭</div>产线
+        <div class="ic">💡</div>建议
+        <div class="ic">⚙</div>管理
+      </div>
+      <div class="wmain">
+        <div class="box teal"><span class="t">👋 欢迎回来 + 三步引导卡</span> <span class="d">① 选产线建工位/导CSV → ② 分解工作台测工时 → ③ 分析生成建议（新用户可关闭，localStorage 记忆）</span></div>
+        <div class="cols3">
+          <div class="box amber"><span class="t">待审批账号 2</span><div class="d">user:read 可见 → 用户管理</div></div>
+          <div class="box amber"><span class="t">待实施建议 5</span><div class="d">按优先级排序 → 改善建议</div></div>
+          <div class="box"><span class="t">待复测验证 1</span><div class="d">已完成待复测 → 工位对比</div></div>
+        </div>
+        <div class="cols4">
+          <div class="box gray"><span class="t">线平衡率 87%</span></div>
+          <div class="box gray"><span class="t">平均 VA 61%</span></div>
+          <div class="box gray"><span class="t">已验证 3</span></div>
+          <div class="box gray"><span class="t">预估年收益 ¥12.6万</span></div>
+        </div>
+        <div class="cols">
+          <div class="box"><span class="t">产线概览</span><div class="d">L01：3工位 · 平衡87% · 瓶颈 ST02 → 进驾驶舱<br>L02：2工位 · …</div></div>
+          <div class="box"><span class="t">最近访问</span><div class="d">L01-ST01 上壳装配（工作台）<br>L01-ST02 锁螺丝（分析）</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <table>
+    <tr><th>优点</th><th>缺点</th></tr>
+    <tr>
+      <td>① 首页直接回答"该做什么"，直击痛点；② 侧边栏为后续模块（规则库/审计/报表）预留扩展位；③ 角色差异化最容易实现（卡片按权限过滤）；④ 与既有 hash 路由兼容，改造集中在外壳</td>
+      <td>① 相比现状改动最大（App.tsx 布局重构 + 新增 DashboardPage）；② 侧边栏占 56-64px，工位工作台全屏场景需支持折叠（本来就要折叠）</td>
+    </tr>
+  </table>
+
+  <h3>方案 B：OTRS10 工作台中心式</h3>
+  <p>左侧"对象树"（产线→工位）常驻，中间为工位工作区，右侧为当前工位摘要/属性面板。首页即产线驾驶舱，无独立仪表盘。</p>
+  <div class="wire">
+    <div class="wbar"><b>IE改善效率平台</b><span style="margin-left:auto">👤 王工 ▾</span></div>
+    <div class="wbody">
+      <div class="wside" style="width:130px;align-items:stretch;padding:8px;">
+        <div style="font-weight:700;color:var(--ink2)">产线 / 工位</div>
+        <div>▾ L01 装配线</div>
+        <div style="padding-left:12px">▸ ST01 上壳装配</div>
+        <div style="padding-left:12px;background:var(--blue-bg);border-radius:4px">▸ ST02 锁螺丝</div>
+        <div>▸ L02 包装线</div>
+      </div>
+      <div class="wmain">
+        <div class="box gray"><span class="t">工位列表 / 山积图缩略</span><div class="d">选中工位高亮；CT/TT/VA/版本/状态列；行内入口：分解/分析/对比</div></div>
+        <div class="box"><span class="t">线平衡诊断（山积图）</span><div class="d">点击工位柱子 → 右侧摘要联动</div></div>
+      </div>
+      <div style="width:180px;border-left:1px dashed var(--line2);background:#f4f7fc;padding:10px;display:grid;gap:8px;align-content:start;">
+        <div class="box"><span class="t">当前工位摘要</span><div class="d">ST02 锁螺丝<br>CT 12.6s / TT 13.5s<br>VA 58% · v2 · 3要素</div></div>
+        <div class="box teal"><span class="t">待办</span><div class="d">待复测验证 1</div></div>
+      </div>
+    </div>
+  </div>
+  <table>
+    <tr><th>优点</th><th>缺点</th></tr>
+    <tr>
+      <td>① 与 OTRS10 最同构，IE 老用户零学习成本；② 工位上下文永不丢失（左树常驻）；③ 适合工位密集（几十个工位）后的快速切换</td>
+      <td>① 首页无总览/待办，<b>没有解决"无从下手"的核心诉求</b>；② 左树占宽，1320px 容器下山积图/时间线空间被压缩；③ 新手引导弱</td>
+    </tr>
+  </table>
+
+  <h3>方案 C：渐进混合式（过渡方案）</h3>
+  <p>不动整体骨架（顶栏导航 + 全宽内容区），仅把首页改为"仪表盘段 + 工位清单段"上下两段；模块入口先补顶栏。</p>
+  <div class="wire">
+    <div class="wbar"><b>IE改善效率平台</b><span>工位清单</span><span>改善建议</span><span>用户管理</span><span style="margin-left:auto">👤 王工 ▾</span></div>
+    <div class="wbody">
+      <div class="wmain">
+        <div class="cols4">
+          <div class="box gray"><span class="t">线平衡率 87%</span></div>
+          <div class="box gray"><span class="t">平均 VA 61%</span></div>
+          <div class="box amber"><span class="t">待实施 5</span></div>
+          <div class="box amber"><span class="t">待审批 2</span></div>
+        </div>
+        <div class="box teal"><span class="t">新手引导条</span> <span class="d">可关闭；冷启动时展开三步</span></div>
+        <div class="box"><span class="t">产线选择 + 工位卡片网格</span><div class="d">即现有 StationListPage 内容</div></div>
+        <div class="box"><span class="t">改善建议表</span><div class="d">现有底部表格</div></div>
+      </div>
+    </div>
+  </div>
+  <table>
+    <tr><th>优点</th><th>缺点</th></tr>
+    <tr>
+      <td>① 落地最快（1 个新页面 + 顶栏加 2 个链接，约 0.5 天）；② 风险最小，不动布局骨架；③ 可作为方案 A 的第一步过渡</td>
+      <td>① 层级依旧扁平，模块多后顶栏拥挤；② 工位上下文/左树问题未解决；③ "门户感"不足，与 OTRS10 范式差距大</td>
+    </tr>
+  </table>
+
+  <h3>4.1 三方案对比</h3>
+  <table>
+    <tr><th>维度</th><th>A 仪表盘门户</th><th>B OTRS10 工作台中心</th><th>C 渐进混合</th></tr>
+    <tr><td>解决"无从下手"</td><td><span class="tag t-teal">直接解决</span></td><td><span class="tag t-red">未解决</span></td><td><span class="tag t-amber">部分</span></td></tr>
+    <tr><td>工位上下文保持</td><td>面包屑+页签</td><td><span class="tag t-teal">左树常驻</span></td><td><span class="tag t-amber">同现状</span></td></tr>
+    <tr><td>新手引导</td><td><span class="tag t-teal">强（引导卡+空状态）</span></td><td>弱</td><td>中（引导条）</td></tr>
+    <tr><td>扩展性（模块增多）</td><td><span class="tag t-teal">侧边栏预留</span></td><td>中</td><td><span class="tag t-red">顶栏拥挤</span></td></tr>
+    <tr><td>与 OTRS10 契合度</td><td>中（门户+流程）</td><td><span class="tag t-teal">高</span></td><td>低</td></tr>
+    <tr><td>实现成本</td><td>中（约 1.5 人日）</td><td>中高（约 2 人日，工作台要适配窄屏）</td><td><span class="tag t-teal">低（约 0.5 人日）</span></td></tr>
+    <tr><td>小屏/窄容器适配</td><td>侧边栏可折叠为图标</td><td>左树压缩工作区</td><td>无影响</td></tr>
+  </table>
+
+  <div class="pick">
+    <h3>选型建议：A（主体）+ B 的元素（吸收）</h3>
+    <ul>
+      <li><b>主体选 A</b>：只有"待办驱动的门户首页"能直接回答用户提出的"进入后该从何下手"；侧边栏同时解决扩展性问题。</li>
+      <li><b>吸收 B 的两个元素</b>：① 工位工作区采用<b>面包屑 + 三页签（分解/分析/对比）</b>替代顶栏跳转，实现"上下文常驻"的大部分收益，但不引入常驻左树（保时间线/山积图宽度）；② 产线驾驶舱保留<b>工位切换下拉</b>（ctxId 显性化）。</li>
+      <li><b>演进路径</b>：先按 C 的精神快速上"首页仪表盘 + 三步引导"（第 1 迭代，0.5 天即可体验），再切 A 的侧边栏骨架（第 2 迭代）——即 A 的落地顺序本身就是渐进式的，风险可控。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 5. 方案A详细设计 ===================== -->
+<section>
+  <h2>5. 方案 A 详细设计<span class="no">首页 + 导航 + 角色差异化 + 空状态</span></h2>
+
+  <h3>5.1 首页（#/）区块与数据来源</h3>
+  <p><b>全部复用现有 API，前端聚合，一期零后端改动。</b>各区块按权限渲染（无权限不请求不展示，403 静默降级）：</p>
+  <table>
+    <tr><th>区块</th><th>内容</th><th>数据来源</th><th>所需权限</th></tr>
+    <tr><td>欢迎条 + 引导卡</td><td>角色问候 + "三步上手"（① 定对象 ② 测现状 ③ 出方案），每步带跳转按钮；关闭后 localStorage 记忆</td><td>静态 + 路由跳转</td><td>station:read</td></tr>
+    <tr><td>待审批账号</td><td>pending 用户数 + 最近 5 条（用户名/显示名/注册时间）→ 跳用户管理</td><td><code>GET /admin/users?status=pending</code></td><td>user:read</td></tr>
+    <tr><td>待实施建议</td><td>status=待实施 按 priority 取 Top 5（工位/浪费/措施/预估节省）→ 跳改善建议页</td><td><code>GET /improvements?status=待实施</code></td><td>suggestion:generate</td></tr>
+    <tr><td>待复测验证</td><td>status=已完成 的建议（提示"请复测后到对比页验证收益"）→ 跳工位对比</td><td><code>GET /improvements?status=已完成</code></td><td>suggestion:generate</td></tr>
+    <tr><td>核心指标行</td><td>线平衡率 / 平均 VA 占比 / 待实施数 / 已验证数 / 预估年收益合计</td><td><code>GET /lines/:id/analysis</code> 各线聚合；年收益按对比页既有公式前端累加</td><td>analysis:read / settings:benefit-read</td></tr>
+    <tr><td>产线概览</td><td>每条线一张卡：工位数 / 平衡率 / 瓶颈工位 / 平均 VA / 待实施数 → 点击进驾驶舱并选中该线</td><td>同上（lineAnalysis + improvements 按 line 过滤）</td><td>analysis:read</td></tr>
+    <tr><td>最近访问</td><td>最近 3 个工位（页面名 + 时间）→ 一键继续</td><td>localStorage <code>ie_recent_stations</code>（本地写入，不进库）</td><td>—</td></tr>
+  </table>
+  <div class="note"><b>二期可选后端优化：</b>首页 6-7 个并行请求可合并为 <code>GET /dashboard/summary</code>（单次聚合，服务端算平衡率/收益合计）。一期请求数可接受（内网 + 数据量小），不做也行——遵循"薄"原则，不预先优化。</div>
+
+  <h3>5.2 角色差异化首页</h3>
+  <table>
+    <tr><th>角色</th><th>首页侧重</th><th>隐藏/裁剪</th></tr>
+    <tr><td>sys_admin</td><td>待审批账号卡置顶 + 全部指标 + 系统管理入口</td><td>—</td></tr>
+    <tr><td>ie_admin / ie_engineer</td><td>待实施/待复测待办 + 产线概览 + 快速进入分解/分析</td><td>无审批卡、无用户管理入口</td></tr>
+    <tr><td>line_leader</td><td>仅本线聚焦（驾驶舱默认线=本线，由后端行级隔离天然保证）；待办仅看本线建议</td><td>跨线数据不可见（后端已隔离）；无写操作按钮</td></tr>
+    <tr><td>viewer</td><td>只读指标 + 产线概览；引导卡文案改为"查看工位分析结果"</td><td>全部待办写操作、建工位、导入、建议生成入口</td></tr>
+  </table>
+
+  <h3>5.3 空状态与新手引导（解决"无从下手"的关键）</h3>
+  <ul>
+    <li><b>三步引导卡</b>（首页顶部，可关闭）：① 到产线驾驶舱"新建工位"或"导入 CSV" → ② 进分解工作台提交要素 → ③ 分析页"生成建议"。每步都是按钮，不是文字说明。</li>
+    <li><b>工位空态</b>：现有"该产线暂无工位"升级为行动卡——[新建工位]（station:write）/ [导入 CSV]（element:write）/ [查看演示线 L01]。</li>
+    <li><b>建议空态</b>：现有"先到分析页生成建议"升级为带工位名的直达按钮。</li>
+    <li><b>首次登录引导</b>：must_change_pwd 改密后落地首页即见引导卡（不与强制改密页冲突，改密流程已存在）。</li>
+  </ul>
+
+  <h3>5.4 导航与入口设计</h3>
+  <table>
+    <tr><th>元素</th><th>设计</th></tr>
+    <tr><td>顶栏一级导航</td><td>品牌 Logo + <b>首页 / 产线驾驶舱 / 改善建议 / 系统管理▾</b>（下拉：用户管理、收益参数、规则库△）+ 右侧 userchip（现有）</td></tr>
+    <tr><td>左侧图标菜单</td><td>⌂ 首页 / 🏭 产线 / 💡 建议 / ⚙ 管理；可折叠为 56px 图标态；当前项高亮；按权限过滤</td></tr>
+    <tr><td>面包屑（工位工作区）</td><td><code>首页 › L01 装配线 › L01-ST01 上壳装配 › <b>分析结果</b></code>，工位名处带<b>切换下拉</b>（同线工位快速切换 = ctxId 显性化）</td></tr>
+    <tr><td>工位三页签</td><td>工位工作区内 <b>[分解工作台] [分析结果] [改善对比]</b> 页签切换（替代顶栏跳转），保持上下文</td></tr>
+    <tr><td>系统管理分组</td><td>用户管理 / 收益参数 / 规则库（△）收进顶栏下拉，避免侧边栏过深</td></tr>
+    <tr><td>宽度规范</td><td>内容区 ≥1366px 减导航宽；侧边栏折叠阈值 1100px；表格横向滚动兜底（B 端规范）</td></tr>
+  </table>
+
+  <h3>5.5 前端落地设计（路由与组件）</h3>
+  <table>
+    <tr><th>路由</th><th>页面组件</th><th>权限</th><th>改动量</th></tr>
+    <tr><td><code>#/</code></td><td><b>DashboardPage.tsx（新）</b></td><td>station:read</td><td>新建约 300 行</td></tr>
+    <tr><td><code>#/stations</code></td><td>StationListPage.tsx（现有）</td><td>station:read</td><td>仅外壳适配（面包屑/页签由 Shell 提供），逻辑不动</td></tr>
+    <tr><td><code>#/improvements</code></td><td><b>ImprovementsPage.tsx（新）</b></td><td>suggestion:generate</td><td>从 StationListPage 抽取建议表 + 状态流转 + 建议书弹窗（逻辑已在 AnalysisPage/StationListPage 存在，主要是搬运+跨线筛选）</td></tr>
+    <tr><td><code>#/settings/benefit</code></td><td><b>BenefitParamsPage.tsx（新）</b></td><td>settings:benefit-write</td><td>从 ComparePage 抽取参数编辑表单（保存策略已有：先拉全量 lines→替换→整体 POST）</td></tr>
+    <tr><td><code>#/workbench|analysis|compare/:id</code></td><td>现有三页</td><td>现有</td><td>0（仅顶部包面包屑+页签）</td></tr>
+    <tr><td><code>#/admin/users</code></td><td>UserManagementPage（现有）</td><td>user:read</td><td>0</td></tr>
+  </table>
+  <p>组件新增：<code>Sidebar.tsx</code>（图标菜单+折叠）、<code>Breadcrumb.tsx</code>、<code>StationTabs.tsx</code>、<code>OnboardingCard.tsx</code>、<code>useRecentStations.ts</code>（localStorage hook）。App.tsx 重构为"顶栏 + 侧边栏 + 内容区"外壳，ROUTE_PERMISSION 增加 <code>'': 'station:read'</code>（首页门槛，所有角色均具备）。</p>
+  <div class="ok"><b>后端改动：一期 0 个接口、0 张表。</b>首页聚合、建议清单、收益参数均有现成 API；行级隔离/权限体系已就绪。二期如需 <code>GET /dashboard/summary</code> 再议（当前不违反"薄"原则）。</div>
+</section>
+
+<!-- ===================== 6. 实施拆分 ===================== -->
+<section>
+  <h2>6. 实施拆分与验收<span class="no">三个迭代，累计约 1.5 人日</span></h2>
+  <table>
+    <tr><th style="width:90px">迭代</th><th>内容</th><th>产出</th><th style="width:110px">工作量</th></tr>
+    <tr><td><b>迭代 1</b><br>仪表盘</td><td>DashboardPage：引导卡 + 待办三卡（按权限）+ 指标行 + 最近访问；空状态行动化；路由 <code>#/</code></td><td>用户登录后第一眼看到"该做什么"</td><td>0.5 人日</td></tr>
+    <tr><td><b>迭代 2</b><br>导航骨架</td><td>Sidebar + 顶栏重组 + 面包屑 + 工位三页签 + 工位切换下拉；产线驾驶舱外壳适配</td><td>模块层级清晰、上下文连续</td><td>0.5 人日</td></tr>
+    <tr><td><b>迭代 3</b><br>独立入口页</td><td>ImprovementsPage（跨线清单+流转+建议书）+ BenefitParamsPage；各角色走查；顶栏"系统管理"下拉</td><td>闭环六步全部有明确一级入口</td><td>0.5 人日</td></tr>
+  </table>
+  <h3>6.1 验收标准</h3>
+  <ol>
+    <li><b>30 秒测试</b>：新员工首次登录，30 秒内能说出下一步动作（引导卡 + 待办驱动）。</li>
+    <li><b>两跳原则</b>：从首页出发，任意有权限模块 ≤2 跳到达。</li>
+    <li><b>上下文可见</b>：工位工作区任何页面，面包屑显示"产线 › 工位 › 当前页"，且可下拉切换工位。</li>
+    <li><b>权限零越权</b>：viewer 登录看不到任何写按钮/管理入口；line_leader 只见本线（后端行级隔离兜底）。</li>
+    <li><b>回归零破坏</b>：现有冒烟 137 项 + 前端联调 31 项 + 认证管理联调 48 项全部保持通过（本轮只改前端外壳，不动 API）。</li>
+  </ol>
+</section>
+
+<!-- ===================== 7. 选型 ===================== -->
+<section>
+  <h2>7. 请选型<span class="no">确认后进入实施</span></h2>
+  <div class="pick">
+    <h3>我的推荐：方案 A（仪表盘门户 + 吸收 B 的面包屑/页签元素）</h3>
+    <p>理由：① 唯一直接解决"用户进入后无从下手"这一核心诉求；② 侧边栏一次性解决后续模块扩展；③ 后端零改动、业务逻辑零改动，风险集中在自有前端外壳；④ 迭代 1 即可独立交付体验，符合渐进验证。</p>
+    <p style="margin-bottom:0"><b>请选择：</b>　<span class="tag t-blue">A · 仪表盘门户式（推荐）</span>　<span class="tag t-gray">B · OTRS10 工作台中心式</span>　<span class="tag t-gray">C · 渐进混合式</span></p>
+  </div>
+  <p class="note" style="margin-top:14px">选定后我将按第 6 节拆分立即实施（迭代 1 可当天交付预览）；如需调整区块/优先级，直接告诉我即可。本方案文档存档于 <code>deliverables/系统首页与信息架构设计方案.html</code>，并同步登记 AGENT必读.md 看板。</p>
+</section>
+
+</div>
+</body>
+</html>

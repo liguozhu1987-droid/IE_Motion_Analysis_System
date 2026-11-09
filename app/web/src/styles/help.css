@@ -1,0 +1,56 @@
+/************************************************************
+ * help.css · 系统使用帮助文档页
+ * 由 legacy.css 于 v3.60 机械拆分而来（类名零变更，仅换文件）
+ ************************************************************/
+/* ===== 系统使用帮助（#/help）===== */
+.help-doc { display: flex; gap: 28px; align-items: flex-start; }
+.help-toc {
+  position: sticky; top: 14px; flex: 0 0 222px; align-self: flex-start;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 12px; max-height: calc(100vh - 90px); overflow: auto;
+}
+.help-toc h4 { margin: 0 0 8px; font-size: 12px; color: var(--ink3); letter-spacing: .04em; }
+.help-toc a {
+  display: block; padding: 6px 10px; border-radius: 8px; color: var(--ink2);
+  font-size: 13px; text-decoration: none; border-left: 2px solid transparent;
+}
+.help-toc a:hover { background: var(--bg); color: var(--ink); }
+.help-toc a.active { background: #eef4ff; color: var(--blue); border-left-color: var(--blue); font-weight: 600; }
+.help-toc .toc-sub { padding-left: 14px; font-size: 12px; color: var(--ink3); }
+.help-main { flex: 1; min-width: 0; max-width: 920px; }
+.help-section { scroll-margin-top: 14px; margin-bottom: 34px; }
+.help-section > h2 {
+  font-size: 20px; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--line);
+}
+.help-section h3 { font-size: 15px; margin: 22px 0 8px; color: var(--ink); }
+.help-section p, .help-section li { font-size: 14px; line-height: 1.7; color: var(--ink2); }
+.help-section ul, .help-section ol { padding-left: 22px; }
+.help-section li { margin: 5px 0; }
+.help-kbd {
+  display: inline-block; min-width: 20px; text-align: center;
+  background: var(--bg); border: 1px solid var(--line2); border-bottom-width: 2px;
+  border-radius: 5px; padding: 1px 7px; font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace;
+  color: var(--ink); margin: 0 1px;
+}
+.help-table { width: 100%; border-collapse: collapse; margin: 10px 0 4px; font-size: 13px; }
+.help-table th, .help-table td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+.help-table th { background: var(--bg); color: var(--ink); font-weight: 600; }
+.help-table tr:nth-child(even) td { background: #fcfdff; }
+.help-callout {
+  background: #eef4ff; border: 1px solid #cfe0ff; border-radius: 10px;
+  padding: 11px 15px; margin: 12px 0; font-size: 13px; color: var(--ink);
+}
+.help-callout.warn { background: #fff7ed; border-color: #fcd9b6; }
+.help-callout .t { font-weight: 700; display: block; margin-bottom: 3px; }
+.help-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin: 12px 0; }
+.help-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px;
+}
+.help-card h4 { margin: 0 0 5px; font-size: 14px; color: var(--ink); }
+.help-card p { margin: 0; font-size: 12.5px; color: var(--ink3); }
+.help-card a { color: var(--blue); text-decoration: none; font-size: 12.5px; }
+.help-tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 20px; background: var(--bg); color: var(--ink3); margin-right: 4px; }
+@media (max-width: 860px) { .help-doc { flex-direction: column; } .help-toc { position: static; flex-basis: auto; width: 100%; max-height: none; } }
+
+/* v3.55 时间线右键「使时间段连续」小上下文菜单（仿原生右键，紧凑、定位在鼠标处） */
+.ctx-mask { position: fixed; inset: 0; z-index: 60; }

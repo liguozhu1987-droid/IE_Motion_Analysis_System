@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多维综合驾驶舱与信息架构优化设计方案 · IE改善效率平台</title>
+<style>
+  :root{
+    --ink:#1a2332; --ink2:#3d4a5c; --ink3:#6b7787;
+    --line:#e3e8f0; --line2:#cbd5e3; --bg:#f6f8fb; --card:#fff;
+    --blue:#1f5fd0; --blue-bg:#eef4ff; --blue-line:#c7d8f5;
+    --teal:#0e8074; --teal-bg:#e8f6f4; --teal-line:#bfe3de;
+    --amber:#9a6a00; --amber-bg:#fdf6e3; --amber-line:#f0dfae;
+    --red:#b3372f; --red-bg:#fdeeec; --red-line:#f2c8c3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;
+    font-size:14.5px;line-height:1.75;}
+  .page{max-width:1060px;margin:0 auto;padding:34px 26px 56px;}
+  .cover{background:linear-gradient(135deg,#12315e 0%,#1f5fd0 65%,#2f7ae0 100%);
+    color:#fff;border-radius:14px;padding:38px 36px 30px;margin-bottom:24px;}
+  .cover .kicker{font-size:12.5px;letter-spacing:3px;opacity:.85;margin-bottom:8px;}
+  .cover h1{font-size:27px;margin:0 0 8px;font-weight:700;line-height:1.35;}
+  .cover .sub{font-size:14.5px;opacity:.93;margin-bottom:20px;}
+  .cover .meta{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:12.5px;opacity:.85;
+    border-top:1px solid rgba(255,255,255,.28);padding-top:14px;}
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:24px 28px;margin-bottom:20px;}
+  h2{font-size:18px;margin:0 0 4px;padding-left:12px;border-left:4px solid var(--blue);}
+  h2 .no{color:var(--ink3);font-size:12.5px;font-weight:400;margin-left:8px;}
+  h3{font-size:15px;margin:18px 0 6px;}
+  h4{font-size:13.5px;margin:14px 0 4px;color:var(--ink2);}
+  p{margin:8px 0;}
+  .lead{background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:10px;
+    padding:13px 17px;margin:12px 0 15px;}
+  .lead b{color:var(--blue);}
+  table{width:100%;border-collapse:collapse;margin:9px 0 13px;font-size:13px;line-height:1.6;}
+  th{background:#f0f4fa;border:1px solid var(--line2);padding:7px 10px;text-align:left;
+    font-weight:600;color:var(--ink2);white-space:nowrap;}
+  td{border:1px solid var(--line);padding:7px 10px;vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfe;}
+  .tag{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;font-weight:600;white-space:nowrap;}
+  .t-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-line);}
+  .t-teal{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line);}
+  .t-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line);}
+  .t-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-line);}
+  .t-gray{background:#f0f3f8;color:var(--ink3);border:1px solid var(--line2);}
+  .note{border-left:4px solid var(--amber);background:var(--amber-bg);
+    padding:10px 15px;border-radius:0 8px 8px 0;margin:11px 0;font-size:13px;}
+  .note b{color:var(--amber);}
+  .law{border-left:4px solid var(--red);background:var(--red-bg);
+    padding:10px 15px;border-radius:0 8px 8px 0;margin:11px 0;font-size:13px;}
+  .law b{color:var(--red);}
+  .ok{border-left:4px solid var(--teal);background:var(--teal-bg);
+    padding:10px 15px;border-radius:0 8px 8px 0;margin:11px 0;font-size:13px;}
+  .ok b{color:var(--teal);}
+  ul,ol{margin:8px 0;padding-left:22px;}
+  li{margin:4px 0;}
+  code{background:#f0f4fa;border:1px solid var(--line);border-radius:5px;
+    padding:0 5px;font-family:Consolas,monospace;font-size:12.5px;color:#24387e;}
+  .tree{background:#f8fafd;border:1px solid var(--line);border-radius:10px;
+    padding:14px 18px;font-family:Consolas,"Microsoft YaHei",monospace;font-size:13px;
+    line-height:1.9;white-space:pre;overflow-x:auto;margin:10px 0;}
+  /* 线框图 */
+  .wire{border:1.5px solid var(--line2);border-radius:10px;background:#fbfcfe;
+    margin:10px 0 14px;overflow:hidden;font-size:12px;}
+  .wire .wbar{background:#eef2f9;border-bottom:1px solid var(--line2);padding:5px 10px;
+    color:var(--ink3);display:flex;gap:10px;align-items:center;}
+  .wire .wbar b{color:var(--ink2);}
+  .wire .wbody{display:flex;min-height:200px;}
+  .wire .wside{width:64px;border-right:1px dashed var(--line2);background:#f4f7fc;
+    display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:8px;
+    color:var(--ink3);font-size:10.5px;text-align:center;}
+  .wire .wside .ic{width:30px;height:30px;border-radius:7px;background:#e3ebf8;
+    border:1px solid var(--blue-line);display:flex;align-items:center;justify-content:center;
+    font-size:13px;color:var(--blue);}
+  .wire .wside .ic.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+  .wire .wmain{flex:1;padding:10px;display:grid;gap:8px;align-content:start;}
+  .wire .box{border:1px dashed var(--blue-line);background:var(--blue-bg);border-radius:6px;
+    padding:6px 10px;color:var(--ink2);}
+  .wire .box.amber{border-color:var(--amber-line);background:var(--amber-bg);}
+  .wire .box.teal{border-color:var(--teal-line);background:var(--teal-bg);}
+  .wire .box.gray{border-color:var(--line2);background:#f0f3f8;}
+  .wire .box.red{border-color:var(--red-line);background:var(--red-bg);}
+  .wire .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .wire .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .wire .cols4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .wire .box .t{font-weight:700;color:var(--ink);font-size:12px;}
+  .wire .box .d{color:var(--ink3);font-size:11px;}
+  .wire .crumb{padding:5px 10px;border-bottom:1px dashed var(--line2);color:var(--ink3);font-size:11px;}
+  .opt{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0;}
+  .opt .cardopt{border:1.5px solid var(--line2);border-radius:11px;padding:14px 16px;background:#fcfdfe;}
+  .opt .cardopt.rec{border-color:var(--teal);background:var(--teal-bg);}
+  .opt .cardopt h4{margin:0 0 4px;font-size:14.5px;color:var(--ink);}
+  .opt .cardopt .who{font-size:12px;color:var(--ink3);margin-bottom:8px;}
+  .pick{border:2px solid var(--blue);border-radius:12px;padding:18px 22px;margin-top:14px;
+    background:linear-gradient(180deg,#f2f7ff 0%,#fff 100%);}
+  .pick h3{margin-top:0;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:860px){.grid2,.opt{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="cover">
+  <div class="kicker">DESIGN PROPOSAL · 待确认</div>
+  <h1>多维综合驾驶舱与信息架构优化设计方案</h1>
+  <div class="sub">将"单线工位列表"升级为「区域 → 公司 → 产线 → 工位」四级驾驶舱体系<br>
+  兼容跨公司、跨工艺类型、跨产品的工作任务，支持按区域 / 公司 / 产线 / 项目类型分类展示综合结果</div>
+  <div class="meta">
+    <span>版本 v1.0</span><span>日期 2026-10-22</span><span>状态：待用户确认 4 项决策（D1–D4）</span>
+    <span>影响面：前端 app/web + 后端 dashboard/line 维度扩展</span>
+  </div>
+</div>
+
+<!-- ===================== 1. 问题诊断 ===================== -->
+<section>
+  <h2>1. 为什么"产线驾驶舱"现在是空的<span class="no">三层根因</span></h2>
+  <p>驾驶舱看起来空，不是前端渲染故障，而是<strong>数据、模型、表现三个层面都只有"一条线"的格局</strong>。实测数据（CN_AME 库，2026-10-22）：</p>
+  <table>
+    <tr><th style="width:36px">#</th><th>层面</th><th>事实（实测）</th><th>后果</th></tr>
+    <tr><td>1</td><td><b>数据层</b></td>
+      <td>全系统 34 个工位：DEFAULT 租户 33 个<b>全部在 L01 一条线</b>；OTHER 租户仅 1 个（隔离验证用）</td>
+      <td>没有第二条真实产线，"驾驶舱"无线可驾驶</td></tr>
+    <tr><td>2</td><td><b>模型层</b></td>
+      <td>工位只有 <code>tenant_id + line_id</code> 两个归属字段；<code>t_tenant</code> 无区域属性；产线只是字符串编码（无名称/工艺/产品元数据）；改善任务无项目类型</td>
+      <td>区域 / 工艺 / 产品 / 项目类型四个维度<b>在数据里根本不存在</b>，无法分类展示</td></tr>
+    <tr><td>3</td><td><b>表现层</b></td>
+      <td>首页 = L01 的 33 张工位卡片平铺；公司（租户）维度在 UI 完全不可见；没有任何跨线/跨公司的汇总视角</td>
+      <td>用户看到的是"一个很长的工位列表"，而不是"驾驶舱"——没有汇总、没有对比、没有下钻</td></tr>
+  </table>
+  <div class="law"><b>结论：</b>驾驶舱空的根因是<b>系统只有"一条线一个公司"的种子数据 + 缺少四个业务维度</b>。要满足"跨公司、跨工艺、跨产品、按区域/公司/产线/项目类型分类展示"的定位，必须：①补维度模型；②补演示数据；③把首页从"工位列表"升级为"多维综合驾驶舱"。</div>
+</section>
+
+<!-- ===================== 2. 需求解读 ===================== -->
+<section>
+  <h2>2. 需求解读<span class="no">这个系统到底是什么</span></h2>
+  <p>用户原话："这个视同是一个跨公司、跨工艺过程的综合系统，兼容不同公司、不同工艺类型、不同产品的工作任务，并能按区域、公司、产线、项目类型等进行分类展示综合结果。"</p>
+  <div class="lead"><b>本质解读：</b>这不是"一个工厂的 IE 工具"，而是<b>集团级 IE 改善运营平台</b>——一次部署服务多家公司（工厂/事业部），每条产线有工艺类型与产品属性，每项改善任务归属项目类型；管理层与 IE 团队需要一个能按任意维度切片、能逐层下钻的驾驶舱。</div>
+  <h3>2.1 六维度模型</h3>
+  <p>把需求中的名词收敛为六个维度，分两类——<b>层级维度</b>（地理/组织归属，用于逐层下钻）与<b>属性维度</b>（业务分类，用于切片筛选）：</p>
+  <table>
+    <tr><th>维度</th><th>类型</th><th>含义</th><th>示例值</th><th>落点（数据实体）</th></tr>
+    <tr><td><b>区域</b></td><td><span class="tag t-blue">层级</span></td><td>工厂所在地理大区，跨公司汇总</td><td>华东 / 华南 / 华北</td><td><code>t_tenant.region</code>（公司字段，推荐，见 D1）</td></tr>
+    <tr><td><b>公司</b></td><td><span class="tag t-blue">层级</span></td><td>法人/事业部/工厂，数据隔离边界</td><td>本部 / 苏州精密 / 深圳智造</td><td><code>t_tenant</code>（已存在，复用）</td></tr>
+    <tr><td><b>产线</b></td><td><span class="tag t-blue">层级</span></td><td>物理产线，工位的直接父级</td><td>L01 装配一线</td><td><b><code>t_line</code>（新建）</b></td></tr>
+    <tr><td><b>工艺类型</b></td><td><span class="tag t-amber">属性</span></td><td>产线的工艺过程分类</td><td>装配 / 注塑 / 冲压 / SMT / 焊接 / 包装</td><td><code>t_line.process_type</code></td></tr>
+    <tr><td><b>产品</b></td><td><span class="tag t-amber">属性</span></td><td>产线生产的产品（类型 + 项目编号双属性，用户确认）</td><td>类型：电机/控制板/连接器；编号：P-2026-018</td><td><code>t_line.product_type</code> + <code>t_line.product_project</code></td></tr>
+    <tr><td><b>项目类型</b></td><td><span class="tag t-amber">属性</span></td><td>改善任务所属项目分类</td><td>NPI导入 / 量产改善 / 自动化改造 / 布局优化 / 质量改善</td><td><code>t_improvement.project_type</code></td></tr>
+  </table>
+  <h3>2.2 维度层级图</h3>
+  <div class="tree">集团视图（跨公司，需 group:read 权限）
+├─ <b>区域</b>（华东 / 华南 / 华北）            ← GROUP BY t_tenant.region
+│  └─ <b>公司</b>（t_tenant，数据隔离边界）      ← GROUP BY tenant_id
+│     └─ <b>产线</b>（t_line，新表）              ← 工艺类型 · 产品 · 工位数 · 平衡率
+│        └─ <b>工位</b>（t_station，已存在）      ← CT/TT/VA/版本
+│           └─ 要素（t_element）
+└─ <b>改善任务</b>（t_improvement）按 <b>项目类型</b> 切片 ← GROUP BY project_type
+     （任务同时归属工位→产线→公司→区域，可任意维度交叉）</div>
+</section>
+
+<!-- ===================== 3. 数据模型变更 ===================== -->
+<section>
+  <h2>3. 数据模型变更<span class="no">最小增量，存量安全回填</span></h2>
+  <p>遵循 MVP"薄"哲学：<b>不建规范维度表，不加配置界面</b>，只用 3 处字段/表增量承载全部六个维度。所有变更进 <code>scripts/migrate.ts</code>（表结构唯一事实来源），幂等可重复执行。</p>
+  <table>
+    <tr><th style="width:40px">#</th><th>变更</th><th>DDL 要点</th><th>存量回填</th></tr>
+    <tr><td>1</td><td><code>t_tenant</code> 增列 <b>region</b></td>
+      <td><code>ALTER TABLE t_tenant ADD region NVARCHAR(32) NOT NULL DEFAULT '总部'</code></td>
+      <td>DEFAULT → '总部'；OTHER → '测试区'</td></tr>
+    <tr><td>2</td><td><b>新建 <code>t_line</code></b> 产线表</td>
+      <td><code>line_id PK / tenant_id FK_t_tenant / name / process_type NVARCHAR(32) / product_type NVARCHAR(64) / product_project NVARCHAR(64) / created_at</code>；约束 <code>FK_line_tenant</code></td>
+      <td><code>INSERT … SELECT DISTINCT line_id, tenant_id FROM t_station</code>（L01→装配/电机/P-2025-001；L02→装配/隔离验证/—）</td></tr>
+    <tr><td>3</td><td><code>t_improvement</code> 增列 <b>project_type</b></td>
+      <td><code>ALTER TABLE t_improvement ADD project_type NVARCHAR(32) NOT NULL DEFAULT '量产改善'</code></td>
+      <td>存量 25 条建议 → '量产改善'</td></tr>
+  </table>
+  <div class="note"><b>为什么不建 t_region / t_process_type 字典表：</b>区域值是稳定的少数枚举（华东/华南/华北），工艺与项目类型由 IE 团队约定后写入，前端用受控下拉（硬编码枚举 + 预留扩展）。字典表 + 维护界面是"帮管理层管住 IE"的功能，按产品哲学延后。二期若需自定义，加表即可，数据不丢。</div>
+  <h3>3.1 产线成为一等实体后的连带简化</h3>
+  <ul>
+    <li>工位清单页的"选线下拉"改为读 <code>t_line</code>（带名称/工艺/产品），不再从工位反推——多公司时反推会串味</li>
+    <li><code>GET /lines/:lineId/analysis</code> 响应 enrich：附带 <code>line_name / process_type / product / region / company</code>（现有计算口径零变化）</li>
+    <li>新建工位时 <code>line_id</code> 从对象树带入（已是现为），新增产线由<strong>建工位时顺带创建 t_line 记录</strong>（line_id 不存在则插入，默认工艺'装配'）——一期不单独做"产线管理"页</li>
+  </ul>
+</section>
+
+<!-- ===================== 4. 信息架构 ===================== -->
+<section>
+  <h2>4. 信息架构：四级驾驶舱 + 一页任务<span class="no">页面职责矩阵</span></h2>
+  <table>
+    <tr><th>层</th><th>页面</th><th>路由</th><th>回答的问题</th><th>权限</th><th>现状</th></tr>
+    <tr><td><b>L1</b></td><td>集团综合驾驶舱</td><td><code>#/dashboard</code></td>
+      <td>几个区域/几家工厂/几条线？哪条线最差？各类项目进展？按任意维度切片</td>
+      <td><b>group:read</b>（新增）</td><td><span class="tag t-red">新建</span></td></tr>
+    <tr><td><b>L2</b></td><td>产线驾驶舱</td><td><code>#/stations</code></td>
+      <td>本线工位分解状态、待实施建议、平衡概览</td>
+      <td>station:read</td><td><span class="tag t-blue">v3.2 已有，增强</span></td></tr>
+    <tr><td><b>L3</b></td><td>工位工作台（三页签）</td><td><code>#/workbench|analysis|compare/:id</code></td>
+      <td>分解 / 分析 / 对比</td>
+      <td>element:read 等</td><td><span class="tag t-teal">已有</span></td></tr>
+    <tr><td><b>L4</b></td><td>改善任务清单</td><td><code>#/improvements</code></td>
+      <td>跨产线任务跟踪：按项目类型/状态/公司筛选，三态流转</td>
+      <td>suggestion:generate</td><td><span class="tag t-amber">从工位清单底部抽出为独立页</span></td></tr>
+  </table>
+  <h3>4.1 首页自适应（按权限分流，复用既有原则）</h3>
+  <div class="tree">登录成功 → mustChangePwd? → 改密页
+            → 有 group:read（sys_admin / ie_admin）  → <b>#/dashboard 集团综合驾驶舱</b>
+            → 无（ie_engineer / line_leader / viewer）→ #/stations 产线驾驶舱（本公司数据）</div>
+  <div class="note"><b>为什么 L2 公司驾驶舱不设独立页：</b>集团驾驶舱页内点击"公司行/区域行"即加上该公司筛选（面包屑显示公司名），一页完成下钻，少一个页面少一条路由。公司维度下钻 = 筛选态，这是"薄"的关键取舍。</div>
+  <h3>4.2 导航与面包屑</h3>
+  <ul>
+    <li>顶栏一级导航：<b>集团驾驶舱</b>（group:read 时显示）· <b>产线驾驶舱</b> · <b>改善任务</b> · <b>用户管理</b>（user:read 时）</li>
+    <li>左侧对象树<b>双模式</b>：集团模式（区域 → 公司 → 产线，L1 页）/ 产线模式（产线 → 工位，L2/L3 页，现有 StationTree 保留）</li>
+    <li>面包屑全程可见：<code>集团驾驶舱 › 华东 › 苏州精密 › L02 注塑一线 › 分解工作台</code>，任一级可点回溯</li>
+  </ul>
+</section>
+
+<!-- ===================== 5. 页面详细设计 ===================== -->
+<section>
+  <h2>5. L1 集团综合驾驶舱 · 页面设计<span class="no">核心新增页</span></h2>
+  <div class="wire">
+    <div class="wbar"><b>线框图 · #/dashboard 集团综合驾驶舱</b><span>1366px 基准 · 三栏复用 v3.2 外壳</span></div>
+    <div class="wbody">
+      <div class="wside">
+        <div class="ic on">🏠</div><span>集团树<br>双模式</span>
+        <div class="ic">📋</div><span>产线<br>驾驶舱</span>
+        <div class="ic">✅</div><span>改善<br>任务</span>
+      </div>
+      <div class="wmain">
+        <div class="crumb">集团驾驶舱 › <u>华东</u> › <u>苏州精密</u>（点击面包屑或左侧树上溯）</div>
+        <div class="box gray"><b>维度筛选条</b>（所有卡片联动，可重置）　区域 [全部▾]　公司 [全部▾]　工艺 [全部▾]　产品类型 [全部▾]　项目类型 [全部▾]</div>
+        <div class="cols4">
+          <div class="box"><div class="t">3 区域 · 4 公司</div><div class="d">覆盖范围</div></div>
+          <div class="box"><div class="t">12 产线 · 68 工位</div><div class="d">分解对象</div></div>
+          <div class="box teal"><div class="t">VA 42%</div><div class="d">加权平均增值占比</div></div>
+          <div class="box amber"><div class="t">待实施 17 · 已验证 6</div><div class="d">建议三态（项目类型可筛选）</div></div>
+        </div>
+        <div class="cols">
+          <div class="box"><div class="t">按区域</div><div class="d">华东 3公司/6线 · 华南 1/3 · 华北 1/3（条形 + 点击筛选）</div></div>
+          <div class="box"><div class="t">按公司</div><div class="d">表格：公司 区域 产线 工位 平衡率 VA 待办/已验证（点击行进该公司）</div></div>
+        </div>
+        <div class="cols">
+          <div class="box"><div class="t">按工艺类型</div><div class="d">装配 5线 · 注塑 2 · 冲压 2 · SMT 2 · 焊接 1（点击筛选）</div></div>
+          <div class="box"><div class="t">按项目类型</div><div class="d">NPI导入 8 · 量产改善 12 · 自动化改造 5 · 布局优化 4 · 质量改善 3（含节省秒数）</div></div>
+        </div>
+        <div class="box red"><div class="t">产线汇总表（点击行进产线驾驶舱）</div>
+          <div class="d">产线 公司 区域 工艺 产品 工位 平衡率 VA 瓶颈 待实施 更新时间 · 按平衡率升序，最差的线排最上</div></div>
+      </div>
+    </div>
+  </div>
+  <h3>5.1 设计要点</h3>
+  <ul>
+    <li><b>筛选条置顶、全卡联动</b>：区域/公司/工艺/产品类型/项目类型五个下拉改变后，KPI、五张分布、产线汇总表全部重算——这就是"按维度分类展示综合结果"的交互落点</li>
+    <li><b>分布卡即可视化按钮</b>：点"华南"行 = 加区域筛选；点"注塑"= 加工艺筛选；点公司行 = 加公司筛选并更新面包屑——<b>没有独立下钻页，下钻即筛选</b></li>
+    <li><b>产线汇总表按平衡率升序</b>：IE 管理层第一眼看到"最需要改善的线"，与工具定位（帮 IE 更快看出问题）一致</li>
+    <li><b>右侧 ContextPanel 复用</b>：L1 模式显示"关注清单"= 筛选范围内平衡率最差 Top5 产线 + 临期（due ≤ 7天）待实施任务，点击直达</li>
+    <li><b>空态分级</b>：无任何数据 → 三步引导（建公司数据/导演示/看帮助）；有数据但筛选为空 → "该组合暂无数据，重置筛选"</li>
+  </ul>
+  <h3>5.2 L4 改善任务清单页（从工位清单底部抽出）</h3>
+  <p>现有建议表嵌在工位清单页底部，只能看一条线。独立为 <code>#/improvements</code> 后支持<b>跨产线、跨公司</b>浏览：筛选 = 公司 / 区域 / 工艺 / 项目类型 / 状态；表格增加"项目类型"列；三态流转（待实施→已完成→已验证）交互不变；导出 CSV 带全部筛选条件。工位清单页底部只保留"本线建议"摘要 + 跳转链接。</p>
+</section>
+
+<!-- ===================== 6. 权限与隔离 ===================== -->
+<section>
+  <h2>6. 跨公司可见性与数据隔离<span class="no">安全边界</span></h2>
+  <div class="law"><b>铁律不变：</b>跨公司视图<b>只含聚合指标（计数/均值/汇总），绝不包含工位要素明细</b>；任何下钻到工位级数据的请求，仍走现有租户隔离 Guard（越权返回空/404，与"他租户读建议→空"行为一致）。</div>
+  <table>
+    <tr><th>场景</th><th>规则</th></tr>
+    <tr><td>新增权限点 <code>group:read</code></td><td>种子角色：<b>sys_admin / ie_admin</b> 授予；ie_engineer / line_leader / viewer 不授予（二期按需开放公司级）</td></tr>
+    <tr><td>聚合 SQL</td><td>dashboard 模块直接用 <code>DataSource</code> 跨租户查询（复用 BaseRepository"无租户上下文退化"机制），仅 SELECT COUNT/AVG/SUM，不读 t_element 明细</td></tr>
+    <tr><td>明细下钻</td><td>集团页点击产线行进 <code>#/stations</code>（L2 产线驾驶舱仍按 JWT 租户过滤）——他租户产线在集团页可见（指标），但点进去会被隔离为"无权限/空"，这是<b>设计使然</b>：集团页是"看板"，不是"数据入口"</td></tr>
+    <tr><td>前端</td><td>导航与路由按 <code>group:read</code> 过滤；无权限用户根本看不到 <code>#/dashboard</code> 入口（防猜测路由，后端 Guard 兜底）</td></tr>
+  </table>
+  <p>权限点总数 23 → <b>24</b>（仅新增 group:read 一个）。</p>
+</section>
+
+<!-- ===================== 7. API 契约 ===================== -->
+<section>
+  <h2>7. API 契约设计<span class="no">一个聚合端点 + 一个 enrich</span></h2>
+  <h3>7.1 新增：GET /api/dashboard/summary（group:read）</h3>
+  <div class="tree">Query: region? · company(tenant_id)? · process? · product_type? · project?
+
+{
+  scope: { region, company, process, product_type, project },  // 生效筛选回显
+  kpis: { region_count, company_count, line_count, station_count,
+          avg_va_pct, avg_balance_rate, bottleneck_line_count,
+          imp_pending, imp_done, imp_verified, est_save_s_total },
+  by_region:   [{ region, company_count, line_count, station_count, avg_va_pct, imp_pending }],
+  by_company:  [{ tenant_id, company, region, line_count, station_count,
+                  avg_va_pct, avg_balance_rate, imp_pending, imp_verified }],
+  by_process:  [{ process_type, line_count, station_count, avg_va_pct }],
+  by_product:  [{ product_type, line_count, station_count, avg_va_pct }],
+  by_project:  [{ project_type, imp_count, est_save_s, pending, done, verified }],
+  lines:       [{ line_id, line_name, company, region, process_type, product_type, product_project,
+                  station_count, balance_rate, avg_va_pct, bottleneck_count,
+                  imp_pending, updated_at }]              // 按 balance_rate 升序
+}</div>
+  <h3>7.2 增强：GET /api/lines/:lineId/analysis（analysis:read，契约兼容）</h3>
+  <p>响应新增 5 个字段（<code>line_name / process_type / product / region / company</code>），现有字段与计算口径<b>零变化</b>——前端产线驾驶舱页头可显示"苏州精密 · 华东 · 注塑 · 电机壳体"，右侧面板工艺标签可筛选。</p>
+  <h3>7.3 增强：GET /api/improvements（suggestion:generate）</h3>
+  <p>查询参数扩展：<code>region? / process? / product_type? / project_type?</code>（与现有 line_id/station_id/status 并行），响应 improvements[] 每项增 <code>project_type / product_type / line_name / company / region</code>（join 得出）。L4 任务页与集团页 by_project 卡共用。</p>
+</section>
+
+<!-- ===================== 8. 演示数据 ===================== -->
+<section>
+  <h2>8. 演示数据方案<span class="no">让集团视图开机即有内容</span></h2>
+  <p>集团驾驶舱若只有 DEFAULT 一条线，仍然"是空的"。新增 <code>scripts/seed-demo.ts</code>（<code>SEED_DEMO=true</code> 时执行，与正式 seed 分离，可反复灌入/清理）：</p>
+  <div class="tree">区域 3：华东 · 华南 · 华北
+公司 4：本部(DEFAULT·华东) · 苏州精密(SUZ·华东) · 深圳智造(SZX·华南) · 北京装配(BJD·华北)
+产线 12（工艺 / 产品类型 / 项目编号）：
+  L01 装配一线(本部)   装配/电机/P-2025-001      L02 注塑一线(苏州)   注塑/壳体/P-2026-007
+  L03 SMT一线(深圳)    SMT/控制板/P-2026-012     L04 包装一线(本部)   包装/电机/P-2025-001
+  L05 冲压一线(苏州)    冲压/壳体/P-2026-007      L06 焊接一线(北京)   焊接/连接器/P-2025-033
+  L07 装配二线(深圳)    装配/控制板/P-2026-012    L08 检测一线(深圳)   装配/控制板/P-2026-012
+  L09 装配三线(北京)    装配/连接器/P-2025-033    L10 注塑二线(苏州)   注塑/壳体/P-2026-007
+  L11 SMT二线(深圳)    SMT/控制板/P-2026-019     L12 包装二线(本部)   包装/电机/P-2025-001
+工位 68：每线 4–8 个，BOL 要素用固定随机种子生成（VA/NNVA/NVA 比例各异，可复现）
+建议 ~35：覆盖 5 种项目类型 × 三态分布，est_save_s 与优先级按规则引擎口径生成
+既有 L01 33 工位保留为"本部装配一线"（补 t_line 元数据：装配/电机/P-2025-001）</div>
+  <ul>
+    <li>固定随机种子 → 每次灌入数据一致，测试可复现</li>
+    <li>演示数据带 <code>created_by='seed-demo'</code> 标记，提供一键清理 SQL（删 demo 租户的 line/station/element/improvement）</li>
+    <li>演示数据让"按区域/公司/工艺/项目类型分类展示"开机即可验证，也是给用户的第一印象</li>
+  </ul>
+</section>
+
+<!-- ===================== 9. 实施计划 ===================== -->
+<section>
+  <h2>9. 实施计划<span class="no">3 迭代 · 约 3.5 人日 · 回归零破坏</span></h2>
+  <table>
+    <tr><th style="width:90px">迭代</th><th>内容</th><th>产出</th><th style="width:70px">工时</th></tr>
+    <tr><td><b>迭代 1</b><br>数据地基</td>
+      <td>migrate.ts：t_line 建表 + t_tenant.region + t_improvement.project_type + 存量回填；seed-demo.ts 演示数据；建工位顺带建 t_line 记录</td>
+      <td>库内六维度就绪；migrate:prod 可重复执行；演示数据可灌可清</td><td>1 人日</td></tr>
+    <tr><td><b>迭代 2</b><br>聚合 API</td>
+      <td>dashboard 模块（summary 端点跨租户聚合）+ group:read 权限种子 + line analysis enrich + improvements 查询扩展；契约测试</td>
+      <td>新端点单测+联调用例；冒烟 137 项回归</td><td>1 人日</td></tr>
+    <tr><td><b>迭代 3</b><br>前端驾驶舱</td>
+      <td>DashboardPage（筛选条/KPI/四分布/产线表/关注清单）+ GroupTree 集团树 + ImprovementsPage 独立任务页 + 导航/首页自适应/面包屑扩展 + L1 空态</td>
+      <td>tsc+vite build；实机走查；联调用例</td><td>1.5 人日</td></tr>
+  </table>
+  <div class="note"><b>为什么拆 3 个迭代而不是一次上：</b>数据地基（迭代1）不依赖前端，可先单独验证；聚合 API（迭代2）可先用 Postman/脚本验证再画页面；前端（迭代3）拿真实聚合数据调UI，避免"假数据开发、真数据翻车"。每个迭代结束都是可发布状态。</div>
+</section>
+
+<!-- ===================== 10. 验收标准 ===================== -->
+<section>
+  <h2>10. 验收标准<span class="no">5 条，全部可量化</span></h2>
+  <table>
+    <tr><th style="width:36px">#</th><th>标准</th><th>验证方式</th></tr>
+    <tr><td>1</td><td><b>30 秒测试</b>：admin 登录首页 30 秒内能说出"几个区域几家公司几条产线、平衡率最差的产线是哪条、待实施建议几条"</td><td>实机走查</td></tr>
+    <tr><td>2</td><td><b>多维筛选联动</b>：区域/公司/工艺/项目类型任一筛选后，KPI + 四张分布 + 产线汇总表 + 关注清单全部联动更新</td><td>实机走查</td></tr>
+    <tr><td>3</td><td><b>下钻闭环</b>：集团 → 区域 → 公司 → 产线 → 工位任一层点击可达，面包屑逐级可回溯</td><td>实机走查</td></tr>
+    <tr><td>4</td><td><b>权限零越权</b>：ie_engineer/viewer 登录无集团驾驶舱入口且直闯 #/dashboard 被拒；集团页不含任何要素明细；他租户工位明细 404</td><td>联调用例 + Guard 测试</td></tr>
+    <tr><td>5</td><td><b>回归零破坏</b>：冒烟 137 + 认证管理 48 + 前端联调 31 全绿；migrate:prod 在生产库重复执行无副作用</td><td>自动化</td></tr>
+  </table>
+</section>
+
+<!-- ===================== 11. 待决策项 ===================== -->
+<section>
+  <h2>11. 待确认决策项<span class="no">D1–D4，影响实施细节</span></h2>
+  <div class="pick">
+    <h3>D1 · 区域维度挂在哪一层？ <span class="tag t-teal">已确认：挂公司</span></h3>
+    <p>区域存 <code>t_tenant.region</code>，按区域汇总 = GROUP BY 公司区域，一条 SQL 最简，符合"工厂在某区域其产线就在该区域"的现实模型。</p>
+  </div>
+  <div class="pick">
+    <h3>D2 · 登录后首页默认落哪？ <span class="tag t-teal">已确认：落集团综合驾驶舱</span></h3>
+    <p>有 <code>group:read</code> 的用户（sys_admin / ie_admin）登录默认落 <code>#/dashboard</code>；无权限用户落产线驾驶舱 <code>#/stations</code>。</p>
+  </div>
+  <div class="pick">
+    <h3>D3 · 演示数据何时灌入？ <span class="tag t-teal">已确认：立即灌入</span></h3>
+    <p>迭代 1 完成后立即执行 <code>SEED_DEMO=true</code>：3 区域 / 4 公司 / 12 产线 / 68 工位 / ~35 建议，固定随机种子可复现，提供一键清理。</p>
+  </div>
+  <div class="pick">
+    <h3>D4 · 产品维度做到多深？ <span class="tag t-teal">已确认：产品类型 + 产品项目编号</span></h3>
+    <p>用户指定产品维度为<b>两个属性</b>：<code>product_type</code>（产品类型，如 电机/控制板/连接器）+ <code>product_project</code>（产品项目编号，如 P-2026-018）。两条产线字段承载，驾驶舱支持按产品类型筛选、汇总表显示项目编号——比单产品字段更贴近制造业"类型归类 + 项目追溯"的实际用法。</p>
+  </div>
+</section>
+
+<!-- ===================== 12. 与既有决策的关系 ===================== -->
+<section>
+  <h2>12. 与产品哲学/既有决策的一致性<span class="no">自查</span></h2>
+  <table>
+    <tr><th>既有原则</th><th>本方案如何遵守</th></tr>
+    <tr><td>工具做"薄"不做"全"（帮 IE 看出问题→留；帮管理层管住 IE→砍）</td>
+      <td>新增的每个元素都在回答"现状有多差、先改善哪"：维度筛选=切片看问题；产线表按平衡率升序=先看最差；关注清单=瓶颈+临期。<b>没有</b>做审批流、考核排名、目标管理</td></tr>
+    <tr><td>MVP 1:1 平移纪律（计算口径零变化）</td>
+      <td>聚合指标全部由既有分析引擎口径计算（va_pct/balance_rate 取现成结果再聚合），不发明新公式；line analysis 仅 enrich 元数据字段</td></tr>
+    <tr><td>AI 三铁律 / 数据隔离</td>
+      <td>聚合视图不含要素明细；跨租户只读计数/均值；明细下钻仍过租户 Guard；group:read 是唯一新增权限点</td></tr>
+    <tr><td>v3.2 三栏外壳（方案 B）</td>
+      <td>完全复用：顶栏 + 对象树（升级双模式）+ 主区 + ContextPanel（新增 L1 关注清单模式）；不推倒重来</td></tr>
+  </table>
+</section>
+
+</div>
+</body>
+</html>

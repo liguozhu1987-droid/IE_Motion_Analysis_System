@@ -1,0 +1,21 @@
+{
+  "name": "ie-improvement-platform",
+  "version": "0.0.0",
+  "private": true,
+  "description": "IE 改善平台入口（不托管依赖，只提供统一的构建/运维脚本）",
+  "scripts": {
+    "build": "npm --prefix app/api run build && npm --prefix app/web run build",
+    "build:api": "npm --prefix app/api run build",
+    "build:web": "npm --prefix app/web run build",
+    "start:api": "npm --prefix app/api run start",
+    "dev:web": "npm --prefix app/web run dev",
+    "typecheck": "npm --prefix app/api run typecheck && npm --prefix app/web exec tsc --noEmit",
+    "ops:startup-check": "npm --prefix app/api run ops:startup-check",
+    "ops:audit-retention": "npm --prefix app/api run audit:retention",
+    "ops:audit-retention:apply": "npm --prefix app/api run audit:retention:apply",
+    "ops:backup": "powershell -ExecutionPolicy Bypass -File deploy/sql/backup.ps1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

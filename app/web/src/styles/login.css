@@ -1,0 +1,218 @@
+/* ============================================================
+ * login.css · 认证层（登录 / 注册 / 找回密码 / 强制改密 / 启动占位）
+ * 柔和工业风：左侧「设备铭牌」深色钢板 + 右侧「作业单」暖白表单
+ * ============================================================ */
+
+.login-wrap {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 28px 22px;
+  background-color: var(--stone-200);
+  background-image:
+    radial-gradient(1100px 560px at 18% 8%, rgba(255, 255, 255, 0.72) 0%, transparent 62%),
+    radial-gradient(760px 520px at 88% 96%, rgba(176, 112, 60, 0.11) 0%, transparent 60%),
+    var(--tex-grid), var(--tex-noise);
+  background-repeat: no-repeat, no-repeat, repeat, repeat;
+  background-size: auto, auto, 20px 20px, 140px 140px;
+}
+
+/* 双栏容器：铭牌 + 作业单 */
+.login-shell {
+  width: min(1000px, 100%);
+  display: grid;
+  grid-template-columns: 1.02fr 392px;
+  background: var(--card);
+  border: 1px solid var(--line2);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--sh-3);
+  animation: loginIn 0.5s var(--ease) both;
+}
+@keyframes loginIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 900px) {
+  .login-shell { grid-template-columns: 1fr; max-width: 430px; }
+  .login-aside { display: none; }
+}
+
+/* ---------------- 左：铭牌面板 ---------------- */
+.login-aside {
+  position: relative;
+  padding: 30px 30px 26px;
+  color: #E9EDF0;
+  background-color: #1E272D;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 28px),
+    radial-gradient(420px 320px at 76% 12%, rgba(176, 112, 60, 0.30) 0%, transparent 66%),
+    linear-gradient(165deg, #2A373F 0%, #1E272D 56%, #161E23 100%);
+  display: flex; flex-direction: column; gap: 18px;
+  overflow: hidden;
+}
+/* 面板右侧的锁边（像两块钢板搭接） */
+.login-aside::after {
+  content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, rgba(176, 112, 60, 0.9), rgba(176, 112, 60, 0.25));
+}
+
+.la-head { display: flex; align-items: center; gap: 11px; }
+.la-word { font-size: 18px; font-weight: 600; letter-spacing: 0.6px; color: #fff; line-height: 1.3; }
+.la-word small {
+  display: block; font-family: var(--font-mono); font-size: 10px; font-weight: 400;
+  letter-spacing: 0.16em; text-transform: uppercase; color: rgba(233, 237, 240, 0.52); margin-top: 2px;
+}
+
+/* 装饰：仪表盘 / 工时节拍刻度环 */
+.la-dial { width: 100%; max-width: 232px; opacity: 0.92; }
+
+.la-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.la-points li {
+  display: flex; gap: 9px; align-items: flex-start;
+  font-size: 12.5px; line-height: 1.62; color: rgba(233, 237, 240, 0.82);
+}
+.la-points b {
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em;
+  color: #E5B98D; background: rgba(176, 112, 60, 0.16);
+  border: 1px solid rgba(200, 143, 88, 0.34); border-radius: 3px;
+  padding: 1px 6px; flex: 0 0 auto; margin-top: 1px;
+}
+.la-foot {
+  margin-top: auto; padding-top: 14px; border-top: 1px dashed rgba(255, 255, 255, 0.16);
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em;
+  color: rgba(233, 237, 240, 0.45);
+}
+
+/* ---------------- 右：作业单表单 ---------------- */
+.login-card {
+  width: min(400px, 100%);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 30px 28px 24px;
+  box-shadow: var(--sh-2);
+  display: grid; gap: 13px;
+  position: relative;
+}
+/* 表单放入双栏时：去掉自身边框圆角，由外壳统一包裹 */
+.login-shell .login-card {
+  width: 100%; border: none; border-radius: 0; box-shadow: none; padding: 32px 30px 26px;
+}
+/* 顶部机加工色条 + 右上角倒角标记 */
+.login-card::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  background: linear-gradient(90deg, var(--steel) 0%, var(--copper) 100%);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+.login-shell .login-card::before { border-radius: 0; }
+
+.login-brand {
+  font-size: 19px; font-weight: 600; color: var(--ink);
+  letter-spacing: 0.4px; margin-bottom: 2px; line-height: 1.35;
+}
+.login-brand small {
+  display: block; font-size: 12px; font-weight: 400; color: var(--ink3);
+  margin-top: 3px; letter-spacing: 0;
+}
+.login-eyebrow {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--copper);
+}
+
+/* 带图标的输入行：图标只相对输入框定位（label 独占一行，不受影响） */
+.lf-wrap { position: relative; display: block; }
+.lf-wrap > svg {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  width: 15px; height: 15px; color: var(--ink4); pointer-events: none;
+  transition: color var(--dur) var(--ease);
+}
+.lf-wrap input { padding-left: 32px; height: 36px; }
+.lf-wrap input:focus ~ svg { color: var(--steel); }
+.lf-wrap input[type='password'], .lf-wrap input[type='text'] { padding-right: 52px; }
+
+/* 密码可见切换 */
+.login-peek {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);  border: none; background: transparent; color: var(--ink3); cursor: pointer;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em;
+  padding: 3px 7px; border-radius: var(--r-xs);
+}
+.login-peek:hover { background: var(--stone-200); color: var(--steel); }
+
+.login-actions { display: grid; gap: 10px; margin-top: 2px; }
+.login-submit {
+  height: 39px; font-size: 14px; letter-spacing: 0.24em; font-weight: 500;
+  border-radius: var(--r-md); width: 100%;
+}
+/* 提交行左侧的铜色短杠，呼应铭牌 */
+.login-submit::before {
+  content: ''; width: 10px; height: 2px; background: rgba(255, 255, 255, 0.55); border-radius: 1px;
+}
+.login-busy::after {
+  content: ''; width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45); border-top-color: #fff;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.login-hint {
+  font-size: 11.5px; color: var(--ink3);
+  border-top: 1px dashed var(--line2); padding-top: 11px; line-height: 1.72;
+}
+.login-hint b { color: var(--ink2); font-weight: 600; }
+.login-links { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 12px; }
+.login-links a { color: var(--steel); }
+.login-links a:hover { color: var(--copper); }
+.login-links .sep { color: var(--line2); }
+
+/* 安全须知：条目化，替代原来两段堆叠 */
+.login-rules { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.login-rules li {
+  display: flex; gap: 7px; align-items: flex-start;
+  font-size: 11.5px; line-height: 1.6; color: var(--ink3);
+}
+.login-rules li::before {
+  content: ''; width: 4px; height: 4px; flex: 0 0 4px; margin-top: 6px;
+  background: var(--copper); border-radius: 1px; transform: rotate(45deg);
+}
+
+/* 统一身份登录入口（v3.57）：柔和描边按钮 + 铭牌式 SSO 标记，不加装饰性图标 */
+.sso-entry { display: grid; gap: 7px; }
+.sso-btn {
+  width: 100%; height: 39px; border-radius: var(--r-md);
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  border: 1px solid var(--line2); background: var(--stone-100); color: var(--ink2);
+  font-size: 13.5px; letter-spacing: 0.08em; cursor: pointer;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.sso-btn:hover { border-color: var(--steel); color: var(--steel); background: var(--stone-200); }
+.sso-mark {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+  padding: 2px 6px; border-radius: var(--r-xs);
+  border: 1px solid var(--line2); color: var(--copper); background: transparent;
+}
+.sso-note { font-size: 11.5px; color: var(--ink3); line-height: 1.6; }
+.sso-divider {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: var(--ink4); letter-spacing: 0.06em;
+}
+.sso-divider::before, .sso-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--line2);
+}
+
+/* 统一身份回调页：单卡片居中，复用登录卡片的排版与边框 */
+.sso-callback-card {
+  width: min(430px, 100%);
+  margin: 0 auto;
+  gap: 18px;
+}
+
+.boot {
+  min-height: 60vh; display: flex; align-items: center; justify-content: center;
+  color: var(--ink3); font-size: 13.5px; gap: 9px; font-family: var(--font-mono); letter-spacing: 0.06em;
+}
+.boot::before {
+  content: ''; width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid var(--stone-300); border-top-color: var(--steel);
+  animation: spin 0.8s linear infinite;
+}

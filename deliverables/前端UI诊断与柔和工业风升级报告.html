@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>登录页与首页前端 UI 诊断 · 柔和工业风升级报告 · v3.56</title>
+<style>
+  :root{
+    --stone-50:#FBFAF7; --stone-100:#F4F2ED; --stone-200:#EAE6DE; --stone-300:#DAD4C8; --stone-400:#BDB5A6;
+    --ink:#23282C; --ink2:#4B545A; --ink3:#7B8489; --ink4:#A6ADB1;
+    --steel:#2F5D6C; --steel-400:#4C7F8D; --steel-600:#27505C; --steel-bg:#E7EFF1; --steel-line:#C2D7DC;
+    --copper:#B0703C; --copper-bg:#F8EEE3; --copper-line:#E4CBAE;
+    --teal:#2E7D6B; --teal-bg:#E6F1ED;
+    --red:#A5403A; --red-bg:#FAECEA; --red-line:#E8C5C1;
+    --line:#DFDAD0; --line2:#C7C0B3; --card:#FCFBF8;
+    --sans:"IBM Plex Sans","PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background-color:#F1EFE9;
+    background-image:
+      repeating-linear-gradient(0deg,transparent 0 19px,rgba(47,93,108,.055) 19px 20px),
+      repeating-linear-gradient(90deg,transparent 0 19px,rgba(47,93,108,.055) 19px 20px);
+    background-size:20px 20px;
+    color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.75;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:30px 26px 70px}
+  header.hero{background-color:#1E272D;
+    background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 1px,transparent 1px 7px),
+      linear-gradient(165deg,#2A373F 0%,#1E272D 56%,#161E23 100%);
+    border-radius:16px;padding:26px 30px;color:#E9EDF0;box-shadow:inset 0 -2px 0 rgba(176,112,60,.72),0 18px 48px -24px rgba(35,40,44,.4)}
+  header.hero .kick{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#E5B98D}
+  header.hero h1{margin:6px 0 6px;font-size:26px;font-weight:600;letter-spacing:.4px}
+  header.hero p{margin:0;color:rgba(233,237,240,.78);font-size:13px}
+  header.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:var(--mono);font-size:11px;padding:2px 9px;border-radius:4px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:rgba(233,237,240,.86)}
+  h2{font-size:19px;margin:34px 0 6px;font-weight:600;letter-spacing:.3px;padding-left:12px;position:relative}
+  h2::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:2px;background:var(--copper)}
+  h3{font-size:15px;margin:20px 0 8px;font-weight:600}
+  .lead{color:var(--ink2);margin:0 0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 1px 2px rgba(35,40,44,.05);margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
+  th{background:linear-gradient(180deg,var(--stone-100),var(--stone-200));border:1px solid var(--line2);
+     padding:7px 9px;text-align:left;font-weight:600;color:var(--ink2);font-size:12px}
+  td{border:1px solid var(--line);padding:6px 9px;vertical-align:top}
+  tr:nth-child(even) td{background:var(--stone-50)}
+  code,.mono{font-family:var(--mono);font-size:12px;background:var(--stone-100);border:1px solid var(--line);
+     border-radius:4px;padding:1px 6px}
+  pre{font-family:var(--mono);font-size:12px;background:#1E272D;color:#DCE4E8;border-radius:10px;
+     padding:14px 16px;overflow:auto;line-height:1.65;border-left:3px solid var(--copper)}
+  pre .c{color:#8FA3AC}
+  .p-bad{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.08em;
+    padding:1px 6px;border-radius:3px;background:var(--red-bg);color:var(--red);border:1px solid var(--red-line)}
+  .p-ok{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.08em;
+    padding:1px 6px;border-radius:3px;background:var(--teal-bg);color:var(--teal);border:1px solid #BDD8D0}
+  .p-mid{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.08em;
+    padding:1px 6px;border-radius:3px;background:var(--copper-bg);color:var(--copper);border:1px solid var(--copper-line)}
+  .swatches{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .sw{width:104px;border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:#fff}
+  .sw i{display:block;height:44px}
+  .sw span{display:block;font-family:var(--mono);font-size:10.5px;padding:4px 6px;color:var(--ink2);line-height:1.4}
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:860px){.cmp{grid-template-columns:1fr}}
+  .cmp figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px}
+  .cmp img{width:100%;display:block;border-radius:6px;border:1px solid var(--line)}
+  .cmp figcaption{font-size:12px;color:var(--ink3);margin-top:6px;text-align:center}
+  ul.tight li{margin:3px 0}
+  .note{border-left:3px solid var(--amber,#9A6A1F);background:#FBF2E2;padding:9px 13px;border-radius:0 8px 8px 0;font-size:13px;margin:10px 0}
+  .ok{border-left:3px solid var(--teal);background:var(--teal-bg);padding:9px 13px;border-radius:0 8px 8px 0;font-size:13px;margin:10px 0}
+  .foot{margin-top:34px;padding-top:14px;border-top:1px dashed var(--line2);color:var(--ink3);font-size:12px}
+  @media print{body{background:#fff!important;background-image:none!important}.card,header.hero{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="kick">Frontend UI Audit · Soft Industrial</div>
+  <h1>登录页与首页前端 UI 诊断 + 柔和工业风升级</h1>
+  <p>对象：IE 改善效率平台 Web（<span class="mono">app/web</span>）· 登录页 + 首页（综合看板 / 产线总览）· 版本 v3.55 → v3.56</p>
+  <div class="meta">
+    <span class="chip">2026-10-28</span>
+    <span class="chip">目录结构 · 前端要素 · 显示风格 · 权限显示</span>
+    <span class="chip">已落地改造 + 已回归验证</span>
+  </div>
+</header>
+
+<h2>一、结论速览</h2>
+<p class="lead">原 UI 是「功能完整、表达贫乏」的模板级实现：能跑通全部业务，但在品牌资产、视觉层级、颜色语义、权限可见性四个维度上都没有表达力。本次按<strong>柔和工业风（Soft Industrial）</strong>重建了样式分层与外壳，并把「权限」从隐藏状态提到顶栏一级信息位。</p>
+<table>
+  <thead><tr><th style="width:120px">维度</th><th style="width:88px">现状</th><th>核心问题</th><th style="width:44%">本次处置</th></tr></thead>
+  <tbody>
+    <tr><td>目录结构</td><td><span class="p-bad">P1</span></td><td>单文件 <span class="mono">styles.css</span> 2125 行 / 126KB，通用件、外壳、登录、驾驶舱、工作台、AI 混写，改一处要全文搜索</td><td>拆为 6 层（tokens / base / login / shell / dashboard / legacy），入口文件仅 6 行 <span class="mono">@import</span>，类名零变更</td></tr>
+    <tr><td>登录页</td><td><span class="p-bad">P0</span></td><td>居中单卡、无 Logo 无图形、只用 1 个蓝、阴影轻到看不见、两张提示文字堆叠</td><td>双栏「设备铭牌 + 作业单」：深色钢板侧（仪表刻度环 / 能力三条）+ 暖白表单侧（图标输入、密码可见切换、条目化安全须知）</td></tr>
+    <tr><td>显示风格</td><td><span class="p-bad">P1</span></td><td>冷蓝灰 <span class="mono">#f6f8fb</span> + 饱和蓝 <span class="mono">#1f5fd0</span>，色彩无辅助色；字体为系统默认；无纹理无层次</td><td>石灰岩暖灰底 + 搪瓷钢青主色 + 氧化铜点缀；20px 图纸网格 + 噪点；IBM Plex / Barlow Condensed 字体栈；机加工小圆角</td></tr>
+    <tr><td>前端要素</td><td><span class="p-mid">P2</span></td><td>KPI 八卡等权重平铺；筛选条 5 下拉贴满一行；分布条为纯色圆角条；表格表头无层次</td><td>KPI 加铜色顶线与悬浮；筛选条标签改工业铭牌字；分布条改分段标尺 + 45° 斜纹；表头改小号大写 + 渐隐底</td></tr>
+    <tr><td>权限管理显示</td><td><span class="p-bad">P0</span></td><td>顶栏只显示「姓名 + 角色 + 退出」；<strong>行级可见范围（v3.55 已生效）前端完全不可见</strong>；无权限页只有一行灰字</td><td>新增顶栏用户组件（头像 + 可见范围徽标 + 权限浮层：模块分组 26 项权限码）；无权限/越权改专用 403 提示卡；后端 <span class="mono">/me</span> 补发 <span class="mono">dataScope</span> 与 <span class="mono">fullAccess</span></td></tr>
+  </tbody>
+</table>
+
+<h2>二、目录结构诊断与处置</h2>
+<h3>2.1 改造前</h3>
+<pre>app/web/src/
+├── styles.css            <span class="c">← 2125 行 / 126KB，唯一样式源，无分层</span>
+├── App.tsx               <span class="c">← 路由 + 外壳（顶栏/三栏）混在一起</span>
+├── api.ts                <span class="c">← 67KB，含 AuthUserVo 等类型</span>
+├── pages/  (20 个页面)
+└── components/ (16 个组件)
+</pre>
+<p>诊断：<strong>样式无分层是本次最值得改的结构债</strong>——任何配色/间距调整都要全文搜索，且无法按"改登录页不影响工作台"的方式做影响面控制。</p>
+
+<h3>2.2 改造后</h3>
+<pre>app/web/src/styles.css          <span class="c">← 仅剩 6 行 @import（层叠顺序即优先级）</span>
+app/web/src/styles/
+├── tokens.css      <span class="c">设计令牌：色板 / 字体 / 尺度 / 阴影 / 纹理 / 动效 / 布局常量</span>
+├── base.css        <span class="c">基础层：重置、排版、表单、按钮、标签、表格、卡片、时间线、打印</span>
+├── login.css       <span class="c">认证层：登录 / 注册 / 找回 / 强制改密 / 启动占位</span>
+├── shell.css       <span class="c">外壳层：顶栏、导航、用户与权限区、三栏、对象树、上下文面板</span>
+├── dashboard.css   <span class="c">驾驶舱层：KPI、筛选条、分布卡、横评表、上手引导</span>
+└── legacy.css      <span class="c">1692 行页面专有样式（工作台 / AI / 设置 / 用户管理），按页持续拆出</span>
+app/web/src/components/UserMenu.tsx   <span class="c">新增：顶栏用户与权限显示组件</span>
+</pre>
+<div class="ok"><b>零类名变更</b>：所有旧类名（<span class="mono">.card / .btn / .tag / .metric / .dist-row / .dash-table / .sider / .panel / .userchip</span> …）全部保留，只替换视觉表现，页面组件除登录页与顶栏外未改一行 JSX——这是能一次改完全站配色而不引发回归的前提。</div>
+
+<h2>三、前端要素与显示风格诊断</h2>
+
+<h3>3.1 登录页（改造前 → 后）</h3>
+<div class="cmp">
+  <figure>
+    <img src="ui-diag/before-login.png" alt="改造前登录页" />
+    <figcaption>改造前：居中单卡 · 无品牌资产 · 提示文字堆叠</figcaption>
+  </figure>
+  <figure>
+    <img src="ui-diag/01-login.png" alt="改造后登录页" />
+    <figcaption>改造后：铭牌面板 + 作业单表单 · 双栏柔和工业风</figcaption>
+  </figure>
+</div>
+<table>
+  <thead><tr><th style="width:130px">要素</th><th style="width:40%">诊断（改造前）</th><th>处置</th></tr></thead>
+  <tbody>
+    <tr><td>品牌资产</td><td>仅一行蓝色文字标题，无 Logo / 图形 / 图标</td><td>铜色 <span class="mono">IE</span> 铭牌标记（顶栏与登录页共用）+ 仪表刻度环 SVG（TAKT/CT/BALANCE）</td></tr>
+    <tr><td>视觉重心</td><td>卡片垂直偏上，四周大片空白无承载</td><td>左栏承载品牌与能力三条，右栏承载表单，横向双栏填满 1000px 容器</td></tr>
+    <tr><td>配色层次</td><td>白 + 灰 + 蓝三色，无辅助色</td><td>深色钢板 <span class="mono">#1E272D</span> × 暖白 <span class="mono">#FCFBF8</span> × 钢青 × 氧化铜四层</td></tr>
+    <tr><td>表单控件</td><td>纯默认输入框，无图标、无状态反馈</td><td>图标前缀（用户 / 锁）、聚焦 3px 光环、密码「显示/隐藏」切换、提交按钮带铜色短杠与加载转圈</td></tr>
+    <tr><td>提示信息</td><td>两段规则文字直接堆叠，可读性差</td><td>条目化安全须知（铜色菱形项目符号）：输错锁定 / 首次改密 / 越权拦截留痕</td></tr>
+  </tbody>
+</table>
+
+<h3>3.2 首页 / 外壳（改造后）</h3>
+<div class="cmp">
+  <figure>
+    <img src="ui-diag/before-dashboard.png" alt="改造前首页" />
+    <figcaption>改造前：冷蓝灰底 · 饱和蓝顶栏 · KPI 等权重平铺</figcaption>
+  </figure>
+  <figure>
+    <img src="ui-diag/02-dashboard.png" alt="改造后首页" />
+    <figcaption>改造后：暖石灰底 + 深色钢板顶栏（铜色基线）+ 指标卡</figcaption>
+  </figure>
+</div>
+
+<h3>3.3 柔和工业风色板</h3>
+<div class="swatches">
+  <div class="sw"><i style="background:#F1EFE9"></i><span>#F1EFE9 页面底<br/>石灰岩暖灰</span></div>
+  <div class="sw"><i style="background:#FCFBF8"></i><span>#FCFBF8 卡片面<br/>暖白</span></div>
+  <div class="sw"><i style="background:#2F5D6C"></i><span>#2F5D6C 主色<br/>搪瓷钢青</span></div>
+  <div class="sw"><i style="background:#B0703C"></i><span>#B0703C 点缀<br/>氧化铜</span></div>
+  <div class="sw"><i style="background:#1E272D"></i><span>#1E272D 顶面<br/>深色钢板</span></div>
+  <div class="sw"><i style="background:#2E7D6B"></i><span>#2E7D6B 达标<br/>松绿</span></div>
+  <div class="sw"><i style="background:#9A6A1F"></i><span>#9A6A1F 预警<br/>琥珀</span></div>
+  <div class="sw"><i style="background:#A5403A"></i><span>#A5403A 异常<br/>砖红</span></div>
+</div>
+<p class="lead">工业感来自<strong>材质与工艺语汇</strong>而非"深色+等宽"的堆砌：拉丝钢顶栏（竖向细纹 + 底部 2px 铜色基线）、图纸网格底纹、机加工定位块、点划线分隔、45° 斜纹进度条、铭牌式小号大写标签；柔和感来自低饱和暖灰基底、小圆角（5/8/12/16）与低透明度大扩散阴影。</p>
+
+<h2>四、权限管理显示（本次重点）</h2>
+<h3>4.1 诊断</h3>
+<ul class="tight">
+  <li><span class="p-bad">P0</span> <strong>行级可见范围不可见</strong>：v3.55 已让 <span class="mono">t_user.data_scope</span>（own/line/tenant/all）真正参与判定，但前端无从得知——用户看到"工位列表是空的"却不知道原因。</li>
+  <li><span class="p-bad">P0</span> <strong>管理员被误示</strong>：<span class="mono">/me</span> 不下发 dataScope；且 <span class="mono">sys_admin/ie_admin</span> 属全权角色（不看 data_scope），若直接展示字段会把管理员显示成"仅本人"。</li>
+  <li><span class="p-mid">P2</span> <strong>权限不可自检</strong>：用户无法知道"我有哪些权限、为什么看不到某个菜单"，排障只能找管理员。</li>
+  <li><span class="p-mid">P2</span> <strong>拒绝态太弱</strong>：无权限页与越权页都渲染成一行灰字 <span class="mono">.card.empty</span>，无状态码、无所需权限码、无出口按钮。</li>
+</ul>
+
+<h3>4.2 处置</h3>
+<table>
+  <thead><tr><th style="width:150px">位置</th><th>实现</th></tr></thead>
+  <tbody>
+    <tr><td>后端 <span class="mono">/api/auth/me</span></td><td>新增 <span class="mono">dataScope</span> 与 <span class="mono">fullAccess</span>（全权角色标记）两个只读字段；全权角色集合抽为单一数据源 <span class="mono">src/rbac/full-access.ts</span>（此前在 4 处硬编码，口径易漂移），<span class="mono">stations.service</span> 改为引用</td></tr>
+    <tr><td>顶栏用户区</td><td>新组件 <span class="mono">components/UserMenu.tsx</span>：首字母头像 + 姓名 + <b>数据可见范围徽标</b>（仅本人 / 本产线 / 本租户 / 全集团）</td></tr>
+    <tr><td>权限浮层</td><td>点击头像展开：账号与角色、数据范围（含口径说明）、权限总数与模块数、<b>按模块分组的全部权限码</b>（工位 / 动素 / 改善建议 / 产线分析 / 规则 / 设置 / 用户 / AI …）</td></tr>
+    <tr><td>无权限页</td><td>专用 <span class="mono">.deny-card</span>：<span class="mono">ACCESS DENIED · 403</span> 状态码 + 标题 + 所需权限码标签 + 说明 + 「返回首页 / 查看帮助」出口</td></tr>
+    <tr><td>工位越权</td><td>同上，<span class="mono">OUT OF SCOPE · 403</span>：明确说明"自己建立的 / 共享给你的 / 你负责产线上的"三类可见来源</td></tr>
+  </tbody>
+</table>
+<div class="cmp">
+  <figure><img src="ui-diag/05-perm-pop.png" alt="权限浮层" /><figcaption>顶栏权限浮层：数据范围 + 26 项权限按模块分组</figcaption></figure>
+  <figure><img src="ui-diag/06-deny-role.png" alt="无权限提示卡" /><figcaption>低权限用户访问用户管理 → 403 提示卡</figcaption></figure>
+</div>
+<div class="note"><b>边界声明：</b>浮层只做<strong>展示</strong>。所有权限与可见性判定仍由服务端执行（<span class="mono">can()</span> 读后端下发 permissions；<span class="mono">assertReadable / visibleStationIds</span> 做行级收口），前端新增字段不参与任何判定，避免"前端说能看、后端拒绝"的二次口径。</div>
+
+<h2>五、改动清单（文件级）</h2>
+<table>
+  <thead><tr><th style="width:34%">文件</th><th style="width:16%">类型</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><span class="mono">app/web/src/styles.css</span></td><td>重构</td><td>2125 行 → 6 行 @import 聚合入口</td></tr>
+    <tr><td><span class="mono">app/web/src/styles/tokens.css</span></td><td>新增</td><td>柔和工业风令牌（含全部旧变量名兼容映射）</td></tr>
+    <tr><td><span class="mono">app/web/src/styles/base.css</span></td><td>新增</td><td>基础层（迁移 + 重做）</td></tr>
+    <tr><td><span class="mono">app/web/src/styles/login.css</span></td><td>新增</td><td>认证层（迁移 + 重做）</td></tr>
+    <tr><td><span class="mono">app/web/src/styles/shell.css</span></td><td>新增</td><td>外壳层（迁移 + 重做，含权限浮层样式）</td></tr>
+    <tr><td><span class="mono">app/web/src/styles/dashboard.css</span></td><td>新增</td><td>驾驶舱层（迁移 + 重做）</td></tr>
+    <tr><td><span class="mono">app/web/src/styles/legacy.css</span></td><td>新增</td><td>原文件剩余 1692 行页面专有样式（原样保留）</td></tr>
+    <tr><td><span class="mono">app/web/src/pages/LoginPage.tsx</span></td><td>重写</td><td>双栏布局 + 图标输入 + 密码切换 + 条目化须知（业务逻辑与路由不变）</td></tr>
+    <tr><td><span class="mono">app/web/src/components/UserMenu.tsx</span></td><td>新增</td><td>顶栏用户与权限显示</td></tr>
+    <tr><td><span class="mono">app/web/src/App.tsx</span></td><td>改动</td><td>接入 UserMenu、品牌加铭牌标记、帮助链移出下拉、两处拒绝态改 403 卡</td></tr>
+    <tr><td><span class="mono">app/web/src/api.ts</span></td><td>改动</td><td>AuthUserVo 补 dataScope / fullAccess（可选字段，旧服务兼容）</td></tr>
+    <tr><td><span class="mono">app/web/index.html</span></td><td>改动</td><td>字体（Barlow Condensed / IBM Plex）非阻塞加载，离线自动回落</td></tr>
+    <tr><td><span class="mono">app/api/src/auth/auth.controller.ts</span></td><td>改动</td><td>/me 增补 dataScope + fullAccess</td></tr>
+    <tr><td><span class="mono">app/api/src/rbac/full-access.ts</span></td><td>新增</td><td>全权角色单一数据源</td></tr>
+    <tr><td><span class="mono">app/api/src/modules/stations/stations.service.ts</span></td><td>改动</td><td>改为引用共享全权角色常量（行为不变）</td></tr>
+  </tbody>
+</table>
+
+<h2>六、验证</h2>
+<ul class="tight">
+  <li><span class="p-ok">通过</span> 前端 <span class="mono">tsc --noEmit</span>：0 错误</li>
+  <li><span class="p-ok">通过</span> <span class="mono">vite build</span>：成功，CSS 分包内联（<span class="mono">index-*.css</span> 110KB，令牌已正确内联）</li>
+  <li><span class="p-ok">通过</span> 后端 <span class="mono">tsc --noEmit</span> + 编译 dist + 重启 API（3001 健康检查 ok，<span class="mono">/me</span> 已返回 dataScope/fullAccess）</li>
+  <li><span class="p-ok">通过</span> UI 回归 9 套：v341 (20) / v342 (19) / v343 (17) / v344 (26) / v348 (26) / v349 (22) / v351 (18) / v353 (14) / p2-unit (23) —— 全通过</li>
+  <li><span class="p-mid">既有失败</span> v354：8 通过 / 2 失败（T3 右键「使时间段连续」对话框未弹出）——<strong>经对照验证为改造前既有失败</strong>（回退旧 <span class="mono">styles.css</span> 复跑，失败项与通过项逐条一致），与本次改造无关，需单独排期</li>
+</ul>
+
+<h2>七、数据缺口与后续建议</h2>
+<ul class="tight">
+  <li><strong>未做</strong>：工作台（WorkbenchPage）、AI 分解/浪费等页面仅享受全局换肤，未做专项重做；<span class="mono">legacy.css</span> 仍有 1692 行待按页拆分（建议顺序：workbench → ai-* → settings → user）。</li>
+  <li><strong>未评估</strong>：字体走 Google Fonts CDN，内网离线环境会回落本地字体栈（视觉降级但功能正常）；若需内网一致呈现，需自托管字体子集（中文字体体积是主要成本，需单独评估）。</li>
+  <li><strong>待产品确认</strong>：登录页左栏三条能力文案与版本号（v3.56）取自本项目既有能力，若对外部署需与发布说明对齐。</li>
+  <li><strong>v354 既有失败</strong>：右键「使时间段连续」对话框未弹出，建议单独排查（非本次范围）。</li>
+  <li><strong>可继续深化</strong>：首页三张低信息量分布卡（按大区/工艺/产品各仅 1–2 条）建议合并为紧凑摘要行，把纵向空间让给产线横评表——属信息架构调整，需产品确认后实施。</li>
+</ul>
+
+<div class="foot">
+  证据截图目录：<span class="mono">deliverables/ui-diag/</span>（01 登录、02 综合看板、03 顶栏下拉、04 产线总览、05 权限浮层、06 无权限页、07 低权限首页）。<br />
+  原样式文件备份：<span class="mono">deliverables/ui-diag/styles-orig-v3.55.css.bak</span>。
+</div>
+
+</div>
+</body>
+</html>

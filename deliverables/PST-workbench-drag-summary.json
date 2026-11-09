@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-10-30T07:32:34.321Z",
+  "mode": "headed system Chrome / real CDP mouse events / local Blob video",
+  "headless": false,
+  "viewport": {
+    "width": 1600,
+    "height": 1000,
+    "device_scale_factor": 1
+  },
+  "station": "PF-ST001",
+  "elements": 20,
+  "requested_drag_ms": 5000,
+  "actual_mouse_moves": 302,
+  "video": {
+    "fixture": "aiseg-8s.mp4",
+    "sha256": "57cfd1e44d56851b4b908cabf9606f7eeb2b0bdfe9ceb00eec9d5dce8cb9a4bb",
+    "duration_s": 8,
+    "width": 1280,
+    "height": 720,
+    "ready_state": 4,
+    "error": null
+  },
+  "drag_changed_width": true,
+  "before": {
+    "width": "106px",
+    "left": "0px"
+  },
+  "after": {
+    "width": "136px",
+    "left": "0px"
+  },
+  "visibility": "visible",
+  "focused": true,
+  "raf": {
+    "frames": 316,
+    "duration_ms": 5244.7,
+    "fps": 60.0606326386638,
+    "interval_p50_ms": 16.600000000000364,
+    "interval_p95_ms": 16.799999999999727,
+    "interval_max_ms": 22,
+    "intervals_over_20ms": 1
+  },
+  "longtasks": {
+    "observer_count": 0,
+    "observer_max_ms": 0,
+    "observer_over_100ms": 0,
+    "trace_run_task_count": 16322,
+    "trace_run_task_max_ms": 22.002,
+    "trace_run_task_over_100ms": 0
+  },
+  "trace_draw_frames": {
+    "count": 311,
+    "dropped_count": 170,
+    "fps": 59.8954071622155
+  },
+  "thresholds": {
+    "raf_fps": ">=50",
+    "trace_draw_frame_fps": ">=50",
+    "single_long_task_ms": "<100"
+  },
+  "page_errors": [],
+  "raw_trace": "PST-workbench-drag-trace.json",
+  "passed": true
+}

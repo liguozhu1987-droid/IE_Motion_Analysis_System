@@ -1,0 +1,96 @@
+{
+  "rv": "RV1.4",
+  "note": "6类浪费触发器（RV1.1：类型过滤器随动素三分法迁移——取放/搬运→移物、等待→可避免延迟、寻找选择→寻找/发现/选择、检验→检查。RV1.2：补拿取线触发器 WT13/WT14。RV1.3：①修复「重复取放」误判——WT03/WT13 用 same_desc_count>=2 会把「纯动词描述」（如裸『拿取』、无对象信息）误判为同对象重复取放，加 NOT desc~=^\\s*类型\\s*$ 排除无对象描述的裸动词；②新增第7类「动作浪费」WT15~WT18——走动/转身/弯腰/大臂/往返等身体动作属 NVA/RNVA，是高价值的改善机会，此前触发器零覆盖导致恒不识别。RV1.4：③触发器级依据等级 basis 字段——【既有】=平台确定性锚点（命中 route=finding 计收益）/【建议】=未现场标定值（命中 route=pool 进清单但收益待标定）；第7类「动作浪费」全链路 basis=建议，既有6类 basis=既有。）。元素级：when=元素谓词DSL；工位级：agg=聚合条件。pct=涉及dur_s÷工位工时×100。仅扫描当前版本、outlier_flag=0的要素。",
+  "triggers": [
+    {
+      "id": "WT01", "waste": "持住", "basis": "既有", "level": "element",
+      "when": "type=持住 AND dur_s>2",
+      "evidence": "持住{dur_s}s（要素{element_id}），占用CT的{pct}%"
+    },
+    {
+      "id": "WT02", "waste": "持住", "basis": "既有", "level": "station",
+      "agg": { "filter": "type=持住", "sum": "dur_s", "ratioOf": "CT", "op": ">=", "value": 0.05 },
+      "evidence": "持住合计{sum}s、占CT的{pct}%，超过5%阈值"
+    },
+    {
+      "id": "WT03", "waste": "重复取放", "basis": "既有", "level": "element",
+      "when": "type=移物 AND same_desc_count>=2 AND NOT desc ~= ^\\s*移物\\s*$",
+      "evidence": "同一对象「{desc}」取放{count}次、合计{sum}s，疑似重复取放"
+    },
+    {
+      "id": "WT04", "waste": "动作浪费", "basis": "建议", "level": "station",
+      "agg": { "filter": "type=移物", "count": true, "op": ">=", "value": 6 },
+      "evidence": "单循环移物{count}次、动作频繁，建议合并搬运/一次移多件（非同一对象重复取放）"
+    },
+    {
+      "id": "WT05", "waste": "搬运", "basis": "既有", "level": "element",
+      "when": "type=移物 AND dur_s>=2",
+      "evidence": "搬运{dur_s}s（要素{element_id}），占用CT的{pct}%"
+    },
+    {
+      "id": "WT06", "waste": "搬运", "basis": "既有", "level": "station",
+      "agg": { "filter": "type=移物", "sum": "dur_s", "ratioOf": "CT", "op": ">=", "value": 0.05 },
+      "evidence": "搬运合计{sum}s（{pct}%），疑似布局问题"
+    },
+    {
+      "id": "WT07", "waste": "等待", "basis": "既有", "level": "element",
+      "when": "type=可避免延迟 AND dur_s>=1",
+      "evidence": "等待{dur_s}s（要素{element_id}），占用CT的{pct}%"
+    },
+    {
+      "id": "WT08", "waste": "等待", "basis": "既有", "level": "station",
+      "agg": { "filter": "type=可避免延迟", "sum": "dur_s", "ratioOf": "CT", "op": ">=", "value": 0.1 },
+      "evidence": "等待合计{sum}s（{pct}%），超过10%阈值"
+    },
+    {
+      "id": "WT09", "waste": "寻找选择", "basis": "既有", "level": "element",
+      "when": "(type=寻找 OR type=发现 OR type=选择) AND dur_s>=2",
+      "evidence": "寻找/选择{dur_s}s（要素{element_id}），占用CT的{pct}%"
+    },
+    {
+      "id": "WT10", "waste": "寻找选择", "basis": "既有", "level": "station",
+      "agg": { "filter": "(type=寻找 OR type=发现 OR type=选择)", "sum": "dur_s", "ratioOf": "CT", "op": ">=", "value": 0.08 },
+      "evidence": "寻找选择合计{sum}s（{pct}%），超过8%阈值，提示目视化/供料唯一化"
+    },
+    {
+      "id": "WT11", "waste": "检验冗余", "basis": "既有", "level": "station",
+      "agg": { "filter": "type=检查", "sum": "dur_s", "ratioOf": "CT", "op": ">=", "value": 0.15 },
+      "evidence": "检验合计{sum}s、占CT的{pct}%，超过15%阈值，建议核查检验合并/自动化检测"
+    },
+    {
+      "id": "WT12", "waste": "检验冗余", "basis": "既有", "level": "element",
+      "when": "type=检查 AND same_desc_count>=2",
+      "evidence": "检验项目「{desc}」出现{count}次，疑似无依据重复检验"
+    },
+    {
+      "id": "WT13", "waste": "重复取放", "basis": "既有", "level": "element",
+      "when": "type=拿取 AND same_desc_count>=2 AND NOT desc ~= ^\\s*拿取\\s*$",
+      "evidence": "同一对象「{desc}」拿取{count}次、合计{sum}s，疑似重复拿取（RV1.2）"
+    },
+    {
+      "id": "WT14", "waste": "动作浪费", "basis": "建议", "level": "station",
+      "agg": { "filter": "type=拿取", "count": true, "op": ">=", "value": 6 },
+      "evidence": "单循环拿取{count}次、动作频繁，建议合并取料/一次取多件（非同一对象重复取放）"
+    },
+    {
+      "id": "WT15", "waste": "动作浪费", "basis": "建议", "level": "element",
+      "when": "(type=走动 OR type=转身 OR type=弯腰) AND dur_s>=1",
+      "evidence": "「{type}」{dur_s}s（要素{element_id}），占用CT的{pct}%——身体移位/姿态变更属潜在改善机会（布局/工装/供料优化可消除）"
+    },
+    {
+      "id": "WT16", "waste": "动作浪费", "basis": "建议", "level": "element",
+      "when": "desc ~= 大臂 AND dur_s>=1",
+      "evidence": "「{desc}」含大臂动作{dur_s}s（要素{element_id}），大臂动作是改善机会（料架移入前臂作业区可缩短）"
+    },
+    {
+      "id": "WT17", "waste": "动作浪费", "basis": "建议", "level": "element",
+      "when": "desc ~= 往返|再次|回取|来回 AND dur_s>=1",
+      "evidence": "「{desc}」含往返/回取{dur_s}s（要素{element_id}），往返移动属搬运浪费（布局重排可消除）"
+    },
+    {
+      "id": "WT18", "waste": "动作浪费", "basis": "建议", "level": "station",
+      "agg": { "filter": "(type=走动 OR type=转身 OR type=弯腰)", "sum": "dur_s", "ratioOf": "CT", "op": ">=", "value": 0.05 },
+      "evidence": "走动/转身/弯腰合计{sum}s（{pct}%），超过5%阈值，提示作业布局/工装站位优化"
+    }
+  ]
+}

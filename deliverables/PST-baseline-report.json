@@ -1,0 +1,297 @@
+{
+  "startedAt": "2026-10-30T05:46:25.164Z",
+  "base": "http://127.0.0.1:3001/api",
+  "findings": [
+    {
+      "id": "SEC-01",
+      "title": "安全响应头（nosniff/XFO/Referrer/CSP/HSTS + 去指纹）",
+      "severity": "medium",
+      "status": "pass",
+      "evidence": {
+        "missing": [],
+        "hsts": "max-age=15552000; includeSubDomains",
+        "xPoweredBy": "absent",
+        "corp": "cross-origin",
+        "csp": "default-src 'none';frame-ancestors 'none';base-uri 'none'",
+        "present": [
+          "content-security-policy",
+          "referrer-policy",
+          "strict-transport-security",
+          "x-content-type-options",
+          "x-dns-prefetch-control",
+          "x-download-options",
+          "x-frame-options",
+          "x-permitted-cross-domain-policies",
+          "x-xss-protection"
+        ]
+      }
+    },
+    {
+      "id": "SEC-02",
+      "title": "HTTPS/HSTS 强制（生产入口）",
+      "severity": "high",
+      "status": "manual",
+      "evidence": {
+        "note": "本探针走明文回环，HSTS 需在 IIS ARR/网关层核验；内网明文=口令与 refresh token 可被嗅探"
+      }
+    },
+    {
+      "id": "SEC-03",
+      "title": "/metrics 收权（无令牌 403 / 正确令牌 200）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "statusWithoutToken": 403,
+        "bytes": 78,
+        "sample": "",
+        "withToken": "skipped: 未配置 METRICS_TOKEN（仅验证了无令牌 403 分支）",
+        "note": "未提供 METRICS_TOKEN，正向分支跳过"
+      }
+    },
+    {
+      "id": "SEC-04",
+      "title": "受保护端点无令牌访问被拒",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "status": 401
+      }
+    },
+    {
+      "id": "SEC-05",
+      "title": "伪造/畸形 JWT 返回 401 而非 5xx",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "status": 401,
+        "body": "{\"title\":\"Unauthorized\",\"status\":401,\"detail\":\"访问令牌无效或已过期\",\"request_id\":\"bd3fce70\"}"
+      }
+    },
+    {
+      "id": "SEC-06",
+      "title": "畸形 JSON 返回 400 而非 5xx",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "status": 400
+      }
+    },
+    {
+      "id": "SEC-07",
+      "title": "错误响应不泄露内部实现细节",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "checked": 3,
+        "leaked": []
+      }
+    },
+    {
+      "id": "SEC-08",
+      "title": "CORS 不回显任意 Origin（credentials=true 时反射即高危）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "acao": null,
+        "acac": "true"
+      }
+    },
+    {
+      "id": "SEC-09",
+      "title": "弱口令注册被拒绝（≥8 位且含字母数字）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "status": 400,
+        "body": "{\"title\":\"Bad Request\",\"status\":400,\"detail\":\"password must be longer than or equal to 8 characters\",\"request_id\":\"24781551\"}"
+      }
+    },
+    {
+      "id": "SEC-11",
+      "title": "登录响应不含口令哈希/密钥",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "keys": [
+          "accessToken",
+          "refreshToken",
+          "mustChangePwd",
+          "tokenType",
+          "expiresIn"
+        ]
+      }
+    },
+    {
+      "id": "SEC-12",
+      "title": "x-tenant-id 与 token 租户不一致时 403",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "status": 403
+      }
+    },
+    {
+      "id": "SEC-13",
+      "title": "跨租户数据隔离（OTHER 用户不应看到他租户记录）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "status": 200,
+        "tenantsSeen": [],
+        "crossTenant": [],
+        "note": ""
+      }
+    },
+    {
+      "id": "SEC-14",
+      "title": "不存在的资源返回 404（不返回 2xx 静默成功）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "status": 404,
+        "body": "{\"title\":\"Not Found\",\"status\":404,\"detail\":\"工位 __probe_nonexistent__ 不存在\",\"request_id\":\"6d07fdbd\"}"
+      }
+    },
+    {
+      "id": "SEC-15",
+      "title": "登录接口暴力破解限流（20 次连打应出现 429）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "statuses": [
+          401,
+          429
+        ],
+        "has429": true,
+        "first429At": 16,
+        "distribution": "401,401,401,401,401,401,401,401,401,401,401,401,401,401,401,429,429,429,429,429"
+      }
+    },
+    {
+      "id": "SEC-16",
+      "title": "限流键不可被伪造 X-Forwarded-For 绕过（clientIp 信任链）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "sameIpStatuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          429,
+          429
+        ],
+        "forgedXffStatuses": [
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429,
+          429
+        ],
+        "blockedSame": true,
+        "bypass": false,
+        "trustChain": "socket peer → TRUSTED_PROXIES 白名单 → CLIENT_IP_HEADER（ARR 覆写）；XFF 完全不读",
+        "residualRisk": "同机进程可伪造 x-real-ip（仅回环可达，且同机进程本已完全可信）；须确保 IIS ARR 用 {REMOTE_ADDR} 覆写该头"
+      }
+    },
+    {
+      "id": "PERF-01",
+      "title": "API 基础延迟（/health 顺序 30 次）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "n": 30,
+        "p50": 1.8,
+        "p95": 2.3,
+        "max": 3.7,
+        "avg": 1.9
+      }
+    },
+    {
+      "id": "PERF-02",
+      "title": "驾驶舱聚合接口延迟（/dashboard/summary 20 次）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "n": 20,
+        "p50": 3.5,
+        "p95": 5.8,
+        "max": 6.7,
+        "avg": 3.7,
+        "bytes": 1630,
+        "compressed": true,
+        "contentEncoding": "br"
+      }
+    },
+    {
+      "id": "PERF-03",
+      "title": "JSON 响应压缩（gzip/br）",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "bytes": 1630,
+        "compressed": true,
+        "contentEncoding": "br"
+      }
+    },
+    {
+      "id": "PERF-04",
+      "title": "20 并发突刺无错误且不劣化",
+      "severity": "info",
+      "status": "pass",
+      "evidence": {
+        "waves": [
+          29.3,
+          26.1,
+          29.7
+        ],
+        "errors": 0
+      }
+    },
+    {
+      "id": "PERF-05",
+      "title": "50 并发同键驾驶舱（single-flight）",
+      "severity": "info",
+      "status": "skipped",
+      "evidence": {
+        "reason": "可用筛选组合不足（需 ≥5，实际 4）",
+        "status": 200
+      }
+    }
+  ],
+  "metrics": {
+    "health": {
+      "n": 30,
+      "p50": 1.8,
+      "p95": 2.3,
+      "max": 3.7,
+      "avg": 1.9
+    },
+    "dashboardSummary": {
+      "n": 20,
+      "p50": 3.5,
+      "p95": 5.8,
+      "max": 6.7,
+      "avg": 3.7,
+      "bytes": 1630,
+      "compressed": true,
+      "contentEncoding": "br"
+    },
+    "burst20": {
+      "waves": [
+        29.3,
+        26.1,
+        29.7
+      ],
+      "errors": 0
+    }
+  },
+  "summary": {
+    "critical": 0,
+    "high": 0
+  }
+}

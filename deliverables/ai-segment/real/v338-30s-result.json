@@ -1,0 +1,170 @@
+{
+  "video": "D:\\Application\\IE_Improvement_Platform\\deliverables\\ai-segment\\real\\sample30.mp4",
+  "tag": "v338-30s",
+  "startedAt": "2026-10-25T12:35:15.922Z",
+  "steps": [
+    "[console] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[console] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "页面就绪：PA10 · v1 · 现有要素 0 条",
+    "视频载入：1920x1080 · 30.07s",
+    "已点击「开始分析」，等待完成…",
+    "  0s · 尚未分析",
+    "  16s · 尚未分析",
+    "  32s · 尚未分析",
+    "  47s · 尚未分析",
+    "  63s · 尚未分析",
+    "  79s · 尚未分析",
+    "  95s · 尚未分析",
+    "分析结束：耗时 100s，候选 14 条",
+    "分层 高4/中4/低6 · 手别 L5/R5/B4 · 覆盖 30.1s (100%)"
+  ],
+  "videoMeta": {
+    "duration": 30.07,
+    "w": 1920,
+    "h": 1080
+  },
+  "countText": "纳入 14 / 共 14 条 · 30.07s",
+  "rows": 14,
+  "emptyText": "",
+  "elapsedSec": 100,
+  "candidates": [
+    {
+      "id": "C1",
+      "hand": "R",
+      "span": "0.0–1.3s",
+      "dur": "1.3s",
+      "conf": "0.75 · 中（原地高能短动作）",
+      "tier": "mid",
+      "include": true
+    },
+    {
+      "id": "C2",
+      "hand": "R",
+      "span": "1.3–5.7s",
+      "dur": "4.4s",
+      "conf": "0.75 · 中（长时(4.4s)低幅）",
+      "tier": "low",
+      "include": true
+    },
+    {
+      "id": "C3",
+      "hand": "B",
+      "span": "5.7–10.1s",
+      "dur": "4.4s",
+      "conf": "0.75 · 中（手别待确认｜长时(4.4s)低幅）",
+      "tier": "low",
+      "include": true
+    },
+    {
+      "id": "C4",
+      "hand": "R",
+      "span": "10.1–12.1s",
+      "dur": "2s",
+      "conf": "0.75 · 中（长时(2.0s)低幅）",
+      "tier": "low",
+      "include": true
+    },
+    {
+      "id": "C5",
+      "hand": "B",
+      "span": "12.1–15.1s",
+      "dur": "3s",
+      "conf": "0.85 · 高（手别待确认｜中等位移(净2%/路径50%)）",
+      "tier": "mid",
+      "include": true
+    },
+    {
+      "id": "C6",
+      "hand": "R",
+      "span": "15.1–16.3s",
+      "dur": "1.2s",
+      "conf": "0.85 · 高（中等位移(净4%/路径14%)）",
+      "tier": "mid",
+      "include": true
+    },
+    {
+      "id": "C7",
+      "hand": "R",
+      "span": "16.3–19.3s",
+      "dur": "3s",
+      "conf": "0.75 · 中（长时(3.0s)低幅）",
+      "tier": "low",
+      "include": true
+    },
+    {
+      "id": "C8",
+      "hand": "B",
+      "span": "19.3–21.1s",
+      "dur": "1.8s",
+      "conf": "0.75 · 中（手别待确认｜长时(1.8s)低幅）",
+      "tier": "low",
+      "include": true
+    },
+    {
+      "id": "C9",
+      "hand": "L",
+      "span": "21.1–22.1s",
+      "dur": "1s",
+      "conf": "0.90 · 高（质心位移 9% 画面）",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C10",
+      "hand": "L",
+      "span": "22.1–23.8s",
+      "dur": "1.7s",
+      "conf": "0.90 · 高（质心位移 11% 画面）",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C11",
+      "hand": "L",
+      "span": "23.8–25.3s",
+      "dur": "1.5s",
+      "conf": "0.90 · 高（质心位移 10% 画面）",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C12",
+      "hand": "L",
+      "span": "25.3–26.6s",
+      "dur": "1.3s",
+      "conf": "0.75 · 中（原地高能短动作）",
+      "tier": "mid",
+      "include": true
+    },
+    {
+      "id": "C13",
+      "hand": "L",
+      "span": "26.6–28.1s",
+      "dur": "1.5s",
+      "conf": "0.90 · 高（质心位移 6% 画面）",
+      "tier": "high",
+      "include": true
+    },
+    {
+      "id": "C14",
+      "hand": "B",
+      "span": "28.1–30.1s",
+      "dur": "1.97s",
+      "conf": "0.75 · 中（手别待确认｜长时(2.0s)低幅）",
+      "tier": "low",
+      "include": true
+    }
+  ],
+  "tiers": {
+    "high": 4,
+    "mid": 4,
+    "low": 6
+  },
+  "hands": {
+    "L": 5,
+    "R": 5,
+    "B": 4
+  },
+  "includedDuration": 30.1,
+  "coveragePct": 100
+}

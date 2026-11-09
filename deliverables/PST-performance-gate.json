@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-11-02T03:02:41.449Z",
+  "base": "http://127.0.0.1:3102/api",
+  "database": "temporary SQLite / 200 stations / 4000 elements",
+  "requested_phases": [
+    "segment-stop"
+  ],
+  "results": {
+    "segment-stop": {
+      "code": 0,
+      "signal": null
+    }
+  },
+  "passed": true,
+  "note": "本地隔离容量与浏览器实验室结果；不替代 SQL Server/IIS 生产入口或真实用户现场 INP。"
+}

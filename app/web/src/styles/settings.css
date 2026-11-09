@@ -1,0 +1,112 @@
+/************************************************************
+ * settings.css · 设置类页（设置中心 / 动作标准配置）
+ * 由 legacy.css 于 v3.60 机械拆分而来（类名零变更，仅换文件）
+ ************************************************************/
+/* ================= v3.4 设置中心 ================= */
+.set-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.set-tab {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink2);
+  border-radius: 10px; padding: 8px 16px; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600;
+}
+.set-tab small { font-weight: 400; font-size: 11.5px; color: var(--ink3); }
+.set-tab:hover { border-color: var(--blue); color: var(--blue); }
+.set-tab.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+.set-tab.on small { color: rgba(255, 255, 255, 0.8); }
+/* 页签：选中态加深 + 微动效 */
+.set-tab { transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.1s; }
+.set-tab:active { transform: translateY(1px); }
+.set-tab.on { box-shadow: 0 2px 8px rgba(31, 95, 208, 0.28); }
+/* ---- 动作标准配置页（#/standard）---- */
+.std-page { display: flex; flex-direction: column; gap: 12px; animation: wb-in 0.36s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.std-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.std-head h2 { margin: 0 0 4px; font-size: 19px; }
+.std-sub { margin: 0; font-size: 12.5px; color: var(--ink3); line-height: 1.7; max-width: 78ch; }
+.std-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.std-dirty { font-size: 11.5px; font-weight: 700; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber-line); border-radius: 8px; padding: 3px 10px; }
+.std-ro { font-size: 11.5px; color: var(--ink3); }
+.std-tip {
+  font-size: 12px; color: var(--ink2); line-height: 1.8;
+  background: var(--bg); border: 1px dashed var(--line2); border-radius: 10px; padding: 9px 14px;
+}
+.std-tip code { font-family: var(--mono, monospace); font-size: 11.5px; background: #fff; border: 1px solid var(--line2); border-radius: 5px; padding: 1px 5px; color: var(--blue); }
+/* 表格容器：限高 + 横纵滚动，长表可滚动且表头黏住 */
+.std-table-wrap { padding: 0; overflow: auto; max-height: calc(100vh - 250px); border-radius: 12px; }
+.std-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; table-layout: fixed; }
+.std-table th {
+  position: sticky; top: 0; z-index: 2; background: var(--bg); color: var(--ink2);
+  text-align: left; font-weight: 700; font-size: 11px; letter-spacing: 0.05em;
+  padding: 9px 10px; border-bottom: 2px solid var(--line2); white-space: nowrap;
+}
+.std-table td { border-bottom: 1px solid var(--line); padding: 7px 10px; vertical-align: top; }
+.std-table tr:hover > td { background: rgba(14, 128, 116, 0.045); }
+/* 一级分组列：左侧彩色锚条按该分组主导 VA 着色（信息增强，非纯装饰） */
+.std-td-l1 { background: var(--bg); border-right: 1px solid var(--line2); position: relative; padding-left: 16px; min-width: 150px; }
+.std-td-l1::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--ink3);
+}
+.std-td-l1[data-va="VA"]::before { background: var(--teal); }
+.std-td-l1[data-va="RNVA"]::before { background: var(--amber); }
+.std-td-l1[data-va="NVA"]::before { background: var(--red); }
+.std-td-empty { background: rgba(15, 23, 32, 0.02); min-width: 96px; }
+.std-l1-txt { font-weight: 800; font-size: 13.5px; color: var(--ink); }
+.std-td-l1 textarea { width: 100%; margin-top: 6px; font-size: 11px; line-height: 1.6; resize: vertical; }
+.std-td-l1 .std-del { display: inline-block; margin: 0 0 5px; }
+/* 查看态纯文本单元格：自动换行、完整呈现、不截断（中文按字符自然换行，不逐字竖排） */
+.std-cell { white-space: normal; overflow-wrap: break-word; word-break: break-word; min-width: 0; line-height: 1.65; color: var(--ink2); }
+.std-cell.mono { font-family: var(--mono, monospace); font-size: 11.5px; color: var(--ink); }
+.std-cell.std-desc { color: var(--ink); }
+.std-empty { color: var(--ink3); }
+/* 判定说明：查看态限高内部滚动，避免长文本堆积；编辑态可全展开 */
+.std-vanote {
+  margin-top: 5px; font-size: 10.5px; color: var(--amber); line-height: 1.55;
+  max-height: 80px; overflow: auto; padding: 2px 2px 2px 7px; border-left: 2px solid var(--amber-line);
+}
+.std-vanote-edit { width: 100%; margin-top: 5px; font-size: 11px; line-height: 1.6; resize: vertical; }
+/* 编辑态控件 */
+.std-cell-input, .std-td-l1 input.std-l1, .std-table select, .std-table textarea.std-vanote-edit {
+  width: 100%; border: 1px solid var(--line2); border-radius: 7px; padding: 4px 7px; font-size: 12px; font-family: inherit;
+  background: #fff; color: var(--ink); box-sizing: border-box;
+}
+.std-cell-input.mono, .std-td-l1 input.std-l1 { font-family: var(--mono, monospace); }
+.std-cell-input:focus, .std-table select:focus, .std-td-l1 input.std-l1:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-bg); }
+/* VA 三分彩色徽章：绿=增值 / 琥珀=必要非增值 / 红=非增值 */
+.std-va-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.std-va-badge {
+  display: inline-block; align-self: flex-start; font-size: 10.5px; font-weight: 700; line-height: 1.4;
+  padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+}
+.std-va-badge.va { color: #fff; background: var(--teal); }
+.std-va-badge.rnva { color: #5a3d00; background: var(--amber-bg); border: 1px solid var(--amber-line); }
+.std-va-badge.nva { color: #fff; background: var(--red); }
+.std-va-badge.na { color: var(--ink3); background: var(--bg); border: 1px solid var(--line); }
+.std-del {
+  flex: 0 0 auto; border: none; background: transparent; color: var(--ink3); cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 2px 4px; border-radius: 5px;
+}
+.std-del:hover { color: var(--red, #c2544b); background: rgba(194, 84, 75, 0.1); }
+.std-row-add td { padding: 4px 8px; border-bottom: 1px dashed var(--line); }
+.std-add {
+  border: none; background: transparent; color: var(--blue); font-size: 11.5px; font-weight: 600;
+  cursor: pointer; padding: 3px 6px; border-radius: 6px; font-family: inherit;
+}
+.std-add:hover { background: rgba(58, 110, 255, 0.08); }
+.std-add-l1 { margin: 10px 14px 12px; border: 1px dashed var(--line2); padding: 6px 12px; border-radius: 8px; }
+.std-col-act { width: 56px; min-width: 56px; text-align: center; white-space: nowrap; }
+/* 模式药丸 + 编辑模式提示条 */
+.std-mode-pill {
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+  color: var(--ink3); background: var(--bg); border: 1px solid var(--line);
+}
+.std-mode-pill.editing { color: #fff; background: var(--blue); border-color: var(--blue); }
+.std-edit-banner {
+  font-size: 12px; line-height: 1.7; color: var(--blue);
+  background: var(--blue-bg); border: 1px solid var(--blue-line); border-radius: 10px; padding: 8px 14px;
+}
+.std-edit-banner b { color: var(--blue); }
+.std-foot { margin: 0; font-size: 11.5px; color: var(--ink3); line-height: 1.8; }
+.wb-sd-prep-tag { font-style: normal; margin-left: 4px; font-size: 9.5px; font-weight: 700; color: var(--blue); background: rgba(58, 110, 255, 0.1); border-radius: 4px; padding: 0 4px; vertical-align: 1px; }
+
+/* v3.60 补齐：一级分组首行（此前零定义 → 表格里分组之间无任何视觉分界）。
+   用钢青淡色 2px：与相邻行的 --line 底边叠出一条可辨识的分组带，但不抢行内容的注意力。 */
+.std-row-l1 > td { border-top: 2px solid var(--steel-line); }

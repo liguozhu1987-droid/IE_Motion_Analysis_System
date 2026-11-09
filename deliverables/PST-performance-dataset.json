@@ -1,0 +1,12 @@
+{
+  "generated_at": "2026-11-02T03:02:04.141Z",
+  "database": "temporary gate-performance.db",
+  "stations": 200,
+  "elements": 4000,
+  "lines": 1,
+  "station_range": [
+    "PF-ST001",
+    "PF-ST200"
+  ],
+  "fixture_sha256": "3037a03ca99488106a3a6f2c43d94b0f8682ad5a25500d5c4eefeb8f85303bff"
+}
