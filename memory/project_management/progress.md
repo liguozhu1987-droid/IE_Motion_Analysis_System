@@ -107,6 +107,8 @@
 | `npm run test:gate -- --no-report` | **PASS**；7/7 阻断门通过（证明 npm 单命令接线可用） |
 | `node scripts/gates/check-repo-traceability.cjs`（0b 后 strict） | `TRACE_DIRTY_COUNT=0`、`TRACE_TAGS=baseline-2026-11-19`、`TRACE_TAG_WITH_GATES=baseline-2026-11-19`、`TRACE_GATE_FILES_IN_TAG=5/5`、`TRACE_CHECKS=3/3` → **PASS** |
 | `npm run test:gate -- --no-report`（tag 后复核） | **PASS**；阻断 7/7；`repo:traceability` **通过 3 / 失败 0**；eval **SKIPPED(78)** |
+| `node .temp-probe/export-ai-candidates.cjs`（一次性 UI 导出） | 候选 **20 条**，覆盖 0–60066ms；类型 移物9/目检7/拿取3/装配1；`detector=motion`、`roi_calibrated=false`；落盘 `deliverables/ai-segment/eval/candidates.json` |
+| `npm run test:eval`（真值模板未标注） | **SKIPPED**；`EVAL_REASON=真值 segments 为空`，退出码 **78**（不冒充通过） |
 | `node app/api/test/isolated-run.cjs --repeat 2 smoke` | 147/0、147/0；一致性 PASS、清理 PASS、正式库/storage 指纹未变化 |
 | `node scripts/gates/run-eval-gate.cjs` | `EVAL_SKIP=1`，退出码 **78**（不冒充 PASS） |
 | 评测脚本合成夹具自测（临时、非基线） | 可生成 JSON；`EVAL_ACCEPTED=2/3`；`--enforce` 退出 1；模板占位/测试夹具均 SKIP；合成报告已删除，未留 latest |
@@ -123,10 +125,13 @@
   `npx tsc -p tsconfig.json --outDir dist` 重建 `dist`（构建产物不入库）。
 - 0b 判据三项：工作区干净 + 已打 tag + **某 tag** 指向含 `scripts/gates/` 全部文件的 commit；
   `repo:traceability` 已把三项固化为可执行门。tag 不要求停在 HEAD（基线后补文档提交不影响追溯）。
-- **0c ⛔ 仍未完成**：缺人工标注真值与真实候选导出，`eval:ai-segment` 明确 SKIPPED(78)，不得冒充 PASS。
+- **0c ⛔ 待人工真值**：真实候选已从 AI 分解页导出（**20 条**，`sample60.mp4`，`detector=motion`、
+  默认 ROI），落盘 `deliverables/ai-segment/eval/candidates.json`；真值模板 `ground-truth.json`
+  已生成（`segments` 为空、`labeler` 占位），待人工标注后跑 `npm run test:eval`。
 
 ### 下一步（≤3 条）
-1. **0c**：放置**人工**标注真值 + 真实候选导出到 `deliverables/ai-segment/eval/`，跑
-   `npm run test:eval` 生成首次可比基线；禁止 AI 反向生成真值。
+1. **0c**：人工标注 `deliverables/ai-segment/eval/ground-truth.json`（`labeler` 填实名、`segments`
+   填 ≥20 段；边界取动作起止静止点，**不得参考候选反向生成**），然后跑 `npm run test:eval`；
+   首次报告落 `deliverables/gates/eval/`。视频：`deliverables/ai-segment/real/sample60.mp4`。
 2. 0c 后按链条推进 P0-0 → P0-4；P0-1 数值修复仍须先写会红的测试并在 0c 基线之后动工。
 3. 解禁路径 ①–⑥（断言腐蚀、11 套 UI、双库/多实例、critical 依赖）按 `todo.md` 顺序推进。

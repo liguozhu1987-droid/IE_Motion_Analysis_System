@@ -14,7 +14,9 @@
 > **2026-11-18 状态**：**0a ✅ 已完成**——`npm run test:gate` 可跑，阻断门 7/7 通过
 > （报告 `deliverables/gates/gate-report-20261119-070834.md`）；`test:eval` 已接线。
 > **0b ✅ 已完成**（2026-11-19，基线提交 `0a72733` + tag `baseline-2026-11-19`；strict 3/3，tag 含 gates 5/5）。
-> **0c ⛔ 阻塞**（缺**人工**标注真值与真实候选导出；门禁明确 SKIPPED 退出码 78，不得冒充 PASS）。
+> **0c ⛔ 待人工真值**（真实候选已导出 20 条：`deliverables/ai-segment/eval/candidates.json`，
+> 视频 `sample60.mp4`、`motion`、默认 ROI；`ground-truth.json` 模板已生成但 `segments` 为空，
+> 门禁明确 SKIPPED 退出码 78，不得冒充 PASS）。
 
 | # | 事项 | 推荐项 | 完成判据 |
 |---|---|---|---|

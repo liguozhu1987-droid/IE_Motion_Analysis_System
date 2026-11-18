@@ -1,0 +1,238 @@
+{
+  "station_id": "L01-ST11",
+  "exported_at": "2026-11-18T23:31:53.922Z",
+  "video_name": "sample60.mp4",
+  "video_from": "local",
+  "detector": "motion",
+  "roi": {
+    "x": 0.18,
+    "y": 0.3,
+    "w": 0.6,
+    "h": 0.5
+  },
+  "roi_calibrated": false,
+  "duration_ms": 60067,
+  "sample_ms": 100,
+  "candidates": [
+    {
+      "id": "c1",
+      "start_ms": 0,
+      "end_ms": 1300,
+      "hand": "R",
+      "conf": 0.9,
+      "tier": "high",
+      "type": "移物",
+      "desc": "移物[对象：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c2",
+      "start_ms": 1300,
+      "end_ms": 3300,
+      "hand": "L",
+      "conf": 0.9,
+      "tier": "high",
+      "type": "目检",
+      "desc": "目检[对象：][属性：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c3",
+      "start_ms": 3300,
+      "end_ms": 4500,
+      "hand": "L",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "拿取",
+      "desc": "拿取[对象于：][位置：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c4",
+      "start_ms": 4500,
+      "end_ms": 9500,
+      "hand": "B",
+      "conf": 0.9,
+      "tier": "high",
+      "type": "移物",
+      "desc": "移物[对象：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c5",
+      "start_ms": 9500,
+      "end_ms": 11200,
+      "hand": "R",
+      "conf": 0.9,
+      "tier": "high",
+      "type": "目检",
+      "desc": "目检[对象：][属性：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c6",
+      "start_ms": 11200,
+      "end_ms": 12600,
+      "hand": "R",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "拿取",
+      "desc": "拿取[对象于：][位置：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c7",
+      "start_ms": 12600,
+      "end_ms": 18500,
+      "hand": "R",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "目检",
+      "desc": "目检[对象：][属性：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c8",
+      "start_ms": 18500,
+      "end_ms": 20100,
+      "hand": "R",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "目检",
+      "desc": "目检[对象：][属性：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c9",
+      "start_ms": 20100,
+      "end_ms": 25900,
+      "hand": "R",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "目检",
+      "desc": "目检[对象：][属性：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c10",
+      "start_ms": 25900,
+      "end_ms": 29300,
+      "hand": "B",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "移物",
+      "desc": "移物[对象：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c11",
+      "start_ms": 29300,
+      "end_ms": 30000,
+      "hand": "L",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "移物",
+      "desc": "移物[对象：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c12",
+      "start_ms": 30000,
+      "end_ms": 33900,
+      "hand": "B",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "移物",
+      "desc": "移物[对象：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c13",
+      "start_ms": 33900,
+      "end_ms": 35200,
+      "hand": "L",
+      "conf": 0.9,
+      "tier": "high",
+      "type": "移物",
+      "desc": "移物[对象：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c14",
+      "start_ms": 35200,
+      "end_ms": 36600,
+      "hand": "L",
+      "conf": 0.9,
+      "tier": "high",
+      "type": "拿取",
+      "desc": "拿取[对象于：][位置：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c15",
+      "start_ms": 36600,
+      "end_ms": 44000,
+      "hand": "B",
+      "conf": 0.5,
+      "tier": "low",
+      "type": "移物",
+      "desc": "移物[对象：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c16",
+      "start_ms": 44000,
+      "end_ms": 45800,
+      "hand": "R",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "移物",
+      "desc": "移物[对象：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c17",
+      "start_ms": 45800,
+      "end_ms": 53000,
+      "hand": "R",
+      "conf": 0.5,
+      "tier": "low",
+      "type": "目检",
+      "desc": "目检[对象：][属性：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c18",
+      "start_ms": 53000,
+      "end_ms": 54500,
+      "hand": "R",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "移物",
+      "desc": "移物[对象：][距离：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c19",
+      "start_ms": 54500,
+      "end_ms": 59500,
+      "hand": "R",
+      "conf": 0.75,
+      "tier": "mid",
+      "type": "目检",
+      "desc": "目检[对象：][属性：]",
+      "waste_hints": []
+    },
+    {
+      "id": "c20",
+      "start_ms": 59500,
+      "end_ms": 60066,
+      "hand": "R",
+      "conf": 0.9,
+      "tier": "high",
+      "type": "装配",
+      "desc": "装配[对象于：][位置：][距离：]",
+      "waste_hints": []
+    }
+  ]
+}

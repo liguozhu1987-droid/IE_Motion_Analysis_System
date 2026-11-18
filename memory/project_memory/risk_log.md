@@ -52,7 +52,7 @@
 | **R15** | 5 条架构风险须转成**可执行验证项**，否则又是「有资产无门」 | QA 附录 A（2026-11-18）：① 200 但聚合值跨可见范围 = 越权 FAIL；② 改 JSON 不 publish 结果不变、DB 兜底须显式告警；③ 变帧率素材端到端帧对齐走查（≤1 帧）；④ 注入含定量字段的伪造 AI 候选须被拦（含 AI_ENABLED=false）；⑤ 双库各跑一次 + 无 down 即 P0 阻断 + 2 实例状态验证 | 推荐：每条绑定执行器/单命令门并输出 PASS/FAIL + `文件:行`；#④ 做变异定向加固（故意注入缺陷必须有杀手测试变红）；静态审查不算证据，须补行为测试与用户业务确认 |
 | **R16** | QA 阈值升级 | 定稿「越权实测」原判据 403/404 不足，存在「接口返回 200 但数据是跨租户全线聚合值」的更隐蔽越权；#90 对照指标（覆盖率/碎片/空白）验不出源帧指针错位 | 推荐：越权判据升级为「200 且聚合值随可见范围变化」；源帧链路补端到端帧对齐走查 |
 | **R17** | 门禁前置缺口 | 无 CI、无 down 脚本、迁移前无门禁基线；新增能力无「真实消费者」检查 | 推荐：迁移前先跑门禁基线（无基线则「改坏了」无法判定）；新增能力跑 G12 孤儿能力检查 |
-| **R18** | **0c 未闭环（0b 已补齐后的唯一阻塞）** | 0a：`scripts/gates/` + `test:gate` 已落地，阻断门 7/7 PASS（`deliverables/gates/gate-report-20261119-070834.md`）。0b：**已完成**（2026-11-19 基线提交 + tag `baseline-2026-11-19`）。0c：`eval:ai-segment` 因缺**人工**真值与真实候选导出而 **SKIPPED（78）**，尚无真实评测基线 | No-Go 维持。推荐：人工标注真值 + 导出候选放入 `deliverables/ai-segment/eval/`，跑 `npm run test:eval`；禁止用 AI 候选反向生成真值或把 SKIPPED 写成 PASS |
+| **R18** | **0c 未闭环（0b 已补齐后的唯一阻塞）** | 0a：`scripts/gates/` + `test:gate` 已落地，阻断门 7/7 PASS（`deliverables/gates/gate-report-20261119-070834.md`）。0b：**已完成**（2026-11-19 基线提交 `0a72733` + tag `baseline-2026-11-19`，strict 3/3）。0c：真实候选已导出（20 条，`sample60.mp4`、`motion`、默认 ROI），但真值 `segments` 仍为空 → `eval:ai-segment` **SKIPPED（78）**，尚无真实评测基线 | No-Go 维持。推荐：人工标注 `deliverables/ai-segment/eval/ground-truth.json`（≥20 段、实名 labeler，不得参考候选反向生成），再跑 `npm run test:eval`；禁止把 SKIPPED 写成 PASS |
 | **R06 补** | smoke 随机工位号碰撞导致 flake | 2026-11-18 门禁基线实捕获：`smoke.ts` 的 `cmpStationId` 与 `vaStationId` 各自随机 `L01-ST10..99`，约 1/90 撞号 → cmp 的 v2 提交使 va 工位变成双版本 →「单版本工位对比 → 409」偶发 200（实测 146/1） | **已修复（test-only）**：`uniqueStationId()` 进程内去重；复跑 147/0 ×2。保留失败报告 `gate-report-20261118-231855` 作为证据 |
 
 **QA 最终裁决：No-Go 维持。** 解禁路径（按顺序）：

@@ -1,0 +1,8 @@
+{
+  "_说明": "人工片段级真值（0c 首次评测基线）。请独立观看视频后填写 segments；不得用 AI 候选反向生成。type 取 等待/移物/目检/拿取/装配/其他 之一。",
+  "station_id": "L01-ST11",
+  "video_name": "sample60.mp4",
+  "labeler": "填写标注人姓名",
+  "labeled_at": "2026-11-19",
+  "segments": []
+}
