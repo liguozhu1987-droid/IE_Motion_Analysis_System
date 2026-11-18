@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { AnalysisService } from './analysis.service';
 import { StationsService } from '../stations/stations.service';
 import { RequirePermission } from '../../rbac/require-permission.decorator';
@@ -21,9 +21,9 @@ export class StationAnalysisController {
 
   @Get()
   @RequirePermission('analysis:read')
-  async analyze(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+  async analyze(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     await this.stations.assertReadable(id, user.userId, user.roles, user.dataScope);
-    return this.analysis.analyzeStation(id);
+    return this.analysis.analyzeStation(id, taskId);
   }
 }
 
@@ -41,8 +41,8 @@ export class LineAnalysisController {
    */
   @Get()
   @RequirePermission('analysis:read')
-  async analyzeLine(@Param('lineId') lineId: string, @CurrentUser() user: AuthUser) {
+  async analyzeLine(@Param('lineId') lineId: string, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     const visibleIds = await this.stations.visibleStationIds(user.userId, user.roles, user.tenantId, user.dataScope);
-    return this.analysis.analyzeLine(lineId, visibleIds);
+    return this.analysis.analyzeLine(lineId, visibleIds, taskId);
   }
 }

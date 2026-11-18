@@ -7,6 +7,7 @@ import { sanitizePolishOutput, POLISH_SYSTEM_PROMPT, buildPolishUserPrompt } fro
 import { APP_CONFIG } from '../core/config/configuration';
 import { AppConfig } from '../core/config/configuration';
 import { Inject } from '@nestjs/common';
+import { currentTaskScope } from '../core/task-scope/task-scope-context';
 
 export interface AiTaskView {
   task_id: string; type: string; status: string;
@@ -39,8 +40,13 @@ export class AiTaskService implements OnModuleInit, OnModuleDestroy {
     if (this.timer) clearInterval(this.timer);
   }
 
-  /** 提交任务（立即返回 task_id；AI 关闭时返回 503 由调用方降级为本地模板） */
-  async submit(type: string, input: Record<string, unknown>, operator: string): Promise<AiTaskView> {
+  /**
+   * 提交任务（立即返回 task_id；AI 关闭时返回 503 由调用方降级为本地模板）。
+   * Phase 3 / Wave 2（F1）：本表没有 station_id / line_id，无法按工位回填或反推，
+   * 故 decomp_task_id 只来自「显式 task_id 请求参数」或请求级任务上下文（D5 命名避让）。
+   * 两者都没有时写 NULL（兼容模式如实标注，不冒充任务号）。
+   */
+  async submit(type: string, input: Record<string, unknown>, operator: string, decompTaskId?: string | null): Promise<AiTaskView> {
     if (!this.cfg.aiEnabled) {
       throw new ServiceUnavailableException('AI 未启用（AI_ENABLED=false），已降级为本地模板文案');
     }
@@ -60,6 +66,7 @@ export class AiTaskService implements OnModuleInit, OnModuleDestroy {
       tokens_used: 0,
       retry_count: 0,
       created_by: operator,
+      decomp_task_id: decompTaskId ?? currentTaskScope()?.task_id ?? null,
     } as any);
     if (monthTokens >= this.cfg.aiMonthlyTokenLimit) {
       row.status = 'failed';

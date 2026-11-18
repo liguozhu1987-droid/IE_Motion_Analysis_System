@@ -32,6 +32,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         if (typeof b.code === 'string') payload.code = b.code;
         if (Array.isArray(b.requires)) payload.requires = b.requires;
         if (b.allowed !== undefined) payload.allowed = b.allowed;
+        // Phase 3 / D1：多生效任务 409 的候选任务清单，供前端直接渲染任务选择器
+        if (Array.isArray(b.candidates)) payload.candidates = b.candidates;
         if (typeof b.hint === 'string') payload.hint = b.hint;
       }
     } else if (exception instanceof Error) {

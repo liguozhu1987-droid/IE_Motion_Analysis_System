@@ -10,6 +10,8 @@ import { Station } from '../../../entities/station.entity';
 @Entity({ name: 't_ai_waste_batch' })
 export class AiWasteBatch {
   @PrimaryColumn({ length: 36 }) batch_id: string;
+  /** Phase 3 Wave2：所属分解任务；存量由 MIGRATIONS 按 (tenant,line) 回填 DT-LEGACY。 */
+  @Column({ length: 32, nullable: true }) task_id: string | null;
   @ManyToOne(() => Station) @JoinColumn({ name: 'station_id' }) station: Station;
   @Column({ length: 32 }) station_id: string;
   @Column({ length: 32, default: 'DEFAULT' }) tenant_id: string;

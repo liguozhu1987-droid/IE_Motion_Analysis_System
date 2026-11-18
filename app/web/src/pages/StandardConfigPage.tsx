@@ -27,6 +27,17 @@ const VA_OPTIONS = [
   { v: 'NVA', label: 'NVA 非增值' },
 ];
 
+/** Phase 2 / MS1.4：四类时间归属（批量导出 E–H 列按此判定，随 MS 版本发布） */
+const BUCKET_OPTIONS = [
+  { v: 'manual', label: '手作业 manual' },
+  { v: 'machine', label: '机器 machine' },
+  { v: 'walk', label: '走动 walk' },
+  { v: 'wait', label: '等待 wait' },
+];
+const BUCKET_LABEL: Record<string, string> = {
+  manual: '手作业', machine: '机器', walk: '走动', wait: '等待',
+};
+
 const EMPTY = '—';
 
 export default function StandardConfigPage() {
@@ -76,6 +87,7 @@ export default function StandardConfigPage() {
       const rv = m ? `MS${m[1]}.${Number(m[2]) + 1}` : 'MS1.1';
       const content = {
         rv,
+        note: std.note ?? '',
         source: source || '动作分解标准.xlsx；VA N-VA Defination v00 20190429.xlsx',
         groups: std.groups,
       };
@@ -93,7 +105,7 @@ export default function StandardConfigPage() {
   if (!std) return <div className="card empty">正在加载动作标准库…</div>;
 
   const totalTypes = std.groups.reduce((n, g) => n + (g.subs.length > 0 ? g.subs.length : 1), 0);
-  const COLS = editing && canWrite ? 9 : 8;
+  const COLS = editing && canWrite ? 10 : 9;
 
   return (
     <div className={'std-page' + (editing ? ' is-editing' : '')}>
@@ -147,12 +159,13 @@ export default function StandardConfigPage() {
             <tr>
               <th style={{ width: '12%' }}>一级</th>
               <th style={{ width: '7%' }}>二级</th>
-              <th style={{ width: '18%' }}>定义</th>
-              <th style={{ width: '11%' }}>起（分界）</th>
-              <th style={{ width: '11%' }}>止（分界）</th>
-              <th style={{ width: '14%' }}>描述格式</th>
-              <th style={{ width: '9%' }}>影响因素</th>
-              <th style={{ width: '18%' }}>默认判定</th>
+              <th style={{ width: '15%' }}>定义</th>
+              <th style={{ width: '10%' }}>起（分界）</th>
+              <th style={{ width: '10%' }}>止（分界）</th>
+              <th style={{ width: '13%' }}>描述格式</th>
+              <th style={{ width: '8%' }}>影响因素</th>
+              <th style={{ width: '14%' }}>默认判定</th>
+              <th style={{ width: '10%' }}>四类时间</th>
               {editing && canWrite && <th style={{ width: 56 }} aria-label="操作" className="std-col-act" />}
             </tr>
           </thead>
@@ -196,7 +209,7 @@ export default function StandardConfigPage() {
                 <tr className="std-row-add">
                   <td colSpan={COLS}>
                     <button className="std-add" onClick={() => mutate((gs) => {
-                      gs[gi].subs.push({ type: '新二级', level1: gs[gi].level1, level2: '新二级', desc: '', sp: gs[gi].sp, ep: gs[gi].ep, format: gs[gi].format, factors: gs[gi].factors, va: gs[gi].va, vaNote: null });
+                      gs[gi].subs.push({ type: '新二级', level1: gs[gi].level1, level2: '新二级', desc: '', sp: gs[gi].sp, ep: gs[gi].ep, format: gs[gi].format, factors: gs[gi].factors, va: gs[gi].va, vaNote: null, time_bucket: gs[gi].time_bucket ?? 'manual' });
                     })}>+ 给「{g.level1}」加二级类型</button>
                   </td>
                 </tr>
@@ -206,7 +219,7 @@ export default function StandardConfigPage() {
         </table>
         {editing && canWrite && (
           <button className="std-add std-add-l1" onClick={() => mutate((gs) => {
-            gs.push({ level1: '新一级', desc: '', sp: '', ep: '', format: '新一级 +对象', factors: '', va: 'RNVA', vaNote: null, subs: [] });
+            gs.push({ level1: '新一级', desc: '', sp: '', ep: '', format: '新一级 +对象', factors: '', va: 'RNVA', vaNote: null, time_bucket: 'manual', subs: [] });
           })}>+ 新增一级分类</button>
         )}
       </div>
@@ -254,7 +267,7 @@ function TdGroup({ g, idx, canWrite, editing, rows, mutate }: {
 }
 
 /** 字段列：定义 / 起（分界）/ 止（分界）/ 描述格式 / 影响因素 / 默认判定（一级行与二级行共用） */
-type FieldOwner = Pick<EditEntry, 'desc' | 'sp' | 'ep' | 'format' | 'factors' | 'va' | 'vaNote'>;
+type FieldOwner = Pick<EditEntry, 'desc' | 'sp' | 'ep' | 'format' | 'factors' | 'va' | 'vaNote' | 'time_bucket'>;
 function FieldTds({ entry, canWrite, editing, onSet }: {
   entry: FieldOwner; canWrite: boolean; editing: boolean; onSet: (patch: Partial<FieldOwner>) => void;
 }) {
@@ -280,6 +293,18 @@ function FieldTds({ entry, canWrite, editing, onSet }: {
           <div className="std-va-cell">
             <VaBadge va={entry.va} />
             {entry.vaNote && <div className="std-vanote" title={entry.vaNote}>{entry.vaNote}</div>}
+          </div>
+        )}
+      </td>
+      {/* Phase 2 / MS1.4：四类时间归属，随 MS 版本发布后批量导出即时生效 */}
+      <td>
+        {edit ? (
+          <SelectMenu ariaLabel="四类时间" value={entry.time_bucket ?? 'manual'}
+            onChange={(v) => onSet({ time_bucket: v || null })}
+            options={BUCKET_OPTIONS.map((o) => ({ value: o.v, label: o.label }))} />
+        ) : (
+          <div className="std-cell mono" title="批量导出的手作业/机器/走动/等待四列按此判定；未配置回落手作业">
+            {BUCKET_LABEL[entry.time_bucket ?? ''] ?? '手作业（回落）'}
           </div>
         )}
       </td>

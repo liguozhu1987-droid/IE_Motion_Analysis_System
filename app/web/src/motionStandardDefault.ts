@@ -1,13 +1,15 @@
-/** 公司动作分解标准（内置兜底副本，MS1.3）。运行时优先生效 DB 发布版（motion_standard 规则集），
+/** 公司动作分解标准（内置兜底副本，MS1.4）。运行时优先生效 DB 发布版（motion_standard 规则集），
  *  本文件仅在无 rule:read 权限 / 离线 / 规则未发布时兜底。源：动作分解标准.xlsx + VA N-VA Defination v00。
  *  由 app/config/rules/motion_standard.json 生成——改标准请改 JSON 后发布，或在本配置页编辑后同步此兜底。
  *  MS1.2 勘误（IE 2026-10-28）：补 移动/检查 一级分组空判定；操作族按对象条件判定（工装/工具=RNVA、装入产品的物料=VA，
  *  借助工具按压装配零部件=VA）；机器自动占位写实。
  *  MS1.3 收敛（用户 2026-10-28 裁定）：「检查」统一=RNVA（检查一般不增值；客户/规范要求时属必要非增值，
- *  须持续改善检查方法与技术、逐步减少；无依据的返检/重复检查按 NVA）。 */
+ *  须持续改善检查方法与技术、逐步减少；无依据的返检/重复检查按 NVA）。
+ *  MS1.4（Phase 2，2026-11-09）：每类型新增 time_bucket，供批量导出四类时间自动判定。
+ */
 export const MOTION_STANDARD_DEFAULT = {
-  "rv": "MS1.3",
-  "note": "公司动作分解标准（源自《动作分解标准.xlsx》Standard motion summary +《VA N-VA Defination v00 20190429.xlsx》）。groups=一级分类；subs=二级分类（无则 level1 自身即可选类型）。每类型含：desc=定义、sp/ep=起止点（分界标准）、format=描述格式（+ 后为字段，'对象于'表示对象后接介词于）、factors=影响因素、va=默认增值判定、vaNote=条件判定说明。可在「动作标准」配置页修改后发布。MS1.2 勘误（IE 2026-10-28）：① 补全 移动/检查 一级分组空缺的默认判定（v3.49 一级可选后不能为空）；② 操作族（按/压/抬/推/拉/插/拔）按《VA N-VA Defination》原表注明改为按对象条件判定——工装/工具/按钮=RNVA，装入产品的物料=VA（借助工具按压装配零部件即 VA，不是非增值），默认取 RNVA、命中物料对象人工改判 VA；③ 机器自动占位判定写实（不参与操作工 VA 率）。",
+  "rv": "MS1.4",
+  "note": "公司动作分解标准（源自《动作分解标准.xlsx》Standard motion summary +《VA N-VA Defination v00 20190429.xlsx》）。groups=一级分类；subs=二级分类（无则 level1 自身即可选类型）。每类型含：desc=定义、sp/ep=起止点（分界标准）、format=描述格式（+ 后为字段，'对象于'表示对象后接介词于）、factors=影响因素、va=默认增值判定、vaNote=条件判定说明。可在「动作标准」配置页修改后发布。MS1.2 勘误（IE 2026-10-28）：① 补全 移动/检查 一级分组空缺的默认判定（v3.49 一级可选后不能为空）；② 操作族（按/压/抬/推/拉/插/拔）按《VA N-VA Defination》原表注明改为按对象条件判定——工装/工具/按钮=RNVA，装入产品的物料=VA（借助工具按压装配零部件即 VA，不是非增值），默认取 RNVA、命中物料对象人工改判 VA；③ 机器自动占位判定写实（不参与操作工 VA 率）。 MS1.4（2026-11-09 Phase 2）：每个类型新增 time_bucket（manual/machine/walk/wait），供批量导出的四类时间列按类型自动判定；规则集显式配置优先，未在规则集登记的经典动素类型由导出层内置 44 类映射兜底，并在 99_说明 列出。转身/弯腰/持住=manual（无脚步位移）；移物同名词按 walk 处理，若为手部移物会高估 Walk time，见说明页风险提示。",
   "source": "动作分解标准.xlsx；VA N-VA Defination v00 20190429.xlsx",
   "groups": [
     {
@@ -19,7 +21,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": "转身/尺寸/重量",
       "va": "NVA",
       "vaNote": "判定表：拿取=非增值（NVA）——料架布局/就近取料可改善",
-      "subs": []
+      "subs": [],
+      "time_bucket": "manual"
     },
     {
       "level1": "放置",
@@ -30,7 +33,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": "转身/精度",
       "va": "RNVA",
       "vaNote": "判定表：放置=必要非增值（RNVA）——装配必经，只能压缩不能直接删",
-      "subs": []
+      "subs": [],
+      "time_bucket": "manual"
     },
     {
       "level1": "移动",
@@ -50,7 +54,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "走动 +距离",
           "factors": "转身",
           "va": "NVA",
-          "vaNote": "判定表：走动=非增值（NVA）——布局/就近取料可改善"
+          "vaNote": "判定表：走动=非增值（NVA）——布局/就近取料可改善",
+          "time_bucket": "walk"
         },
         {
           "level2": "移物",
@@ -60,9 +65,11 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "移物 +对象 +距离",
           "factors": "尺寸/重量/路径空间",
           "va": "VA",
-          "vaNote": "判定表未单列；负载移物属有效动素默认 VA——同工位往返/重复搬运由浪费规则判 NVA"
+          "vaNote": "判定表未单列；负载移物属有效动素默认 VA——同工位往返/重复搬运由浪费规则判 NVA",
+          "time_bucket": "walk"
         }
-      ]
+      ],
+      "time_bucket": "walk"
     },
     {
       "level1": "装配",
@@ -82,7 +89,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "粘贴 +对象至 +位置 +距离",
           "factors": "对象尺寸",
           "va": "VA",
-          "vaNote": "判定表：粘贴=增值（VA）"
+          "vaNote": "判定表：粘贴=增值（VA）",
+          "time_bucket": "manual"
         },
         {
           "level2": "涂",
@@ -92,9 +100,11 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "涂 +对象于 +位置 +距离",
           "factors": "面积或范围",
           "va": "VA",
-          "vaNote": "判定表：涂=增值（VA）"
+          "vaNote": "判定表：涂=增值（VA）",
+          "time_bucket": "manual"
         }
-      ]
+      ],
+      "time_bucket": "manual"
     },
     {
       "level1": "操作",
@@ -114,7 +124,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "按 +对象",
           "factors": "力量/数量",
           "va": "RNVA",
-          "vaNote": "按+按钮/开关/工夹具=RNVA；直接按压装入产品的物料（含借助工具按压装配零部件）=VA——默认按前者，命中后者人工改判 VA"
+          "vaNote": "按+按钮/开关/工夹具=RNVA；直接按压装入产品的物料（含借助工具按压装配零部件）=VA——默认按前者，命中后者人工改判 VA",
+          "time_bucket": "manual"
         },
         {
           "level2": "压",
@@ -124,7 +135,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "压 +对象",
           "factors": "力量/距离",
           "va": "RNVA",
-          "vaNote": "压+工装/夹具/工具=RNVA；压+物料=VA（借助工具按压装配零部件属此类，不一定非增值）——默认按前者，命中后者人工改判 VA"
+          "vaNote": "压+工装/夹具/工具=RNVA；压+物料=VA（借助工具按压装配零部件属此类，不一定非增值）——默认按前者，命中后者人工改判 VA",
+          "time_bucket": "manual"
         },
         {
           "level2": "抬",
@@ -134,7 +146,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "抬 +对象",
           "factors": "重量/距离",
           "va": "RNVA",
-          "vaNote": "抬+工装/夹具=RNVA（方向向上）；判定表未单列抬+物料，直接作用于产品物料时按对象综合判定"
+          "vaNote": "抬+工装/夹具=RNVA（方向向上）；判定表未单列抬+物料，直接作用于产品物料时按对象综合判定",
+          "time_bucket": "manual"
         },
         {
           "level2": "推",
@@ -144,7 +157,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "推 +对象",
           "factors": "力量/距离",
           "va": "RNVA",
-          "vaNote": "推+工装/夹具/工具=RNVA；推+物料=VA（借助工具推压装配零部件属此类）——默认按前者，命中后者人工改判 VA"
+          "vaNote": "推+工装/夹具/工具=RNVA；推+物料=VA（借助工具推压装配零部件属此类）——默认按前者，命中后者人工改判 VA",
+          "time_bucket": "manual"
         },
         {
           "level2": "拉",
@@ -154,7 +168,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "拉 +对象",
           "factors": "力量/距离",
           "va": "RNVA",
-          "vaNote": "拉+工装/夹具/工具=RNVA；拉+物料=VA（借助工具拉拽装配零部件属此类）——默认按前者，命中后者人工改判 VA"
+          "vaNote": "拉+工装/夹具/工具=RNVA；拉+物料=VA（借助工具拉拽装配零部件属此类）——默认按前者，命中后者人工改判 VA",
+          "time_bucket": "manual"
         },
         {
           "level2": "插",
@@ -164,7 +179,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "插 +对象",
           "factors": "力量/难易程度",
           "va": "RNVA",
-          "vaNote": "插+工夹具=RNVA、插+物料=VA（含线束等装入产品的物料）——默认按工夹具，命中物料请人工改判 VA"
+          "vaNote": "插+工夹具=RNVA、插+物料=VA（含线束等装入产品的物料）——默认按工夹具，命中物料请人工改判 VA",
+          "time_bucket": "manual"
         },
         {
           "level2": "拔",
@@ -174,9 +190,11 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "拔 +对象",
           "factors": "力量/难易程度",
           "va": "RNVA",
-          "vaNote": "拔+线束/夹子/工装=RNVA；维修/换型拆下已装部件参考拆卸=VA——默认按前者，命中后者人工改判 VA"
+          "vaNote": "拔+线束/夹子/工装=RNVA；维修/换型拆下已装部件参考拆卸=VA——默认按前者，命中后者人工改判 VA",
+          "time_bucket": "manual"
         }
-      ]
+      ],
+      "time_bucket": "manual"
     },
     {
       "level1": "检查",
@@ -196,7 +214,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "目检 +对象 +属性",
           "factors": "范围",
           "va": "RNVA",
-          "vaNote": "判定表：检查=必要非增值（RNVA）——检查一般不增值；客户/规范要求时属必要但须持续改善（改善检查方法与技术、逐步减少）；无依据的返检/重复检查按 NVA"
+          "vaNote": "判定表：检查=必要非增值（RNVA）——检查一般不增值；客户/规范要求时属必要但须持续改善（改善检查方法与技术、逐步减少）；无依据的返检/重复检查按 NVA",
+          "time_bucket": "manual"
         },
         {
           "level2": "点检",
@@ -206,7 +225,8 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "点检 +对象 +数量",
           "factors": "范围/对象",
           "va": "RNVA",
-          "vaNote": "判定表：检查=必要非增值（RNVA）——检查一般不增值；客户/规范要求时属必要但须持续改善（改善检查方法与技术、逐步减少）；无依据的返检/重复检查按 NVA"
+          "vaNote": "判定表：检查=必要非增值（RNVA）——检查一般不增值；客户/规范要求时属必要但须持续改善（改善检查方法与技术、逐步减少）；无依据的返检/重复检查按 NVA",
+          "time_bucket": "manual"
         },
         {
           "level2": "检测",
@@ -216,9 +236,11 @@ export const MOTION_STANDARD_DEFAULT = {
           "format": "检测 +对象 +属性",
           "factors": "工具/精度",
           "va": "RNVA",
-          "vaNote": "判定表：检查=必要非增值（RNVA）——检查一般不增值；客户/规范要求时属必要但须持续改善（改善检查方法与技术、逐步减少）；无依据的返检/重复检查按 NVA"
+          "vaNote": "判定表：检查=必要非增值（RNVA）——检查一般不增值；客户/规范要求时属必要但须持续改善（改善检查方法与技术、逐步减少）；无依据的返检/重复检查按 NVA",
+          "time_bucket": "manual"
         }
-      ]
+      ],
+      "time_bucket": "manual"
     },
     {
       "level1": "清洁",
@@ -229,7 +251,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": "面积/长度",
       "va": "RNVA",
       "vaNote": "判定表：清洁=必要非增值（RNVA）——清擦工序要求/来料清洁度可改善",
-      "subs": []
+      "subs": [],
+      "time_bucket": "manual"
     },
     {
       "level1": "扫描",
@@ -240,7 +263,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": "设备固定与否",
       "va": "VA",
       "vaNote": "判定表：扫描=增值（VA）——绑定追溯信息",
-      "subs": []
+      "subs": [],
+      "time_bucket": "manual"
     },
     {
       "level1": "翻转",
@@ -251,7 +275,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": "尺寸/重量",
       "va": "RNVA",
       "vaNote": "判定表：翻转=必要非增值（RNVA）——治具双面可达可消除",
-      "subs": []
+      "subs": [],
+      "time_bucket": "manual"
     },
     {
       "level1": "拆",
@@ -262,7 +287,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": "尺寸/方式/难易程度",
       "va": "RNVA",
       "vaNote": "判定表：拆=必要非增值（RNVA）——供应商包装改善可消除",
-      "subs": []
+      "subs": [],
+      "time_bucket": "manual"
     },
     {
       "level1": "转身",
@@ -273,7 +299,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": "角度/区域大小",
       "va": "NVA",
       "vaNote": "判定表：转身=非增值（NVA）；PTS 上不单独作为标准动作，仅作为拿取/放置/移动的考量因子勾选",
-      "subs": []
+      "subs": [],
+      "time_bucket": "manual"
     },
     {
       "level1": "弯腰",
@@ -284,7 +311,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": "高度/频次/重量",
       "va": "RNVA",
       "vaNote": "判定表未单列；弯腰=必要非增值（RNVA）——工位高度/容器位置/滑槽/升降台可改善",
-      "subs": []
+      "subs": [],
+      "time_bucket": "manual"
     },
     {
       "level1": "等待",
@@ -295,7 +323,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": "路径空间",
       "va": "NVA",
       "vaNote": "判定表：等待=非增值（NVA）——人机配合/节拍重排可压缩",
-      "subs": []
+      "subs": [],
+      "time_bucket": "wait"
     },
     {
       "level1": "机器自动",
@@ -306,7 +335,8 @@ export const MOTION_STANDARD_DEFAULT = {
       "factors": null,
       "va": "RNVA",
       "vaNote": "机器时间单列 Machine 口径、不参与操作工 VA 率；此处 RNVA 仅为通过校验的占位，不代表增值属性",
-      "subs": []
+      "subs": [],
+      "time_bucket": "machine"
     }
   ]
 };

@@ -36,6 +36,22 @@ function checkR(name: string, r: { status: number; data: any }, cond: boolean): 
   console.log(`  ${FAIL} ${name}${d}`);
 }
 
+/**
+ * 测试工位号必须在本轮内唯一。
+ *
+ * 历史缺陷（2026-11-18 门禁基线捕获）：`cmpStationId` 与 `vaStationId` 各自随机
+ * `L01-ST10..99`，约 1/90 概率撞号；撞号时 cmp 的 v2 提交会让 va 工位也变成双版本，
+ * 「单版本工位对比 → 409」偶发返回 200。改为统一分配 + 进程内去重，消除随机碰撞。
+ */
+const usedStationIds = new Set<string>();
+function uniqueStationId(): string {
+  for (let i = 0; i < 200; i += 1) {
+    const id = `L01-ST${String(Math.floor(Math.random() * 90) + 10)}`;
+    if (!usedStationIds.has(id)) { usedStationIds.add(id); return id; }
+  }
+  throw new Error('无法分配唯一测试工位号（L01-ST10..99 已用尽）');
+}
+
 async function api(base: string, method: string, path: string, opts: { token?: string; body?: unknown; tenant?: string } = {}) {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (opts.token) headers['authorization'] = `Bearer ${opts.token}`;
@@ -204,7 +220,7 @@ async function main() {
   check('other1 只见 L02-ST01（反向隔离）', otherIds.length === 1 && otherIds[0] === 'L02-ST01', otherIds);
 
   // —— 6. 业务写入（权限+租户上下文自动注入）——
-  const newStationId = `L01-ST${String(Math.floor(Math.random() * 90) + 10)}`; // 幂等：随机工位号（符合 L01-ST01 格式）
+  const newStationId = uniqueStationId(); // 幂等：随机工位号（符合 L01-ST01 格式）
   await cleanStation(cfg, newStationId); // 清理历史碰撞（sqlite/mssql 均适用）
   const created = await api(base, 'POST', '/api/stations', {
     token: admin.data.accessToken,
@@ -296,7 +312,7 @@ async function main() {
   }
 
   // —— 11. 要素分解模块（V1/V2/V3 / 写守卫 / 事务 / CSV / VA 改判）——
-  const elStationId = `L01-ST${String(Math.floor(Math.random() * 90) + 10)}`;
+  const elStationId = uniqueStationId();
   await cleanStation(cfg, elStationId); // 清理历史碰撞（sqlite/mssql 均适用）
   const elStation = await api(base, 'POST', '/api/stations', {
     token: admin.data.accessToken,
@@ -450,7 +466,7 @@ async function main() {
     stAnalysis.data?.rule_versions);
 
   // 12b. 规则例外链：装配desc含"重装"→NVA(low)；定位dur>2→NVA(low)；装配默认→VA(high)
-  const vaStationId = `L01-ST${String(Math.floor(Math.random() * 90) + 10)}`;
+  const vaStationId = uniqueStationId();
   await cleanStation(cfg, vaStationId); // 清理历史碰撞（sqlite/mssql 均适用）
   await api(base, 'POST', '/api/stations', {
     token: admin.data.accessToken,
@@ -509,7 +525,7 @@ async function main() {
   checkR('他租户产线分析 → 404（无 L01 工位）', crossLine, crossLine.status === 404);
 
   // —— 13. 前后对比与收益（三层配对 / ΔCT / 收益估算 / 一页报告）——
-  const cmpStationId = `L01-ST${String(Math.floor(Math.random() * 90) + 10)}`;
+  const cmpStationId = uniqueStationId();
   await cleanStation(cfg, cmpStationId); // 清理历史碰撞（sqlite/mssql 均适用）
   await api(base, 'POST', '/api/stations', {
     token: admin.data.accessToken,
@@ -587,7 +603,7 @@ async function main() {
   checkR('他租户对比 → 404（行级隔离）', crossCmp, crossCmp.status === 404);
 
   // —— 14. 改善建议（ECRSA 映射 / 三因子优先级 / 红线 / 三态流转 / 建议书）——
-  const sugStationId = `L01-ST${String(Math.floor(Math.random() * 90) + 10)}`;
+  const sugStationId = uniqueStationId();
   await cleanStation(cfg, sugStationId); // 清理历史碰撞（sqlite/mssql 均适用）
   await api(base, 'POST', '/api/stations', {
     token: admin.data.accessToken,

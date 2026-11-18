@@ -140,7 +140,8 @@ export function exportCsv(stationId) {
     station.station_id, station.version, el.seq, el.hand, el.type, el.desc, el.dur_s, el.va_class,
     el.outlier_flag, el.outlier_reason ?? '', el.rating, el.allowance, el.std_time, el.start_ms,
   ])];
-  return toCsv(rows);
+  /* UTF-8 BOM：Excel 直接双击打开按本机 ANSI(GBK) 解码，无 BOM 的中文表头/数据行会乱码 */
+  return `\uFEFF${toCsv(rows)}`;
 }
 
 /** 人工改判：写 va_class + desc 结构化标记（与文档02 §2.2 同格式），封存版本拒绝写入 */

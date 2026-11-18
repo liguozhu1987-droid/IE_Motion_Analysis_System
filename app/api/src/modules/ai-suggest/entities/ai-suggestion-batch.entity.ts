@@ -11,6 +11,8 @@ import { Station } from '../../../entities/station.entity';
 @Entity({ name: 't_ai_suggestion_batch' })
 export class AiSuggestionBatch {
   @PrimaryColumn({ length: 36 }) batch_id: string;
+  /** Phase 3 Wave2：所属分解任务；存量由 MIGRATIONS 按 (tenant,line) 回填 DT-LEGACY。 */
+  @Column({ length: 32, nullable: true }) task_id: string | null;
   @Column({ length: 32, default: 'DEFAULT' }) tenant_id: string;
   @ManyToOne(() => Station) @JoinColumn({ name: 'station_id' }) station: Station;
   @Column({ length: 32 }) station_id: string;

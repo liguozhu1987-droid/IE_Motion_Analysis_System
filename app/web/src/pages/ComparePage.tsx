@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError, type BenefitParamsLine, type CompareResult } from '../api';
+import { api, ApiError, type BenefitParamsLine, type CompareResult, type DecompositionTask } from '../api';
 import { useAuth } from '../auth';
 import AiCallBanner from '../components/AiCallBanner';
+import SelectMenu from '../components/SelectMenu';
 
 /**
  * 改善前后对比 + 收益参数设置（v3.0：benefit-params 按线 lines[] 整体读写）。
  * 保存策略：先拉全量 lines → 替换/追加本线条目 → 整体 POST（后端为整体替换语义）。
+ * Phase 3 #107：可选对比任务上下文（compare?task_id=）；不传时行为逐字不变。
  */
 export default function ComparePage({ stationId }: { stationId: string }) {
   const { can, user } = useAuth();
@@ -20,12 +22,23 @@ export default function ComparePage({ stationId }: { stationId: string }) {
   const [interp, setInterp] = useState<{ interpretation: string; regressionWarnings: string[]; generated_by: string } | null>(null);
   /** AI 解读进行态（独立于共享 busy，只控制本按钮文案） */
   const [interpBusy, setInterpBusy] = useState(false);
+  /* #107：本工位可参与的任务 + 当前对比任务（'' = 默认兼容模式） */
+  const [tasks, setTasks] = useState<DecompositionTask[]>([]);
+  const [taskId, setTaskId] = useState('');
 
   const canSaveParams = can('settings:benefit-write');
 
+  useEffect(() => {
+    let alive = true;
+    api.listTasks({ station_id: stationId, limit: 100 })
+      .then((ts) => { if (alive) setTasks(ts.items ?? []); })
+      .catch(() => { /* 任务下拉是增强项，失败不打断对比页 */ });
+    return () => { alive = false; };
+  }, [stationId]);
+
   const load = useCallback(async () => {
     try {
-      const res = await api.compare(stationId);
+      const res = await api.compare(stationId, undefined, undefined, taskId || undefined);
       setData(res);
       setLineId(res.station.line_id);
       setNeedsRetest(false);
@@ -37,7 +50,7 @@ export default function ComparePage({ stationId }: { stationId: string }) {
       if (err instanceof ApiError && err.status === 409) { setNeedsRetest(true); setError(null); return; }
       setError((err as Error).message);
     }
-  }, [stationId]);
+  }, [stationId, taskId]);
 
   useEffect(() => { load().catch((err) => setError(err.message)); }, [load]);
 
@@ -116,6 +129,21 @@ export default function ComparePage({ stationId }: { stationId: string }) {
       {msg && <div className="success-banner">{msg}</div>}
       {/* v3.61：AI 调用全局横幅（统一反馈件；结果落在下方「AI 差异解读」卡片） */}
       <AiCallBanner active={interpBusy} label="正在调用 AI 差异解读" phase="LLM 生成中，通常需要数十秒" />
+
+      {/* Phase 3 #107：对比任务上下文（自绘 SelectMenu；本工位无任务时不渲染，保持旧 UI） */}
+      {tasks.length > 0 && (
+        <div className="row" style={{ marginBottom: 12, alignItems: 'center', gap: 8 }}>
+          <span className="muted">对比任务：</span>
+          <SelectMenu ariaLabel="对比任务" value={taskId} onChange={setTaskId}
+            options={[{ value: '', label: '默认（兼容模式）' }, ...tasks.map((t) => ({ value: t.task_id, label: `${t.task_no} ${t.name}` }))]} />
+          {(() => {
+            const t = tasks.find((x) => x.task_id === taskId);
+            if (!t?.baseline_task_id) return null;
+            const base = tasks.find((x) => x.task_id === t.baseline_task_id);
+            return <span className="muted">基准任务：{base?.task_no ?? t.baseline_task_id}</span>;
+          })()}
+        </div>
+      )}
 
       <div className="metrics" style={{ marginBottom: 14 }}>
         <div className="metric"><div className="v">v{data.prev.version}</div><div className="l">改善前 CT {data.prev.ct}s</div></div>

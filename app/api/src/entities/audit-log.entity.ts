@@ -4,6 +4,8 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn } from 'typeorm';
 @Entity({ name: 't_audit_log' })
 export class AuditLog {
   @PrimaryColumn({ length: 36 }) log_id: string;
+  /** Phase 3 Wave2：导出所属分解任务；7731 行历史零回填，兼容模式记 null，不冒充任务号。 */
+  @Column({ length: 32, nullable: true }) task_id: string | null;
   @Column({ length: 32 }) tenant_id: string;
   @Column({ length: 32, nullable: true }) user_id: string | null;
   @Column({ length: 32, nullable: true }) username: string | null; // 系统动作（无登录用户）时为空

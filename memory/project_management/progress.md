@@ -1,0 +1,129 @@
+# 进度与验收证据（progress）
+
+> 滚动维护。**只记实际输出（通过数/失败数），不写「应该通过」**（SKILL.md §3.2）。
+> 最近收口：2026-11-18。
+
+## 2026-11-18 · 全面功能评审 + 行业最佳实践对标 + 项目开发记忆治理
+
+### 任务
+用户要求：全面评审当前系统功能；对比行业内类似软件的最佳实践功能是否具备；围绕
+「视频作业分解效率 / 识别浪费 / 增值非增值分析 / 改善方案建议」四条主线给提升建议；
+结合当前系统状态，**按 `SKILL.md` 做好项目开发记忆管理**。
+
+### 本轮结论（3 条）
+1. **品类边界**：本系统属「问题发现品类」，不是「标准工时品类」。行业分水岭是
+   「能否产出可辩护的标准时间（PMTS 口径）」；本系统 ST 链（实测×评比×宽放）**已完整落库并贯穿
+   CT / VA 占比 / 批量导出**，缺的是 PMTS 预定时间码体系（按哲学应砍）。拿 D 层尺子量会误判。
+2. **真实短板不是「没有功能」**：是「已有能力散落、未串成可审计闭环、未进常规回归门、
+   未提交进版本历史」。本轮共纠正 **7 处**历史文档/成员产出的误记（含 1 处编造字段 `end_ms`）。
+3. **QA 裁决 No-Go**：解禁路径 6 步（版本历史 → 门禁基线 → 评测进门 → 断言收口 →
+   11 套 UI 串行 → 真机换工况/双库/多实例/critical 依赖），每项须给命令 + 实际通过数/失败数。
+
+### 三条实锤新发现（本轮零代码改动）
+- **R13 / P0-1｜浪费占比口径不一致（数值缺陷，非呈现缺口）**：
+  `app/api/src/modules/analysis/engine.ts:95,117` 分子 `Number(el.dur_s)`；
+  `:190` CT = `Σ Number(el.std_time)`；`:96,119` `pct = dur/ct*100`。
+  默认 rating=1.00 / allowance=0.15 时 ST=dur×1.15 → **pct 系统性低估约 13%**；
+  `ratioOf:'CT'` 触发器据此判定命中 → **评比/宽放一改，浪费识别结果静默变化**。
+- **E15｜采纳幂等缺陷**：`app/api/src/modules/suggestions/suggestions.service.ts:102`
+  用 `Date.now()` 生成 `imp_id` → 重复采纳生成重复改善项。改善闭环其余部分
+  （`suggestions.service.ts:82-132` 事务+before_ct、`:232` 复测回填 after_ct、
+  `improvement.entity.ts:27-29` source/ai_suggestion_id）**均已实现**。
+- **R05｜版本历史断裂**：`git log` 仅 1 提交（884b71e / 2026-11-09 init）；
+  `git status` **96 文件未提交**（80 在 `app/`，含 `SKILL.md`、`AGENT必读.md`、`migrate.ts`）；分支 `main`。
+
+### 本轮产出（文件）
+- 交付报告：`deliverables/系统功能全面评审与行业最佳实践对标_20261118.md`
+- 新建统一记忆骨架 `memory/`（10 文件）：
+  `project_memory/{README,overview,business_rules,architecture,risk_log}.md`、
+  `project_management/{todo,progress}.md`、
+  `agent_memory/{analysis,research,coding}/README.md`
+- 按 `AGENT必读.md` §7 同步：看板追加 #109、追加 `.workbuddy/memory/2026-11-18.md`、
+  提炼进 `.workbuddy/memory/MEMORY.md`
+
+### 验证命令与实际输出
+**本轮为只读评审，未运行任何测试、未改动任何生产代码。** 下列数字均为**引用既有基线**，
+出处已标注，**未在本轮复跑**，不得写成本轮「已验证」：
+
+| 引用项 | 数值 | 出处 |
+|---|---|---|
+| 契约冒烟 | 147/0（×2，串行隔离） | `AGENT必读.md` 看板 #102/#104 |
+| AI 双线契约 | ai-waste 85/85、ai-suggest 62/62 | 看板 #100/#105 |
+| 任务归属契约 | task-scope write 13/13 + read 7/7、wave3 11/11 + UI 12/12 | 看板 #103/#104/#107 |
+| 权限与 XSS | 125/125、11/11 | `deliverables/PST-W2-W4-本地门禁落地-20261030.md` |
+| 容量与性能 | k6 50VU 11,528 请求 / 8,650 checks / 错误率 0；Lighthouse LCP 1.082s、CLS 0 | `deliverables/PST-W2-W3-容量与浏览器性能-20261030.md` |
+| 真人 Chrome UI | Phase2 43/43、批量导出 22/22 | 看板 #71/#72/#102 |
+| 真实视频校准 | 391.8s / 1920×1080 / HEVC / 30fps；覆盖 24.5%→95.0%、段中位 0.4→2.9s、碎片 55→0、>3s 空白 28→0、耗时 853→527s | 看板 #90/#91；`deliverables/ai-segment/REAL-VIDEO-TEST-v1.md` |
+| 依赖审计 | api **FAIL 10 high / 1 critical**、web PASS | 看板 #69 |
+
+本轮实码复核执行的是只读命令（`grep` / `sed` / `wc` / `git status` / `git log` / `ls`），
+关键落点：`engine.ts:43-64,84-137,185-223`、`element.entity.ts:19-32`、
+`improvement.entity.ts:14-29`、`WorkbenchPage.tsx:289,1948-1953,2221-2260`、
+`batch-export/workbook.ts:262-265,439`、`configuration.ts:131`、`validation.ts:100-106`、
+`segmentation.ts:140-145`、`landmark.ts:148`、`useVideoEngine.ts:70`。
+
+### 提交状态（SKILL.md §四要求说明）
+- 分支 `main`；最近提交 `884b71e`（2026-11-09 init），**仅 1 个提交**。
+- 评审取样时点 **96 个文件未提交**（80 在 `app/`，含 `SKILL.md`、`AGENT必读.md`、`migrate.ts`）；
+  本轮新建 `memory/`、主报告、日志后复核实测 **98**。三者均为**成文时点快照**，不是完成判据
+  —— 0b 判据为 `git status --porcelain` 为空 ＋ 已打 tag ＋ tag 含 `scripts/gates/`，**禁止按文件数核对**。
+- Phase 2 / Phase 3 全部成果不在版本历史内。
+- 本轮新增/修改的记忆与报告文件**同样未提交**（按要求如实说明，未擅自 commit）。
+- 建议下一步先做一次**基线提交 + tag**（不改动任何代码），再按模块分批提交。
+
+### 下一步（≤3 条）
+1. 按 QA 解禁路径 ① 做基线提交 + tag，并补一次门禁基线留档。
+2. 三道单向门方向确认（见报告 §决策卡；决策 B 在 P0-0/P0-4 落地前不得进入实现与验收）。
+3. P0-0~P0-4 与 E15 按 `todo.md` 顺序推进；P0-1 须先写会红的测试再修。
+
+### 待决策（每条带推荐项）
+| 决策 | 推荐项 |
+|---|---|
+| A 全 B 双手要素是否拆左右手 | **A1 维持现状**，分析页标注「双手要素未拆手，双手图仅供参考」 |
+| B 样本精度是否出可复现证据 | **B1 分层出证据**（界面只标 N；内部评测/校准报告才声明 ±x% 与「样本不足判不可靠」）。**硬前置 P0-0 + P0-4** |
+| C 是否做 PMTS 标准工时 | **C1 明确不做**，ST 锁定「实测×评比×宽放」，写进产品边界文档 |
+| D 是否修订 `SKILL.md` 原文（跨项目模板错配，R02） | **推荐修订** §五验证命令与 §七反模式措辞；属口径变更，须用户确认 |
+
+## 2026-11-18 续 · QA 解禁路径 0a 落地（门禁执行器）
+
+### 改了什么
+- 新增 `scripts/gates/`：`run-gates.cjs`（串行执行、PASS/FAIL/SKIP、报告落盘）、
+  `gates.config.cjs`（fast/full 清单与解析器）、`check-no-native-select.cjs`、
+  `check-repo-traceability.cjs`（0b 三项判据）、`run-eval-gate.cjs`（评测进门 + 留档）。
+- `package.json` / `app/api/package.json` / `app/web/package.json`：新增 `test:gate`、
+  `test:gate:full`、`test:eval`（统一委托根执行器，无第二套逻辑）。
+- `app/web/tools/eval-ai-segment.cjs`：新增 `--json <report.json>`（结构化指标留档）与
+  `--gate`（三项验收未全达标退出 1）；默认输出与退出语义保持不变。
+- `app/web/docs/AI-SEGMENT-EVAL.md`：统一 `app/web/...` 全路径；补评测输入放置、门禁命令、
+  SKIP 语义与真人标注纪律。
+- `app/api/test/smoke.ts`：**测试侧缺陷修复**——`cmpStationId`/`vaStationId` 各自随机
+  `L01-ST10..99`，约 1/90 撞号导致「单版本工位对比 → 409」偶发 200。改为进程内
+  `uniqueStationId()` 去重（test-only，不改生产代码）。
+
+### 验证命令与实际输出
+| 命令 | 实际输出 |
+|---|---|
+| `node scripts/gates/run-gates.cjs` | **PASS**；阻断门 7/7 通过：api:typecheck 1/0、web:typecheck 1/0、CSS 未定义 0、desc-hints 6/0、原生 select 0（69 文件）、batch-export 17/0、smoke **147/0（双遍）**；eval **SKIPPED**（无真值/候选）；repo:traceability **FAIL 0/3**（advisory，0b 未达成） |
+| `npm run test:gate -- --no-report` | **PASS**；7/7 阻断门通过（证明 npm 单命令接线可用） |
+| `node app/api/test/isolated-run.cjs --repeat 2 smoke` | 147/0、147/0；一致性 PASS、清理 PASS、正式库/storage 指纹未变化 |
+| `node scripts/gates/run-eval-gate.cjs` | `EVAL_SKIP=1`，退出码 **78**（不冒充 PASS） |
+| 评测脚本合成夹具自测（临时、非基线） | 可生成 JSON；`EVAL_ACCEPTED=2/3`；`--enforce` 退出 1；模板占位/测试夹具均 SKIP；合成报告已删除，未留 latest |
+
+**基线报告**：`deliverables/gates/gate-report-20261119-070834.json` / `.md`
+（另保留 `gate-report-20261118-231855` 的失败报告作为 flake 证据）。
+
+### 提交状态（如实说明）
+- **0b ✅（2026-11-19）**：基线提交 + tag `baseline-2026-11-19`；执行器、门禁报告与
+  Phase 2/3 全量成果同批进入版本历史。tag 后 strict 复核命令：
+  `node scripts/gates/check-repo-traceability.cjs`（结果见 2026-11-19 日志）。
+- 本次改动均为 scripts / test / tool / docs，**未改生产代码**；为跑 smoke 已用
+  `npx tsc -p tsconfig.json --outDir dist` 重建 `dist`（构建产物不入库）。
+- 0b 判据三项：工作区干净 + 已打 tag + **某 tag** 指向含 `scripts/gates/` 全部文件的 commit；
+  `repo:traceability` 已把三项固化为可执行门。tag 不要求停在 HEAD（基线后补文档提交不影响追溯）。
+- **0c ⛔ 仍未完成**：缺人工标注真值与真实候选导出，`eval:ai-segment` 明确 SKIPPED(78)，不得冒充 PASS。
+
+### 下一步（≤3 条）
+1. **0c**：放置**人工**标注真值 + 真实候选导出到 `deliverables/ai-segment/eval/`，跑
+   `npm run test:eval` 生成首次可比基线；禁止 AI 反向生成真值。
+2. 0c 后按链条推进 P0-0 → P0-4；P0-1 数值修复仍须先写会红的测试并在 0c 基线之后动工。
+3. 解禁路径 ①–⑥（断言腐蚀、11 套 UI、双库/多实例、critical 依赖）按 `todo.md` 顺序推进。

@@ -54,6 +54,8 @@ export class UpdateStatusDto {
  *  process/product_type 经工位→产线元数据内存过滤；project_type 直查 t_improvement 列。 */
 export interface ImprovementQuery {
   station_id?: string;
+  /** Wave2 / #106：按分解任务过滤（可选；不传时行为不变） */
+  task_id?: string;
   status?: string;
   line_id?: string;
   project_type?: string;

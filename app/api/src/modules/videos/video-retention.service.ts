@@ -379,6 +379,7 @@ export class VideoRetentionService implements OnModuleInit, OnModuleDestroy {
     ).catch(() => [] as string[]);
     if (visibleStations && visibleStations.length > 0) {
       try {
+        /* [task-scope:compat] 视频保留策略按 video_id 反查引用计数，与分解任务无关。 */
         const links = await this.ds.getRepository('t_element').createQueryBuilder('e')
           .select('DISTINCT e.video_id', 'video_id')
           .where('e.station_id IN (:...ids)', { ids: visibleStations })

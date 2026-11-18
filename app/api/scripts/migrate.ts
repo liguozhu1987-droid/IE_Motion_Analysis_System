@@ -208,8 +208,10 @@ const DDL: string[] = [
     CONSTRAINT FK_t_station_tenant FOREIGN KEY (tenant_id) REFERENCES t_tenant(tenant_id))`,
   // —— 要素（BOL 核心表；desc 为保留字需 [desc] 转义；UQ 防止同版本同序号重复提交）——
   `IF OBJECT_ID('t_element','U') IS NULL CREATE TABLE t_element (
-    element_id NVARCHAR(48) NOT NULL PRIMARY KEY,
+    element_id NVARCHAR(96) NOT NULL PRIMARY KEY,
     tenant_id NVARCHAR(32) NOT NULL DEFAULT 'DEFAULT',
+    -- Phase 2：所属分解任务；存量由 MIGRATIONS 回填 DT-LEGACY，默认保证非空（唯一键不允许多个 NULL）
+    task_id NVARCHAR(32) NOT NULL DEFAULT 'DT-LEGACY',
     station_id NVARCHAR(32) NOT NULL,
     seq INT NOT NULL,
     start_ms INT NOT NULL,
@@ -227,7 +229,8 @@ const DDL: string[] = [
     std_time DECIMAL(10,2) NOT NULL,
     bol_version INT NOT NULL,
     created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-    CONSTRAINT UQ_element_tenant_ver_seq UNIQUE (tenant_id, station_id, bol_version, seq),
+    -- Phase 2：唯一键加 task_id —— 同一物理工位可归多个任务，各任务内 (station,version,seq) 不撞号
+    CONSTRAINT UQ_element_task_ver_seq UNIQUE (tenant_id, task_id, station_id, bol_version, seq),
     CONSTRAINT FK_t_element_station FOREIGN KEY (station_id) REFERENCES t_station(station_id))`,
   // —— 改善建议（三态：待实施→已完成→已验证；after_ct 由系统回填）——
   `IF OBJECT_ID('t_improvement','U') IS NULL CREATE TABLE t_improvement (
@@ -253,7 +256,7 @@ const DDL: string[] = [
   // 槽位唯一过滤索引含 version 列，但业务语义按 station 维度（规格书 §1 ⚠）：
   // 生成前先查 (tenant,station,user) 是否已有任意版本成功槽位；索引留 version 列为将来 AI_QUOTA_SCOPE=station+version 预留
   // v3.46：element_source 来源线（mixed=全量 legacy 默认 / manual=手工分解线 / ai_assisted=AI 分解线）——
-  // 存量库升级见 INDEXES 中 UQ_ai_batch_slot 的删旧建新（存量行默认 mixed，唯一性保持不变）
+  // 存量库升级与槽位唯一索引见 MIGRATIONS 的 Phase 3 Wave 2 段（存量行默认 mixed → 回填任务号）
   `IF OBJECT_ID('t_ai_suggestion_batch','U') IS NULL CREATE TABLE t_ai_suggestion_batch (
     batch_id NVARCHAR(36) NOT NULL PRIMARY KEY,
     tenant_id NVARCHAR(32) NOT NULL DEFAULT 'DEFAULT',
@@ -411,6 +414,68 @@ const DDL: string[] = [
     reviewed_at DATETIME2 NULL,
     created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT FK_ai_waste_issue_batch FOREIGN KEY (batch_id) REFERENCES t_ai_waste_batch(batch_id))`,
+  // —— 批量导出留档（v3.62，2026-11-09 用户决策「写入数据库」）：每次导出成功后落一行 + 文件存 storage/exports/ ——
+  // 可见性=本人∪全权角色；复下载按记录可见性判定；布尔列 BIT（实体侧不写 type，v3.60 教训）
+  `IF OBJECT_ID('t_batch_export_record','U') IS NULL CREATE TABLE t_batch_export_record (
+    record_id NVARCHAR(36) NOT NULL PRIMARY KEY,
+    tenant_id NVARCHAR(32) NOT NULL DEFAULT 'DEFAULT',
+    user_id NVARCHAR(32) NOT NULL,
+    username NVARCHAR(64) NULL,
+    line_id NVARCHAR(32) NOT NULL,
+    line_name NVARCHAR(64) NULL,
+    -- Phase 2：导出所属任务（NULL=按产线导出的 v3.62 存量记录，兼容不回写）
+    task_id NVARCHAR(32) NULL,
+    task_no NVARCHAR(64) NULL,
+    station_count INT NOT NULL DEFAULT 0,
+    element_count INT NOT NULL DEFAULT 0,
+    focus_count INT NOT NULL DEFAULT 0,
+    sheet_count INT NOT NULL DEFAULT 5,
+    with_focus BIT NOT NULL DEFAULT 1,
+    include_outliers BIT NOT NULL DEFAULT 0,
+    include_undecomposed BIT NOT NULL DEFAULT 0,
+    focus_top INT NOT NULL DEFAULT 30,
+    file_name NVARCHAR(128) NOT NULL,
+    file_size INT NOT NULL DEFAULT 0,
+    download_name NVARCHAR(256) NULL,
+    rule_versions NVARCHAR(256) NULL,
+    status NVARCHAR(16) NOT NULL DEFAULT 'ready',
+    download_count INT NOT NULL DEFAULT 0,
+    created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    last_downloaded_at DATETIME2 NULL)`,
+  // —— 分解任务（Phase 2 / 定稿 §3.2）：一次「产线 × 项目 × 时间段」的动作分解与改善活动 ——
+  // 任务属于单产线；task_no 租户内唯一；period 为观测时间段；rule_versions 为规则版本快照（归档可追溯）。
+  // 不建 FK：任务/工位可先于主数据存在，归档后主数据删除不应破坏历史（同审计日志处置原则）。
+  `IF OBJECT_ID('t_decomposition_task','U') IS NULL CREATE TABLE t_decomposition_task (
+    task_id NVARCHAR(32) NOT NULL PRIMARY KEY,
+    tenant_id NVARCHAR(32) NOT NULL DEFAULT 'DEFAULT',
+    task_no NVARCHAR(64) NOT NULL,
+    line_id NVARCHAR(32) NOT NULL,
+    project_id NVARCHAR(32) NULL,
+    project_no_snapshot NVARCHAR(64) NULL,
+    name NVARCHAR(64) NOT NULL,
+    round_type NVARCHAR(16) NOT NULL DEFAULT 'baseline',
+    round_no INT NOT NULL DEFAULT 1,
+    period_start DATE NULL,
+    period_end DATE NULL,
+    status NVARCHAR(16) NOT NULL DEFAULT 'active',
+    baseline_task_id NVARCHAR(32) NULL,
+    rule_versions NVARCHAR(128) NULL,
+    owner_user_id NVARCHAR(32) NULL,
+    created_by NVARCHAR(32) NULL,
+    created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    closed_at DATETIME2 NULL)`,
+  // —— 任务—工位关联 / 快照（Phase 2 / 定稿 §3.2）：bol_version 为任务锁定的要素版本 ——
+  `IF OBJECT_ID('t_task_station','U') IS NULL CREATE TABLE t_task_station (
+    task_id NVARCHAR(32) NOT NULL,
+    station_id NVARCHAR(32) NOT NULL,
+    tenant_id NVARCHAR(32) NOT NULL DEFAULT 'DEFAULT',
+    station_code_snapshot NVARCHAR(64) NULL,
+    station_name_snapshot NVARCHAR(64) NULL,
+    bol_version INT NOT NULL,
+    ct_snapshot DECIMAL(10,2) NULL,
+    tt_snapshot DECIMAL(10,2) NULL,
+    seq_no INT NOT NULL DEFAULT 0,
+    CONSTRAINT PK_t_task_station PRIMARY KEY (task_id, station_id))`,
   // —— 正式 AI 业务逐次 HTTP 调用用量（不含 prompt/响应/API Key；NULL Token=上游未报告）——
   `IF OBJECT_ID('t_ai_usage_event','U') IS NULL CREATE TABLE t_ai_usage_event (
     usage_id NVARCHAR(36) NOT NULL PRIMARY KEY,
@@ -566,6 +631,121 @@ const MIGRATIONS: string[] = [
   `IF COL_LENGTH('t_ai_waste_kb','embedding') IS NULL ALTER TABLE t_ai_waste_kb ADD embedding NVARCHAR(MAX) NULL`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_waste_finding_station_origin') CREATE INDEX idx_ai_waste_finding_station_origin ON t_ai_waste_finding (tenant_id, station_id, origin)`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_waste_issue_station_origin') CREATE INDEX idx_ai_waste_issue_station_origin ON t_ai_waste_issue (tenant_id, station_id, origin)`,
+  /* ===== Phase 2（2026-11-09 用户授权「继续 PHASE 2」）：分解任务实体 + 存量回填 =====
+   * 顺序不可调换：补列 → 扩长 → 建归档任务 → 关联工位 → 回填要素 → 换唯一键 → 补索引。
+   * 全部幂等；只增列/加约束，不删列、不清空任何业务数据、不重写存量 element_id。 */
+  // ① t_element 增 task_id（NOT NULL + 默认归档任务，避免唯一键出现多个 NULL）
+  `IF COL_LENGTH('t_element','task_id') IS NULL ALTER TABLE t_element ADD task_id NVARCHAR(32) NOT NULL DEFAULT 'DT-LEGACY'`,
+  // ② element_id 48→96：跨任务编码 {taskNo}-{stationId}-V{version}-{seq} 需要更长（v3.58.1 长度同步铁律）
+  //    PK 列改长度须先删主键；单独三条语句避免同批编译期依赖检查
+  `IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('t_element') AND name = 'element_id' AND max_length < 192)
+   BEGIN
+     DECLARE @pk_el NVARCHAR(200);
+     SELECT @pk_el = name FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID('t_element') AND type = 'PK';
+     IF @pk_el IS NOT NULL EXEC(N'ALTER TABLE t_element DROP CONSTRAINT [' + @pk_el + N']');
+   END`,
+  `IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('t_element') AND name = 'element_id' AND max_length < 192)
+     ALTER TABLE t_element ALTER COLUMN element_id NVARCHAR(96) NOT NULL`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID('t_element') AND type = 'PK')
+     ALTER TABLE t_element ADD CONSTRAINT PK_t_element PRIMARY KEY (element_id)`,
+  // ③ t_batch_export_record 增任务维度（NULL 兼容 v3.62 存量行，不回写历史）
+  `IF COL_LENGTH('t_batch_export_record','task_id') IS NULL ALTER TABLE t_batch_export_record ADD task_id NVARCHAR(32) NULL`,
+  `IF COL_LENGTH('t_batch_export_record','task_no') IS NULL ALTER TABLE t_batch_export_record ADD task_no NVARCHAR(64) NULL`,
+  // ④ 方案 A 的产线化修正：§3.1「任务属于单产线」是硬约束，故按 (tenant_id, line_id) 各建一条
+  //    legacy 归档任务。该租户第一条产线保持 task_no='DT-LEGACY'，其余加产线后缀保证租户内唯一。
+  //    首次执行只建一条；后续发现存量跨产线（如测试夹具 L01）时补建，不覆盖已有任务。
+  `IF OBJECT_ID('t_decomposition_task','U') IS NOT NULL
+   INSERT INTO t_decomposition_task
+     (task_id, tenant_id, task_no, line_id, project_id, project_no_snapshot, name, round_type, round_no,
+      period_start, period_end, status, baseline_task_id, rule_versions, owner_user_id, created_by, created_at, closed_at)
+   SELECT x.task_id, x.tenant_id, x.task_id, x.line_id, NULL, NULL, N'历史数据自动归集', 'legacy', 1,
+          CAST(MIN(s.created_at) AS DATE), CAST(MAX(s.created_at) AS DATE), 'archived', NULL, NULL, NULL, 'migrate', SYSUTCDATETIME(), NULL
+   FROM t_station s
+   CROSS APPLY (SELECT
+      CASE WHEN s.line_id = (SELECT MIN(s2.line_id) FROM t_station s2 WHERE s2.tenant_id = s.tenant_id)
+           THEN 'DT-LEGACY' ELSE 'DT-LEGACY-' + LEFT(s.line_id, 20) END AS task_id,
+      s.tenant_id, s.line_id) x
+   WHERE NOT EXISTS (SELECT 1 FROM t_decomposition_task t
+                     WHERE t.tenant_id = s.tenant_id AND t.round_type = 'legacy' AND t.line_id = s.line_id)
+   GROUP BY x.task_id, x.tenant_id, x.line_id`,
+  // ⑤ 存量工位纳入**本产线**的归档任务（锁定当前 station.version，seq_no 按 station_id 排序）
+  //    ⑤a 先清理首次执行可能留下的跨产线错误关联（幂等，仅动 legacy 任务）
+  `IF OBJECT_ID('t_task_station','U') IS NOT NULL
+   DELETE ts FROM t_task_station ts
+   JOIN t_decomposition_task t ON t.task_id = ts.task_id AND t.round_type = 'legacy'
+   JOIN t_station s ON s.station_id = ts.station_id AND s.tenant_id = ts.tenant_id
+   WHERE t.line_id <> s.line_id`,
+  `IF OBJECT_ID('t_task_station','U') IS NOT NULL
+   INSERT INTO t_task_station
+     (task_id, station_id, tenant_id, station_code_snapshot, station_name_snapshot, bol_version, ct_snapshot, tt_snapshot, seq_no)
+   SELECT t.task_id, s.station_id, s.tenant_id, s.station_id, s.name, ISNULL(s.version, 1), s.ct, s.tt,
+          ROW_NUMBER() OVER (PARTITION BY s.tenant_id, s.line_id ORDER BY s.station_id)
+   FROM t_station s
+   JOIN t_decomposition_task t ON t.tenant_id = s.tenant_id AND t.round_type = 'legacy' AND t.line_id = s.line_id
+   WHERE NOT EXISTS (SELECT 1 FROM t_task_station ts WHERE ts.task_id = t.task_id AND ts.station_id = s.station_id)`,
+  // ⑥ 存量要素回填 / 修正 task_id：按工位所属产线对齐 legacy 任务；
+  //    只动 DT-LEGACY* 前缀或空值，绝不覆盖已归属用户新建任务的行；存量 element_id 原值不动
+  `IF COL_LENGTH('t_element','task_id') IS NOT NULL
+   UPDATE e SET task_id = t.task_id
+   FROM t_element e
+   JOIN t_station s ON s.station_id = e.station_id AND s.tenant_id = e.tenant_id
+   JOIN t_decomposition_task t ON t.tenant_id = e.tenant_id AND t.round_type = 'legacy' AND t.line_id = s.line_id
+   WHERE (e.task_id IS NULL OR e.task_id LIKE 'DT-LEGACY%') AND e.task_id <> t.task_id`,
+  // ⑦ 唯一键加 task_id（同一物理工位可归多任务，各任务内 station+version+seq 不撞号）
+  `IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE name = 'UQ_element_task_ver_seq' AND parent_object_id = OBJECT_ID('t_element'))
+   BEGIN
+     IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE name = 'UQ_element_tenant_ver_seq' AND parent_object_id = OBJECT_ID('t_element'))
+       ALTER TABLE t_element DROP CONSTRAINT UQ_element_tenant_ver_seq;
+     ALTER TABLE t_element ADD CONSTRAINT UQ_element_task_ver_seq UNIQUE (tenant_id, task_id, station_id, bol_version, seq);
+   END`,
+  // ⑧ 任务维度索引（列已在上面补齐，故放 MIGRATIONS 而非 INDEXES）
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_element_task') CREATE INDEX idx_element_task ON t_element (tenant_id, task_id, station_id, bol_version)`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_batch_export_task') CREATE INDEX idx_batch_export_task ON t_batch_export_record (tenant_id, task_id, created_at)`,
+  /* ===== Phase 3 · Wave 2（2026-11-11 用户 6/6 逐项确认后即刻执行）：任务归属加列 + 回填 =====
+   * 冻结清单：deliverables/Phase3_Wave2_加列回填逐项确认清单.md
+   * 顺序不可调换：加列（NULL、无 DEFAULT）→ 按 (tenant,line) 回填 6 行 → 重建槽位唯一索引 → 补索引。
+   * main() 先跑 DDL+INDEXES 再跑 MIGRATIONS，故所有依赖新列的索引都放这里，不放 INDEXES。
+   * 全部幂等；t_ai_task 0 行 / t_audit_log 7731 行零回填；不触碰 element_ids 字符串与任何主键。
+   * 实测（2026-11-11）：三张业务表存量全在 DEFAULT/BJFA1 → 回填目标 DT-LEGACY；零 L01 行、零孤儿。 */
+  // ① 五表加列：一律 NVARCHAR(32) NULL 且不带 DEFAULT（无默认约束 → DROP COLUMN 可直接回滚）
+  `IF COL_LENGTH('t_ai_task','decomp_task_id') IS NULL ALTER TABLE t_ai_task ADD decomp_task_id NVARCHAR(32) NULL`,
+  `IF COL_LENGTH('t_ai_suggestion_batch','task_id') IS NULL ALTER TABLE t_ai_suggestion_batch ADD task_id NVARCHAR(32) NULL`,
+  `IF COL_LENGTH('t_ai_waste_batch','task_id') IS NULL ALTER TABLE t_ai_waste_batch ADD task_id NVARCHAR(32) NULL`,
+  `IF COL_LENGTH('t_improvement','task_id') IS NULL ALTER TABLE t_improvement ADD task_id NVARCHAR(32) NULL`,
+  `IF COL_LENGTH('t_audit_log','task_id') IS NULL ALTER TABLE t_audit_log ADD task_id NVARCHAR(32) NULL`,
+  // ② 存量回填：按工位所属产线映射各自的 legacy 任务（§2.2 铁律 4，严禁单条 DT-LEGACY 混线）
+  //    只回填 NULL，绝不覆盖已归属用户新建任务的行；原值全 NULL，回滚即 SET NULL，完全可逆
+  `IF COL_LENGTH('t_ai_suggestion_batch','task_id') IS NOT NULL
+   UPDATE b SET task_id = t.task_id
+   FROM t_ai_suggestion_batch b
+   JOIN t_station s ON s.station_id = b.station_id AND s.tenant_id = b.tenant_id
+   JOIN t_decomposition_task t ON t.tenant_id = b.tenant_id AND t.round_type = 'legacy' AND t.line_id = s.line_id
+   WHERE b.task_id IS NULL`,
+  `IF COL_LENGTH('t_ai_waste_batch','task_id') IS NOT NULL
+   UPDATE b SET task_id = t.task_id
+   FROM t_ai_waste_batch b
+   JOIN t_station s ON s.station_id = b.station_id AND s.tenant_id = b.tenant_id
+   JOIN t_decomposition_task t ON t.tenant_id = b.tenant_id AND t.round_type = 'legacy' AND t.line_id = s.line_id
+   WHERE b.task_id IS NULL`,
+  `IF COL_LENGTH('t_improvement','task_id') IS NOT NULL
+   UPDATE i SET task_id = t.task_id
+   FROM t_improvement i
+   JOIN t_station s ON s.station_id = i.station_id AND s.tenant_id = i.tenant_id
+   JOIN t_decomposition_task t ON t.tenant_id = i.tenant_id AND t.round_type = 'legacy' AND t.line_id = s.line_id
+   WHERE i.task_id IS NULL`,
+  // ③ 槽位唯一索引加 task_id（F3：不改则同工位同版本 T1/T2 各生成一次会撞 2601，A-105-3 无法通过）
+  //    必须在回填之后：否则多行 NULL 参与唯一键会冲突。存量唯一行 is_unlimited=1，不在过滤范围内。
+  `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_ai_batch_slot' AND object_id = OBJECT_ID('t_ai_suggestion_batch'))
+   DROP INDEX UQ_ai_batch_slot ON t_ai_suggestion_batch`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_ai_batch_slot' AND object_id = OBJECT_ID('t_ai_suggestion_batch'))
+   CREATE UNIQUE INDEX UQ_ai_batch_slot ON t_ai_suggestion_batch (tenant_id, station_id, version, user_id, element_source, task_id)
+   WHERE is_unlimited = 0`,
+  // ④ 任务维度索引（5 条普通索引；列在 ① 才补齐，故放 MIGRATIONS 而非 INDEXES）
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_task_decomp') CREATE INDEX idx_ai_task_decomp ON t_ai_task (tenant_id, decomp_task_id, created_at)`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_suggest_batch_task') CREATE INDEX idx_ai_suggest_batch_task ON t_ai_suggestion_batch (tenant_id, task_id, station_id, created_at)`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_waste_batch_task') CREATE INDEX idx_ai_waste_batch_task ON t_ai_waste_batch (tenant_id, task_id, station_id, created_at)`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_imp_task') CREATE INDEX idx_imp_task ON t_improvement (tenant_id, task_id, status)`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_audit_task') CREATE INDEX idx_audit_task ON t_audit_log (tenant_id, task_id, created_at)`,
 ];
 
 const INDEXES: string[] = [
@@ -578,12 +758,11 @@ const INDEXES: string[] = [
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_video_derivative_file_kind') CREATE UNIQUE INDEX UQ_video_derivative_file_kind ON t_video_derivative (file_name, kind)`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_audit_user') CREATE INDEX idx_audit_user ON t_audit_log (tenant_id, user_id, created_at)`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_password_reset_user') CREATE INDEX idx_password_reset_user ON t_password_reset (user_id, used, expires_at)`,
-  // v3.30：AI 批次——槽位唯一过滤索引（普通用户 is_unlimited=0；超管绕过）+ 缓存命中索引
-  // mssql 过滤索引语法；sqlite 方言在 ai-suggest 模块内以 CREATE UNIQUE INDEX + 部分索引实现
-  // v3.46：槽位按来源线隔离（element_source 入唯一键）——存量库需先删旧索引再建含 source 的新索引；
-  // 存量行 element_source 默认全为 'mixed'，删旧建新后唯一性语义保持不变
-  `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_ai_batch_slot' AND object_id = OBJECT_ID('t_ai_suggestion_batch')) DROP INDEX UQ_ai_batch_slot ON t_ai_suggestion_batch`,
-  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_ai_batch_slot' AND object_id = OBJECT_ID('t_ai_suggestion_batch')) CREATE UNIQUE INDEX UQ_ai_batch_slot ON t_ai_suggestion_batch (tenant_id, station_id, version, user_id, element_source) WHERE is_unlimited = 0`,
+  // v3.30：AI 批次——缓存命中索引（普通用户 is_unlimited=0；超管绕过）
+  // 【Wave 2 / 幂等修正】UQ_ai_batch_slot 不再放在 INDEXES：main() 先跑 INDEXES 再跑 MIGRATIONS，
+  // 若这里每轮按旧 5 列定义删旧建新，一旦库里已有「同工位同版本不同任务各一条」记录，
+  // 重跑 migrate:prod 会在旧定义上撞 2601/2627（A-105-1 幂等重跑无错不成立）。
+  // 统一由 MIGRATIONS ③ 在「加列 + 回填之后」按含 task_id 的新定义删旧建新。
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_batch_cache') CREATE INDEX idx_ai_batch_cache ON t_ai_suggestion_batch (tenant_id, station_id, version, input_hash)`,
   // P3-9：浪费识别批次按工位查询 + 批次明细查询
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_waste_batch_station') CREATE INDEX idx_ai_waste_batch_station ON t_ai_waste_batch (tenant_id, station_id, created_at)`,
@@ -592,6 +771,13 @@ const INDEXES: string[] = [
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_usage_station_time') CREATE INDEX idx_ai_usage_station_time ON t_ai_usage_event (tenant_id, station_id, created_at)`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_usage_user_time') CREATE INDEX idx_ai_usage_user_time ON t_ai_usage_event (tenant_id, user_id, created_at)`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_usage_batch') CREATE INDEX idx_ai_usage_batch ON t_ai_usage_event (batch_id)`,
+  // v3.62：导出留档——本人历史 + 全权角色按时间线查
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_batch_export_user_time') CREATE INDEX idx_batch_export_user_time ON t_batch_export_record (tenant_id, user_id, created_at)`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_batch_export_tenant_time') CREATE INDEX idx_batch_export_tenant_time ON t_batch_export_record (tenant_id, created_at)`,
+  // Phase 2：分解任务按租户+产线筛选（任务下拉）；任务号租户内唯一硬保证
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_task_tenant_line') CREATE INDEX idx_task_tenant_line ON t_decomposition_task (tenant_id, line_id, created_at)`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_task_tenant_no') CREATE UNIQUE INDEX UQ_task_tenant_no ON t_decomposition_task (tenant_id, task_no)`,
+  `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_task_station_tenant_station') CREATE INDEX idx_task_station_tenant_station ON t_task_station (tenant_id, station_id)`,
 ];
 
 async function main() {

@@ -29,6 +29,10 @@ import { VideosModule } from './modules/videos/videos.module';
 import { AiSuggestModule } from './modules/ai-suggest/ai-suggest.module';
 import { AiWasteModule } from './modules/ai-waste/ai-waste.module';
 import { AiInsightModule } from './modules/ai-insight/ai-insight.module';
+import { BatchExportModule } from './modules/batch-export/batch-export.module';
+import { TasksModule } from './modules/decomposition-tasks/tasks.module';
+import { TaskScopeModule } from './core/task-scope/task-scope.module';
+import { TaskScopeInterceptor } from './core/task-scope/task-scope.interceptor';
 import { AllExceptionsFilter } from './core/all-exceptions.filter';
 import { MetricsInterceptor } from './core/metrics.interceptor';
 
@@ -57,6 +61,9 @@ import { MetricsInterceptor } from './core/metrics.interceptor';
     AiSuggestModule,  // AI 改善建议（v3.30：三轮校验+幂等槽位+配额；AI_SUGGEST_ENABLED 默认关）
     AiWasteModule,    // P3-9 浪费识别+改善问题清单（AI 自动分解线专用；与 ai-suggest 相互独立）
     AiInsightModule,  // v3.53 AI 洞察：诊断/解读纯文案（复用全局 LlmGatewayService + Analysis/Compare）
+    BatchExportModule, // v3.61 批量导出（不改库 MVP）：多工位 6-sheet XLSX，四类时间/焦点/三级校验
+    TasksModule,       // Phase 2 分解任务：任务号 DT-{YYYY}-{NNN} / 工位锁定版本 / 基线要素复制
+    TaskScopeModule,   // Phase 3 Wave1：任务上下文统一解析（@Global，仅依赖 DataSource）
   ],
   controllers: [HealthController],
   providers: [
@@ -68,6 +75,9 @@ import { MetricsInterceptor } from './core/metrics.interceptor';
     { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
+    // 任务上下文标记：必须在 TenantInterceptor 内层（租户 ALS 已建立），
+    // 且包裹 next.handle() 以便在响应写出前设置 header。
+    { provide: APP_INTERCEPTOR, useClass: TaskScopeInterceptor },
     AllExceptionsFilter,
   ],
 })

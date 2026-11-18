@@ -6,6 +6,8 @@ import { Station } from './station.entity';
 @Entity({ name: 't_improvement' })
 export class Improvement {
   @PrimaryColumn({ length: 36 }) imp_id: string;
+  /** Phase 3 Wave2：所属分解任务；存量按 (tenant,line) 回填 legacy，element_ids 字符串零改写。 */
+  @Column({ length: 32, nullable: true }) task_id: string | null;
   @Column({ length: 32 }) tenant_id: string;
   @ManyToOne(() => Station) @JoinColumn({ name: 'station_id' }) station: Station;
   @Column({ length: 32 }) station_id: string;

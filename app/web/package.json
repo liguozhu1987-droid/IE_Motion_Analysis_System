@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "test:perf": "node test-performance-budget.cjs",
     "test:desc-hints": "node test-desc-hints.cjs",
-    "test:css-classes": "node test-css-classes.cjs"
+    "test:css-classes": "node test-css-classes.cjs",
+    "test:batch-export:ui": "node test-batch-export-ui.cjs",
+    "test:gate": "node ../../scripts/gates/run-gates.cjs",
+    "test:eval": "node ../../scripts/gates/run-eval-gate.cjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.1.1",

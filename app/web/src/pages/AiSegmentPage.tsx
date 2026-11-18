@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, fetchVideoBlob, type Element, type Station } from '../api';
+import { getCurrentTaskId } from '../taskContext';
 import { TYPE_DEFAULTS } from '../constants';
 import { analyzeVideo } from '../ai-segment/segmentation';
 import { analyzeMotion, MOTION_SAMPLE_MS } from '../ai-segment/motion';
@@ -687,9 +688,11 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
         version = st.version;
       }
       const payload = buildPayload();
+      // A-103-5：把用户已选的当前分解任务带到 AI 分解提交链路；
+      // 未选当前任务时不传，由服务端 resolveTaskId 自动继承 / legacy 回落（不新增必填步骤）
       const res = await api.submitElements(stationId, {
         bol_version: version, cycle_count: cycles, cv: 0, video_id: 'ai-segment', elements: payload,
-      });
+      }, getCurrentTaskId() || undefined);
       setSaved(`已写入 v${res.version}（新版本，AI 分解独立版）：要素 ${res.element_count} 条，CT ${res.ct}s。原手工分解数据在 v${station.version} 只读封存互不影响。可前往分解工作台切换版本查看，或直接运行「浪费识别」。`);
       setConfirming(false);
       await load();

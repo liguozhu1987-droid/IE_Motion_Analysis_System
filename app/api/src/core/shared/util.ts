@@ -57,9 +57,19 @@ export function round3(n: number): number {
   return Math.round((Number(n) + Number.EPSILON) * 1000) / 1000;
 }
 
-/** 四层一码之要素编码：工位-版本-序号（如 L01-ST01-V2-003） */
+/** 四层一码之要素编码：工位-版本-序号（如 L01-ST01-V2-003）。D3：保留给兼容模式 */
 export function elementId(stationId: string, version: number, seq: number): string {
   return `${stationId}-V${version}-${String(seq).padStart(3, '0')}`;
+}
+
+/**
+ * Phase 3 / D3：带任务号的要素编码，仅供带任务上下文的新写入使用。
+ * 与 Phase 2 cloneElements 的编码逐字一致（DT-2026-001-L01-ST01-V2-3），
+ * 保证同一工位同一版本跨任务写入不撞主键；**存量 element_id 一个字节都不改写**。
+ * 调用方负责校验长度 ≤ 96（t_element.element_id 为 NVARCHAR(96)）。
+ */
+export function taskElementId(taskNo: string, stationId: string, version: number, seq: number): string {
+  return `${taskNo}-${stationId}-V${version}-${seq}`;
 }
 
 /** 描述归一化：剥 VA 标记 / 去空白 / 小写（用于相似度比对） */

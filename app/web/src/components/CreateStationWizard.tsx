@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, type Station } from '../api';
 import SelectMenu, { type SelectOption } from './SelectMenu';
+import { getCurrentTaskId } from '../taskContext';
 
 interface Props {
   open: boolean;
@@ -182,13 +183,14 @@ export default function CreateStationWizard({ open, stations, company, region, d
         onCreated(patched, patched.line_id);
         return;
       }
+      // A-103-6：新建工位继承当前任务（服务端写 t_task_station）；前端零必填步骤
       const created = await api.createStationFromCmc({
         cmc_line_id: cmcLineId!,
         station_id: codeInput.trim() || undefined,
         program_number: programNumber || undefined,
         name: station.name.trim(),
         tt: station.tt === '' ? undefined : Number(station.tt),
-      });
+      }, getCurrentTaskId() || undefined);
       onCreated(created, created.line_id);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : (err as Error).message);

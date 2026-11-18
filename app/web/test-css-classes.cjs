@@ -63,7 +63,8 @@ for (const f of tsx) {
 }
 
 // 3) 差集（排除动态前缀族：这些是 `className={`xx-${v}`}` 拼出来的，取值已在 CSS 中覆盖）
-const DYNAMIC_PREFIX = new Set(['banner-', 'dot-', 'dr-', 'hand-', 'sop-', 'tier-']);
+//    video-status-：VideoLibraryPage 的 `video-status-${row.retention_status}`（auto/extended/permanent，videos.css）
+const DYNAMIC_PREFIX = new Set(['banner-', 'dot-', 'dr-', 'hand-', 'sop-', 'tier-', 'video-status-']);
 const missing = [...used.entries()].filter(([c]) => !defined.has(c) && !DYNAMIC_PREFIX.has(c));
 missing.sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]));
 

@@ -24,6 +24,8 @@ export interface MotionEntry {
   /** 默认增值判定（VA/RNVA/NVA）；null=不参与（不产生默认） */
   va: string | null;
   vaNote?: string | null;
+  /** Phase 2 / MS1.4：四类时间归属（手作业/机器/走动/等待），批量导出按此自动分列 */
+  time_bucket?: string | null;
 }
 
 export interface MotionGroup {
@@ -35,11 +37,15 @@ export interface MotionGroup {
   factors: string | null;
   va: string | null;
   vaNote?: string | null;
+  /** Phase 2 / MS1.4：四类时间归属（一级自身作为可选类型时生效） */
+  time_bucket?: string | null;
   subs: MotionEntry[];
 }
 
 export interface MotionStandard {
   rv: string;
+  /** 版本说明 / 勘误记录；发布时原样带回，避免逐版丢失 */
+  note?: string;
   source: string;
   groups: MotionGroup[];
   /** 全部可选类型（展开后），顺序=配置顺序 */
@@ -250,6 +256,7 @@ export function parseMotionStandard(json: unknown): MotionStandard | null {
         desc: String(g.desc ?? ''), sp: String(g.sp ?? ''), ep: String(g.ep ?? ''),
         format: g.format ?? null, factors: g.factors ?? null,
         va: g.va ?? null, vaNote: g.vaNote ?? null,
+        time_bucket: g.time_bucket ?? null,
       };
       const subs: MotionEntry[] = Array.isArray(g.subs)
         ? g.subs
@@ -260,6 +267,7 @@ export function parseMotionStandard(json: unknown): MotionStandard | null {
                 desc: String(s.desc ?? base.desc), sp: String(s.sp ?? base.sp), ep: String(s.ep ?? base.ep),
                 format: s.format ?? base.format, factors: s.factors ?? base.factors,
                 va: s.va ?? base.va, vaNote: s.vaNote ?? base.vaNote,
+                time_bucket: s.time_bucket ?? base.time_bucket ?? null,
               };
               return entry;
             })
@@ -280,7 +288,7 @@ export function parseMotionStandard(json: unknown): MotionStandard | null {
       }
     }
     if (entries.length === 0) return null;
-    return { rv: String(j.rv ?? 'MS?'), source: String(j.source ?? ''), groups, entries, byType };
+    return { rv: String(j.rv ?? 'MS?'), note: String(j.note ?? ''), source: String(j.source ?? ''), groups, entries, byType };
   } catch {
     return null;
   }

@@ -25,17 +25,17 @@ export class SuggestionsController {
    */
   @Post('generate')
   @RequirePermission('suggestion:generate')
-  async generate(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+  async generate(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     await this.stations.assertWritable(id, user.userId, user.roles);
-    return this.suggestions.generateCandidates(id);
+    return this.suggestions.generateCandidates(id, taskId);
   }
 
   /** 采纳候选建议（落库 t_improvement）→ v3.55：按可写范围校验 */
   @Post('adopt')
   @RequirePermission('suggestion:adopt')
-  async adopt(@Param('id') id: string, @Body() body: AdoptCandidatesDto, @CurrentUser() user: AuthUser) {
+  async adopt(@Param('id') id: string, @Body() body: AdoptCandidatesDto, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     await this.stations.assertWritable(id, user.userId, user.roles);
-    return this.suggestions.adoptCandidates(id, body);
+    return this.suggestions.adoptCandidates(id, body, taskId);
   }
 }
 
@@ -56,6 +56,7 @@ export class ImprovementsController {
   async list(
     @CurrentUser() user: AuthUser,
     @Query('station_id') stationId?: string,
+    @Query('task_id') taskId?: string,
     @Query('status') status?: string,
     @Query('line_id') lineId?: string,
     @Query('project_type') projectType?: string,
@@ -64,6 +65,7 @@ export class ImprovementsController {
   ) {
     const query: ImprovementQuery = {};
     if (stationId) query.station_id = stationId;
+    if (taskId) query.task_id = taskId;
     if (status) query.status = status;
     if (lineId) query.line_id = lineId;
     if (projectType) query.project_type = projectType;
@@ -81,9 +83,9 @@ export class ImprovementsController {
    */
   @Patch(':impId/status')
   @RequirePermission('suggestion:status')
-  async updateStatus(@Param('impId') impId: string, @Body() body: UpdateStatusDto, @CurrentUser() user: AuthUser) {
+  async updateStatus(@Param('impId') impId: string, @Body() body: UpdateStatusDto, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     await this.suggestions.assertImprovementWritable(impId, user.userId, user.roles);
-    return this.suggestions.updateStatus(impId, body.status);
+    return this.suggestions.updateStatus(impId, body.status, taskId);
   }
 
   /** 建议书一页数据（v3.55：按可见范围校验——含问题描述与收益估算） */

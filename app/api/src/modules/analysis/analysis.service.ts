@@ -5,6 +5,8 @@ import { RulesService } from '../../core/rules/rules.service';
 import { StationRepository } from '../stations/stations.service';
 import { ElementRepository } from '../elements/element.repository';
 import { analyzeStation, buildLineAnalysis } from './engine';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
+import { scopeMarker, withTask } from '../../core/task-scope/task-scope';
 
 /**
  * 分析服务：加载（租户隔离）→ 引擎计算（纯函数）→ 组装响应。
@@ -18,17 +20,19 @@ export class AnalysisService {
   constructor(
     @InjectDataSource() private readonly ds: DataSource,
     private readonly rules: RulesService,
+    private readonly scope: TaskScopeService,
   ) {
     this.stationRepo = new StationRepository(ds);
     this.elementRepo = new ElementRepository(ds);
   }
 
   /** 单工位分析（VA 归类 + 6 类浪费 + 双手图 + 待复核/异常清单） */
-  async analyzeStation(stationId: string) {
+  async analyzeStation(stationId: string, taskId?: string | null) {
     const station = await this.stationRepo.findOne({ station_id: stationId });
     if (!station) throw new NotFoundException(`工位 ${stationId} 不存在`);
+    const scope = await this.scope.resolveCurrent(stationId, taskId);
     const elements = await this.elementRepo.find(
-      { station_id: stationId, bol_version: station.version },
+      withTask({ station_id: stationId, bol_version: station.version }, scope),
       { order: { seq: 'ASC' } },
     );
     const vaRules = this.rules.getActive('va_rules');
@@ -38,6 +42,7 @@ export class AnalysisService {
       ...result,
       detail: this.buildMotionDetail(result.elements, result.wastes),
       rule_versions: { va_rules: vaRules.version, waste_triggers: wasteRules.version },
+      task_scope: scopeMarker(scope),
     };
   }
 
@@ -84,9 +89,10 @@ export class AnalysisService {
   }
 
   /** 指定版本工位分析（compare 模块用：对比任意两版；封存版本同样可分析——只读） */
-  async analyzeStationAtVersion(station: any, version: number) {
+  async analyzeStationAtVersion(station: any, version: number, taskId?: string | null) {
+    const scope = await this.scope.resolveCurrent(station.station_id, taskId);
     const elements = await this.elementRepo.find(
-      { station_id: station.station_id, bol_version: version },
+      withTask({ station_id: station.station_id, bol_version: version }, scope),
       { order: { seq: 'ASC' } },
     );
     const vaRules = this.rules.getActive('va_rules');
@@ -102,7 +108,9 @@ export class AnalysisService {
    * **在引擎计算之前**过滤（不是计算完再筛行），否则 balance_rate/totals/bottleneck
    * 仍是全线的聚合值，等于换个姿势泄露。visibleStationIds=null/undefined → 不限制。
    */
-  async analyzeLine(lineId: string, visibleStationIds?: string[] | null) {
+  async analyzeLine(lineId: string, visibleStationIds?: string[] | null, taskId?: string | null) {
+    // 产线级聚合：按产线解析一次任务上下文，避免逐工位解析出现口径漂移
+    const scope = await this.scope.resolveForLineCurrent(lineId, taskId);
     let stations = await this.stationRepo.find({ line_id: lineId }, { order: { station_id: 'ASC' } });
     if (stations.length === 0) throw new NotFoundException(`产线 ${lineId} 不存在或无工位`);
     if (visibleStationIds) {
@@ -113,7 +121,7 @@ export class AnalysisService {
     const rows: { station: any; elements: any[] }[] = [];
     for (const station of stations) {
       const elements = await this.elementRepo.find(
-        { station_id: station.station_id, bol_version: station.version },
+        withTask({ station_id: station.station_id, bol_version: station.version }, scope),
         { order: { seq: 'ASC' } },
       );
       rows.push({ station, elements });

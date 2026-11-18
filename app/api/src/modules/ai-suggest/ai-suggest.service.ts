@@ -23,6 +23,7 @@ import {
 import { ValidationContext, RawSuggestion, validateSuggestions, ValidatedItem } from './validator';
 import { ComputeParams, estimateAnnualYuan, maxTokensFor, scoreBatch, sortWithVerif } from './calculator';
 import { round2 } from '../../core/shared/util';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
 
 /** 建议表仓库（租户安全） */
 class AiSuggestionRepository extends BaseRepository<AiSuggestion> {
@@ -95,12 +96,22 @@ export class AiSuggestService {
     private readonly rules: RulesService,
     private readonly llm: LlmGatewayService,
     @Inject(APP_CONFIG) private readonly cfg: AppConfig,
+    private readonly taskScope: TaskScopeService,
   ) {
     this.stationRepo = new StationRepository(ds);
     this.elementRepo = new ElementRepository(ds);
     this.suggRepo = new AiSuggestionRepository(ds);
     this.batchRepo = new AiBatchRepository(ds);
     this.dictRepo = new AiDictRepository(ds);
+  }
+
+  /**
+   * Phase 3 / Wave 2 · 任务号进入 AI 批次的所有槽位 / 幂等 / 缓存判定（A-105-3 / D4）。
+   * 统一用 b 别名：本服务内所有批次 QueryBuilder 都叫 b。taskId 为 null 表示 D2
+   * 兼容模式（隔离 SQLite 无任务表），用 IS NULL 精确匹配，绝不跨任务误命中。
+   */
+  private taskFilter(taskId: string | null): [string, Record<string, string>] {
+    return taskId ? ['b.task_id = :taskId', { taskId }] : ['b.task_id IS NULL', {}];
   }
 
   // ───────────────────────── 开关与基础 ─────────────────────────
@@ -652,11 +663,14 @@ export class AiSuggestService {
    * 槽位判定：done/done_empty→200 幂等；pending/running→409；无槽位且配额尽→429；
    * failed→重开（attempt+1 不计费）；成功→running→LLM→三轮校验→落库。
    * v3.46：source 缺省 mixed（legacy 全量口径，契约不变）；槽位/single-flight 按 source 隔离。
+   * Phase 3 / Wave 2：批次归属分解任务——显式 task_id → 校验；否则自动继承 / legacy 回落。
    */
-  async generate(stationId: string, userId: string, source: SuggestSource = 'mixed'): Promise<{ status: number; payload: any }> {
+  async generate(stationId: string, userId: string, source: SuggestSource = 'mixed', explicitTaskId?: string | null): Promise<{ status: number; payload: any }> {
     await this.assertEnabled();
     const station = await this.stationRepo.findOne({ station_id: stationId });
     if (!station) throw new NotFoundException(`工位 ${stationId} 不存在`);
+    const scope = await this.taskScope.resolveCurrent(stationId, explicitTaskId);
+    const taskId = scope.task_id;
 
     // 配额语义：is_unlimited = 持 user:write ∨ quota=-1（超管豁免，DB 值对超管无效）
     const user = await this.ds.getRepository('t_user').findOne({ where: { user_id: userId } } as any) as any;
@@ -667,15 +681,18 @@ export class AiSuggestService {
     const isUnlimited = hasUserWrite || quota === -1;
 
     // 槽位查询：station 维度（规格书 §1 ⚠：唯一索引含 version，业务按 (tenant,station,user) 查任意版本成功槽位）
-    const slotWhere: Record<string, unknown> = { tenant_id: station.tenant_id, station_id: stationId, user_id: userId };
+    // Wave2：task_id 入槽位（F3 唯一索引已含该列）；TypeORM 0.3 中 null → IS NULL，兼容模式精确匹配
+    const slotWhere: Record<string, unknown> = {
+      tenant_id: station.tenant_id, station_id: stationId, user_id: userId, task_id: taskId,
+    };
     if (this.cfg.aiQuotaScope === 'station+version') slotWhere.version = station.version;
 
-    // single-flight：同槽位同来源线并发合并（v3.46：flightKey 含 source——跨线不得互并）
-    const flightKey = `${station.tenant_id}|${stationId}|${userId}|${source}`;
+    // single-flight：同槽位同来源线同任务并发合并（v3.46 含 source；Wave2 含 taskId）
+    const flightKey = `${station.tenant_id}|${stationId}|${userId}|${source}|${taskId ?? '-'}`;
     const existing = inflight.get(flightKey);
     if (existing) return existing;
 
-    const task = this.doGenerate(station, user, { quota, used, isUnlimited }, slotWhere, flightKey, source);
+    const task = this.doGenerate(station, user, { quota, used, isUnlimited }, slotWhere, flightKey, source, taskId);
     inflight.set(flightKey, task);
     try {
       return await task;
@@ -691,6 +708,7 @@ export class AiSuggestService {
     slotWhere: Record<string, unknown>,
     flightKey: string,
     source: SuggestSource,
+    taskId: string | null,
   ): Promise<{ status: number; payload: any }> {
     const userId = user.user_id;
     const anyVersionSlot = await this.batchRepo.findOne({ ...slotWhere, ...(this.cfg.aiQuotaScope === 'station+version' ? {} : {}) });
@@ -700,6 +718,7 @@ export class AiSuggestService {
       .where('b.tenant_id = :tid AND b.station_id = :sid AND b.user_id = :uid', { tid: station.tenant_id, sid: station.station_id, uid: userId })
       .andWhere('b.element_source = :src', { src: source })
       .andWhere('b.status IN (:...sts)', { sts: ['done', 'done_empty'] })
+      .andWhere(...this.taskFilter(taskId))
       .orderBy('b.created_at', 'DESC')
       .getOne();
 
@@ -724,6 +743,7 @@ export class AiSuggestService {
       .where('b.tenant_id = :tid AND b.station_id = :sid AND b.user_id = :uid', { tid: station.tenant_id, sid: station.station_id, uid: userId })
       .andWhere('b.element_source = :src', { src: source })
       .andWhere('b.status IN (:...sts)', { sts: ['pending', 'running'] })
+      .andWhere(...this.taskFilter(taskId))
       .getOne();
     if (activeSlot) {
       throw new ConflictException({ message: '该工位已有 AI 生成任务进行中', code: 'AI_BATCH_IN_PROGRESS', batch_id: activeSlot.batch_id });
@@ -741,7 +761,7 @@ export class AiSuggestService {
 
     // 失败槽位重开 or 新建槽位（is_unlimited=1 绕过唯一过滤索引；v3.46：按来源线隔离）
     const eff = await this.effectiveAi();
-    const inputHash = await this.computeInputHash(station, source);
+    const inputHash = await this.computeInputHash(station, source, taskId);
     let batch: AiSuggestionBatch | null = await this.batchRepo.findOne({ ...slotWhere, status: 'failed', element_source: source } as any);
     if (batch) {
       await this.batchRepo.update({ batch_id: batch.batch_id }, {
@@ -755,6 +775,7 @@ export class AiSuggestService {
           version: station.version, user_id: userId, is_unlimited: quotaInfo.isUnlimited ? 1 : 0,
           status: 'running', input_hash: inputHash, attempt: 1,
           model: eff.model, prompt_version: PROMPT_VERSION, element_source: source,
+          task_id: taskId,
         } as any);
       } catch (e: any) {
         // 并发撞唯一索引（mssql 2601/2627；sqlite UNIQUE constraint failed）→ 查已有转 200/409（按来源线查）
@@ -763,6 +784,7 @@ export class AiSuggestService {
             .createQueryBuilder('b')
             .where('b.tenant_id = :tid AND b.station_id = :sid AND b.user_id = :uid', { tid: station.tenant_id, sid: station.station_id, uid: userId })
             .andWhere('b.element_source = :src', { src: source })
+            .andWhere(...this.taskFilter(taskId))
             .orderBy('b.created_at', 'DESC')
             .getOne();
           if (concurrent?.status === 'done' || concurrent?.status === 'done_empty') {
@@ -780,6 +802,7 @@ export class AiSuggestService {
     const cacheHit = await this.ds.getRepository(AiSuggestionBatch)
       .createQueryBuilder('b')
       .where('b.tenant_id = :tid AND b.station_id = :sid AND b.version = :ver AND b.input_hash = :h AND b.element_source = :src AND b.status = :st AND b.batch_id != :self', { tid: station.tenant_id, sid: station.station_id, ver: station.version, h: inputHash, src: source, st: 'done', self: batchId })
+      .andWhere(...this.taskFilter(taskId))
       .orderBy('b.created_at', 'DESC')
       .getOne();
     if (cacheHit) {
@@ -814,8 +837,9 @@ export class AiSuggestService {
     }
   }
 
-  /** input_hash = sha1(紧凑负载 + 规则 rv + prompt_version)（调用策略 3；v3.46：按来源线分线计算） */
-  private async computeInputHash(station: any, source: SuggestSource): Promise<string> {
+  /** input_hash = sha1(紧凑负载 + 规则 rv + prompt_version)（调用策略 3；v3.46：按来源线分线计算）
+   *  Phase 3 / D4：task 纳入 hash 输入——跨任务同内容不共享缓存（接受命中率下降 / LLM 成本上升）。 */
+  private async computeInputHash(station: any, source: SuggestSource, taskId: string | null): Promise<string> {
     const [elements, wastes] = await this.loadStationContext(station, source);
     const ecrsa = this.rules.getActive('ecrsa_map');
     const wasteRules = this.rules.getActive('waste_triggers');
@@ -823,7 +847,7 @@ export class AiSuggestService {
       station_id: station.station_id, ct: Number(station.ct ?? 0), tt: Number(station.tt ?? 0),
       process_type: '装配', elements, wastes, waste_whitelist: [], factor_levels: [],
     };
-    const raw = JSON.stringify({ payload, ecrsa: ecrsa.version, waste: wasteRules.version, pv: PROMPT_VERSION });
+    const raw = JSON.stringify({ payload, ecrsa: ecrsa.version, waste: wasteRules.version, pv: PROMPT_VERSION, task: taskId });
     return createHash('sha1').update(raw).digest('hex');
   }
 
@@ -1026,18 +1050,22 @@ export class AiSuggestService {
   /** 建议列表（含 validation_trace、批次状态与生成时间）。
    *  v3.46：source 可选——缺省不过滤（legacy 全量：存量批次全是 mixed，语义等价）；
    *  传了按来源线过滤批次，且建议按批次 id 集合查（防多线建议混显）。 */
-  async list(stationId: string, version?: number, userId?: string, source?: SuggestSource) {
+  async list(stationId: string, version?: number, userId?: string, source?: SuggestSource, explicitTaskId?: string | null) {
     await this.assertEnabled();
     const station = await this.stationRepo.findOne({ station_id: stationId });
     if (!station) throw new NotFoundException(`工位 ${stationId} 不存在`);
-    const where: Record<string, unknown> = { station_id: stationId };
+    // Wave2：批次按任务隔离；显式指定时 validateReadable 走 resolveCurrent，跨租户 404 / 跨线 400
+    const scope = await this.taskScope.resolveCurrent(stationId, explicitTaskId);
+    const where: Record<string, unknown> = { station_id: stationId, task_id: scope.task_id };
     if (version) where.version = version;
     if (source) where.element_source = source;
     const batches = await this.batchRepo.find(where as any, { order: { created_at: 'DESC' } });
     if (batches.length === 0) return { station_id: stationId, version: station.version, batches: [], suggestions: [] };
-    // v3.46：带 source 时按当前线批次 id 集合查建议（不同线建议分开）；缺省保持 legacy 全量查法
+    // v3.46：带 source 时按当前线批次 id 集合查建议（不同线建议分开）；
+    // Wave2：显式任务上下文时同样按批次 id 收口，防止 T2 的建议串进 T1（A-105-3）；
+    // 未显式指定且无来源线时保持 legacy 全量查法（兼容模式行为逐字不变）。
     let sugRows: AiSuggestion[];
-    if (source) {
+    if (source || explicitTaskId) {
       const ids = batches.map((b) => b.batch_id);
       sugRows = ids.length > 0
         ? await this.ds.getRepository(AiSuggestion).createQueryBuilder('s').where('s.batch_id IN (:...ids)', { ids }).orderBy('s.priority', 'DESC').getMany()
@@ -1052,7 +1080,7 @@ export class AiSuggestService {
       station_id: stationId, version: version ?? station.version,
       batches: batches.map((b) => ({
         batch_id: b.batch_id, status: b.status, version: b.version, user_id: b.user_id,
-        element_source: b.element_source,
+        element_source: b.element_source, task_id: b.task_id,
         attempt: b.attempt, suggestion_count: b.suggestion_count, tokens_used: b.tokens_used,
         model: b.model, prompt_version: b.prompt_version, cache_from: b.cache_from,
         error: b.error, created_at: b.created_at, completed_at: b.completed_at,
@@ -1069,7 +1097,7 @@ export class AiSuggestService {
    * measure+红线标记≤250 超出拒绝（P1-2）；element_ids 写入长度超限拒绝提示拆分（P1-3）；
    * 事务：写 t_improvement{source:'ai',ai_suggestion_id,status:'待实施'} + 回写 t_ai_suggestion。
    */
-  async adopt(suggestionId: string, operator: string, confirmations?: { quality?: any; ergonomics?: any }) {
+  async adopt(suggestionId: string, operator: string, confirmations?: { quality?: any; ergonomics?: any }, explicitTaskId?: string | null) {
     await this.assertEnabled();
     const s = await this.suggRepo.findOne({ suggestion_id: suggestionId } as any);
     if (!s) throw new NotFoundException(`AI 建议 ${suggestionId} 不存在`);
@@ -1114,6 +1142,13 @@ export class AiSuggestService {
     const annual = estimateAnnualYuan(Number(s.est_save_s), params);
     const impId = `IMP-${s.station_id}-${Date.now()}-AI`;
     const beforeCt = Number(station.ct ?? 0);
+    // Wave2 / #106：改善任务归属**来源批次**的任务号，而不是重新解析「当前任务」——
+    // 采纳的是哪一轮 AI 建议就归哪一轮，避免前端切换任务后把历史建议错挂（A-106-1）。
+    const sourceBatch = s.batch_id
+      ? await this.ds.getRepository(AiSuggestionBatch).findOne({ where: { batch_id: s.batch_id } } as any)
+      : null;
+    const impTaskId = sourceBatch?.task_id
+      ?? (await this.taskScope.resolveCurrent(s.station_id, explicitTaskId)).task_id;
 
     await this.suggRepo.transaction(async (mgr) => {
       const imp: any = mgr.create(Improvement, {
@@ -1121,7 +1156,7 @@ export class AiSuggestService {
         element_ids: elementIdsStr, waste_type: s.waste_type, method: s.method,
         measure: finalMeasure, est_save_s: Number(s.est_save_s), priority: s.priority,
         status: '待实施', before_ct: beforeCt, after_ct: null,
-        source: 'ai', ai_suggestion_id: s.suggestion_id,
+        source: 'ai', ai_suggestion_id: s.suggestion_id, task_id: impTaskId,
       } as any);
       await mgr.save(imp);
       await mgr.update(AiSuggestion, { suggestion_id: s.suggestion_id } as any, {

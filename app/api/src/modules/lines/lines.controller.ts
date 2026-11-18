@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, In } from 'typeorm';
 import { IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
@@ -11,6 +11,8 @@ import { AuthUser } from '../../auth/auth-user.interface';
 import { DataScope } from '../../auth/auth-user.interface';
 import { Line } from '../../entities/line.entity';
 import { StationsService } from '../stations/stations.service';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
+import { NO_SCOPE, matchesTask } from '../../core/task-scope/task-scope';
 
 /** 工艺类型标准枚举（与前端下拉一致；新增需同步前端 constants） */
 const PROCESS_TYPES = ['装配', '注塑', '冲压', 'SMT', '焊接', '包装', '测试', '其他'];
@@ -60,6 +62,7 @@ export class LinesController {
     @InjectDataSource() private readonly ds: DataSource,
     private readonly rules: RulesService,
     private readonly stations: StationsService,
+    private readonly scope: TaskScopeService,
   ) {}
 
   /**
@@ -70,8 +73,8 @@ export class LinesController {
    */
   @Get('summary')
   @RequirePermission('station:read')
-  async summary(@CurrentUser() user: AuthUser) {
-    return this.build(user.tenantId, user.userId, user.roles, user.dataScope);
+  async summary(@CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
+    return this.build(user.tenantId, user.userId, user.roles, user.dataScope, taskId);
   }
 
   /**
@@ -172,7 +175,7 @@ export class LinesController {
    * userId/roles/scope 传入时，只统计调用者可见的工位——
    * 产线的平衡率/VA%/工位数等指标全部基于可见工位重算，不泄露他人工位分析结果。
    */
-  private async build(tenantId: string, userId?: string, roles?: string[], scope: DataScope = 'own') {
+  private async build(tenantId: string, userId?: string, roles?: string[], scope: DataScope = 'own', taskId?: string | null) {
     const stationRepo = this.ds.getRepository('t_station');
     const elementRepo = this.ds.getRepository('t_element');
     const lineRepo = this.ds.getRepository('t_line');
@@ -199,8 +202,16 @@ export class LinesController {
       impRepo.find({ where: { tenant_id: tenantId, status: '待实施' } }) as Promise<any[]>,
     ]);
     const lineMeta = new Map(lines.map((l) => [l.line_id as string, l]));
+    // Phase 3：按各工位任务上下文过滤（一次解析、缓存到 Map），避免跨任务要素混入产线概览
+    const scopeMap = await this.scope.resolveStationMap(
+      stations.map((s) => ({
+        station_id: String(s.station_id), tenant_id: String(s.tenant_id ?? tenantId), line_id: String(s.line_id),
+      })),
+      taskId,
+    );
     const elByStation = new Map<string, any[]>();
     for (const e of elements) {
+      if (!matchesTask(e, scopeMap.get(String(e.station_id)) ?? NO_SCOPE)) continue;
       const arr = elByStation.get(e.station_id) ?? [];
       arr.push(e);
       elByStation.set(e.station_id, arr);

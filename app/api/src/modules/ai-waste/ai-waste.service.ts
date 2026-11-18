@@ -14,6 +14,7 @@ import { AiSetting } from '../ai-suggest/entities/ai-setting.entity';
 import { AiLlmProfile } from '../ai-suggest/entities/ai-llm-profile.entity';
 import { Improvement } from '../../entities/improvement.entity';
 import { AnalysisService } from '../analysis/analysis.service';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
 import { StationRepository } from '../stations/stations.service';
 import { LlmGatewayService } from '../../ai/llm-gateway.service';
 import {
@@ -64,10 +65,16 @@ export class AiWasteService {
     private readonly rules: RulesService,
     private readonly llm: LlmGatewayService,
     @Inject(APP_CONFIG) private readonly cfg: AppConfig,
+    private readonly taskScope: TaskScopeService,
   ) {
     this.batchRepo = new AiWasteBatchRepository(ds);
     this.findingRepo = new AiWasteFindingRepository(ds);
     this.issueRepo = new AiWasteIssueRepository(ds);
+  }
+
+  /** Wave2：批次任务号过滤（兼容模式 null → IS NULL，绝不跨任务误命中） */
+  private taskFilter(taskId: string | null): [string, Record<string, string>] {
+    return taskId ? ['b.task_id = :taskId', { taskId }] : ['b.task_id IS NULL', {}];
   }
 
   // ───────────────────────── 生效配置（复用平台 t_ai_setting；同 ai-suggest 读法但独立实现） ─────────────────────────
@@ -173,9 +180,12 @@ export class AiWasteService {
    */
   async generate(
     stationId: string, userId: string, source: 'manual' | 'ai_assisted' = 'ai_assisted',
+    explicitTaskId?: string | null,
   ): Promise<{ status: number; payload: any }> {
     await this.assertEnabled();
     const station = await this.stationOf(stationId);
+    // Wave2：显式 task_id → 校验；否则自动继承 / legacy 回落（D1）
+    const taskId = (await this.taskScope.resolveCurrent(stationId, explicitTaskId)).task_id;
     const { elements, outliers, ct } = await this.loadBySource(station, source);
     if (elements.length === 0) {
       throw new BadRequestException(source === 'manual'
@@ -189,23 +199,23 @@ export class AiWasteService {
     }
 
     // 最近成功批 → 幂等 200（同源同版本才命中——跨线不幂等，风险#1）
-    const lastDone = await this.lastBatchOf(stationId, ['done', 'done_empty'], source);
+    const lastDone = await this.lastBatchOf(stationId, ['done', 'done_empty'], source, taskId);
     if (lastDone && lastDone.version === station.version) {
       const payload = await this.batchPayload(lastDone, station);
       return { status: 200, payload: { ...payload, idempotent_hit: true } };
     }
 
     // running → 409（同源）
-    const running = await this.lastBatchOf(stationId, ['running'], source);
+    const running = await this.lastBatchOf(stationId, ['running'], source, taskId);
     if (running) {
       throw new ConflictException({ message: '该工位已有浪费识别任务进行中', code: 'AI_WASTE_IN_PROGRESS', batch_id: running.batch_id });
     }
 
     // single-flight（key 含 source：两线并发互不合并、互不阻塞）
-    const flightKey = `${station.tenant_id}|${stationId}|${source}`;
+    const flightKey = `${station.tenant_id}|${stationId}|${source}|${taskId ?? '-'}`;
     const existing = AiWasteService.inflight.get(flightKey);
     if (existing) return existing;
-    const task = this.doGenerate(station, userId, elements, ct, outliers, source)
+    const task = this.doGenerate(station, userId, elements, ct, outliers, source, taskId)
       .finally(() => AiWasteService.inflight.delete(flightKey));
     AiWasteService.inflight.set(flightKey, task);
     return task;
@@ -253,13 +263,14 @@ export class AiWasteService {
    * 所有调用点必须传 source——漏一处的后果是跨线幂等假 200 / 假 409（设计风险#1，correctness 关键）。
    */
   private async lastBatchOf(
-    stationId: string, statuses: string[], source: 'manual' | 'ai_assisted',
+    stationId: string, statuses: string[], source: 'manual' | 'ai_assisted', taskId: string | null = null,
   ): Promise<AiWasteBatch | null> {
     const rows = await this.ds.getRepository(AiWasteBatch)
       .createQueryBuilder('b')
       .where('b.station_id = :sid', { sid: stationId })
       .andWhere('b.status IN (:...sts)', { sts: statuses })
       .andWhere('b.element_source = :src', { src: source })
+      .andWhere(...this.taskFilter(taskId))
       .orderBy('b.created_at', 'DESC')
       .getMany();
     return rows[0] ?? null;
@@ -269,10 +280,11 @@ export class AiWasteService {
     station: any, userId: string, elements: any[], ct: number,
     outliers: { seq: number; type: string; desc: string; reason: string }[],
     source: 'manual' | 'ai_assisted',
+    taskId: string | null,
   ): Promise<{ status: number; payload: any }> {
     const eff = await this.effectiveAi();
-    // failed 批复用（只复用同源失败批——其 element_source 本就正确，update 无需携带该字段），否则新建
-    const failed = await this.lastBatchOf(station.station_id, ['failed'], source);
+    // failed 批复用（只复用同源同任务失败批），否则新建
+    const failed = await this.lastBatchOf(station.station_id, ['failed'], source, taskId);
     let batch: AiWasteBatch;
     if (failed) {
       await this.batchRepo.update({ batch_id: failed.batch_id }, {
@@ -280,7 +292,7 @@ export class AiWasteService {
         element_count: elements.length, error: null,
         // v3.48：复用时同步刷新 model/prompt_version——失败批的 model 是旧配置快照，
         // 不复刷会让批次历史显示与实际调用不符的模型（可追溯性）
-        model: eff.model, prompt_version: WASTE_PROMPT_VERSION,
+        model: eff.model, prompt_version: WASTE_PROMPT_VERSION, task_id: taskId,
       } as any);
       batch = (await this.batchRepo.findOne({ batch_id: failed.batch_id } as any))!;
     } else {
@@ -288,7 +300,7 @@ export class AiWasteService {
         batch_id: randomUUID(), tenant_id: station.tenant_id, station_id: station.station_id,
         version: station.version, user_id: userId, status: 'running',
         element_source: source, element_count: elements.length,
-        model: eff.model, prompt_version: WASTE_PROMPT_VERSION,
+        model: eff.model, prompt_version: WASTE_PROMPT_VERSION, task_id: taskId,
       } as any);
     }
     const batchId = batch.batch_id;
@@ -448,11 +460,12 @@ export class AiWasteService {
    *  v3.48 additive：source_availability（当前版本各来源线的非异常要素数）——
    *  前端空态据此提示「切换到有数据的那条线」，修复手工分解工位在默认 AI 线页签
    *  看到空列表却无处可点的问题（BJFA1/ST010 实测）。 */
-  async latest(stationId: string, source: 'manual' | 'ai_assisted' = 'ai_assisted') {
+  async latest(stationId: string, source: 'manual' | 'ai_assisted' = 'ai_assisted', explicitTaskId?: string | null) {
     await this.assertEnabled();
     const station = await this.stationOf(stationId);
+    const taskId = (await this.taskScope.resolveCurrent(stationId, explicitTaskId)).task_id;
     const availability = await this.sourceAvailability(station);
-    const batch = await this.lastBatchOf(stationId, ['running', 'done', 'done_empty', 'failed'], source);
+    const batch = await this.lastBatchOf(stationId, ['running', 'done', 'done_empty', 'failed'], source, taskId);
     if (!batch) {
       return { station_id: stationId, version: station.version, batch: null, findings: [], issues: [], source_availability: availability };
     }
@@ -475,20 +488,22 @@ export class AiWasteService {
   }
 
   /** 批次列表（历史溯源；只读；按 source 隔离，缺省 ai_assisted） */
-  async listBatches(stationId: string, source: 'manual' | 'ai_assisted' = 'ai_assisted') {
+  async listBatches(stationId: string, source: 'manual' | 'ai_assisted' = 'ai_assisted', explicitTaskId?: string | null) {
     await this.assertEnabled();
     await this.stationOf(stationId);
+    const taskId = (await this.taskScope.resolveCurrent(stationId, explicitTaskId)).task_id;
     const rows = await this.ds.getRepository(AiWasteBatch)
       .createQueryBuilder('b')
       .where('b.station_id = :sid', { sid: stationId })
       .andWhere('b.element_source = :src', { src: source })
+      .andWhere(...this.taskFilter(taskId))
       .orderBy('b.created_at', 'DESC')
       .getMany();
     return {
       station_id: stationId,
       batches: rows.map((b) => ({
         batch_id: b.batch_id, status: b.status, version: b.version, user_id: b.user_id,
-        element_source: b.element_source, element_count: b.element_count,
+        element_source: b.element_source, task_id: b.task_id, element_count: b.element_count,
         finding_count: b.finding_count, issue_count: b.issue_count, tokens_used: b.tokens_used,
         model: b.model, prompt_version: b.prompt_version, error: b.error,
         created_at: b.created_at, completed_at: b.completed_at,
@@ -768,8 +783,9 @@ export class AiWasteService {
    * 与 latest 的关键差异：① 不 require AI 开关（AI 关闭时历史与人工清单照常可查，这是「AI 出不来清单」时的兜底）；
    * ② scope=all 可跨全部历史批次（latest 只看最新批）；③ 人工条目（batch_id IS NULL）纳入同一视图。
    */
-  async items(stationId: string, origin = 'all', scope = 'latest', source: 'manual' | 'ai_assisted' = 'ai_assisted') {
+  async items(stationId: string, origin = 'all', scope = 'latest', source: 'manual' | 'ai_assisted' = 'ai_assisted', explicitTaskId?: string | null) {
     const station = await this.stationOf(stationId);
+    const taskId = (await this.taskScope.resolveCurrent(stationId, explicitTaskId)).task_id;
     let aiFindings: AiWasteFinding[] = [];
     let aiIssues: AiWasteIssue[] = [];
     const batchesUsed: string[] = [];
@@ -778,6 +794,7 @@ export class AiWasteService {
         .createQueryBuilder('b')
         .where('b.station_id = :sid', { sid: stationId })
         .andWhere('b.element_source = :src', { src: source })
+        .andWhere(...this.taskFilter(taskId))
         .orderBy('b.created_at', 'DESC')
         .getMany();
       const picked = scope === 'all' ? all : all.slice(0, 1);
@@ -1101,7 +1118,7 @@ export class AiWasteService {
    * 确认（status='已确认'）→ 复制进 t_improvement（source='ai_waste'，溯源 issue_id）+ 回写。
    * 已确认/已忽略 → 409；工位不存在 → 404。
    */
-  async settle(issueId: string, status: '已确认' | '已忽略', operator: string) {
+  async settle(issueId: string, status: '已确认' | '已忽略', operator: string, explicitTaskId?: string | null) {
     await this.assertEnabled();
     const issue = await this.issueRepo.findOne({ issue_id: issueId } as any);
     if (!issue) throw new NotFoundException(`问题条目 ${issueId} 不存在`);
@@ -1117,6 +1134,12 @@ export class AiWasteService {
 
     const station = await this.stationOf(issue.station_id);
     const impId = `IMP-${issue.station_id}-${Date.now()}-AIW`;
+    // Wave2 / #106：归属来源批次任务号；人工录入条目（batch_id 为空）按当前任务上下文解析
+    const sourceBatch = issue.batch_id
+      ? await this.ds.getRepository(AiWasteBatch).findOne({ where: { batch_id: issue.batch_id } } as any)
+      : null;
+    const impTaskId = sourceBatch?.task_id
+      ?? (await this.taskScope.resolveCurrent(issue.station_id, explicitTaskId)).task_id;
     await this.issueRepo.transaction(async (mgr) => {
       const imp: any = mgr.create(Improvement, {
         imp_id: impId, tenant_id: issue.tenant_id, station_id: issue.station_id,
@@ -1126,6 +1149,7 @@ export class AiWasteService {
         status: '待实施', before_ct: Number(station.ct ?? 0), after_ct: null,
         // v3.51：人工录入条目确认后溯源为 manual（AI 条目仍为 ai，既有契约不变）
         source: (issue as any).origin === 'manual' ? 'manual' : 'ai', ai_suggestion_id: issue.issue_id,
+        task_id: impTaskId,
       } as any);
       await mgr.save(imp);      await mgr.update(AiWasteIssue, { issue_id: issueId } as any, {
         status: '已确认', imp_id: impId, reviewed_by: operator, reviewed_at: new Date(),

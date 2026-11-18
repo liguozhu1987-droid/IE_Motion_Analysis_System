@@ -32,10 +32,11 @@ export class AiSuggestStationController {
     @Param('stationId') stationId: string,
     @Query() query: GenerateSuggestionsQuery,
     @CurrentUser() user: AuthUser,
+    @Query('task_id') taskId?: string,
   ) {
     await this.stations.assertWritable(stationId, user.userId, user.roles);
     this.svc.setUserFlags(user.userId, user.roles, user.permissions);
-    return this.svc.generate(stationId, user.userId, (query.source as any) ?? 'mixed').then((r) => r.payload);
+    return this.svc.generate(stationId, user.userId, (query.source as any) ?? 'mixed', taskId).then((r) => r.payload);
   }
 
   /** 建议列表（含 validation_trace、批次状态与生成时间）。
@@ -47,9 +48,10 @@ export class AiSuggestStationController {
     @Param('stationId') stationId: string,
     @Query() query: ListSuggestionsQuery,
     @CurrentUser() user: AuthUser,
+    @Query('task_id') taskId?: string,
   ) {
     await this.stations.assertReadable(stationId, user.userId, user.roles, user.dataScope);
-    return this.svc.list(stationId, query.version, undefined, query.source as any);
+    return this.svc.list(stationId, query.version, undefined, query.source as any, taskId);
   }
 }
 
@@ -79,9 +81,10 @@ export class AiSuggestionController {
     @Param('id') id: string,
     @Body() body: AdoptAiSuggestionDto,
     @CurrentUser() user: AuthUser,
+    @Query('task_id') taskId?: string,
   ) {
     await this.assertSuggestionWritable(id, user);
-    return this.svc.adopt(id, user.username, body.confirmations);
+    return this.svc.adopt(id, user.username, body.confirmations, taskId);
   }
 
   /** 否决 */

@@ -8,6 +8,10 @@ import { AuthUser } from '../../auth/auth-user.interface';
 /**
  * 要素分解接口（MVP features/elements 平移）。
  * 权限契约：读 element:read / 写 element:write / VA 改判 element:va-override。
+ *
+ * Phase 3 / D1：task_id 一律**可选**。写入走 body.task_id，读取走 query.task_id；
+ * 不传时由 ElementsService → TaskScopeService 自动继承唯一生效任务 / 回落 legacy，
+ * 前端不新增任何必填步骤（§3.7 硬约束）。
  */
 @Controller('stations/:id/elements')
 export class ElementsController {
@@ -20,9 +24,14 @@ export class ElementsController {
    */
   @Get()
   @RequirePermission('element:read')
-  async list(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('version') version?: string) {
+  async list(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Query('version') version?: string,
+    @Query('task_id') taskId?: string,
+  ) {
     await this.elements.assertReadable(id, user.userId, user.roles, user.dataScope);
-    return this.elements.list(id, version ? Number(version) : undefined);
+    return this.elements.list(id, version ? Number(version) : undefined, taskId);
   }
 
   @Post('validate')
@@ -38,24 +47,24 @@ export class ElementsController {
   async submit(@Param('id') id: string, @Body() body: SubmitElementsDto, @CurrentUser() user: AuthUser) {
     // v3.47 P0-B6：RBAC 之上补资源级校验（这个工位归不归你管）
     await this.elements.assertWritable(id, user.userId, user.roles);
-    return this.elements.submit(id, body, user.username);
+    return this.elements.submit(id, body, user.username, body.task_id);
   }
 
   @Post('import')
   @RequirePermission('element:write')
   async importCsv(@Param('id') id: string, @Body() body: ImportCsvDto, @CurrentUser() user: AuthUser) {
     await this.elements.assertWritable(id, user.userId, user.roles);
-    return this.elements.importCsv(id, body.csv, user.username);
+    return this.elements.importCsv(id, body.csv, user.username, body.task_id);
   }
 
   @Get('export')
   @RequirePermission('element:read')
   @Header('Content-Type', 'text/csv; charset=utf-8')
   @Header('Content-Disposition', 'attachment; filename="elements.csv"')
-  async exportCsv(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+  async exportCsv(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     // v3.55：导出与列表同敏感度，须过可见范围
     await this.elements.assertReadable(id, user.userId, user.roles, user.dataScope);
-    return this.elements.exportCsv(id);
+    return this.elements.exportCsv(id, taskId);
   }
 
   /**

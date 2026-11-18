@@ -16,16 +16,47 @@
  *
  * 用法：
  *   node tools/eval-ai-segment.cjs <candidates.json> <ground-truth.json> [--iou 0.5]
+ *                                  [--json <report.json>] [--gate]
+ *
+ *   --json  额外落盘结构化指标（供门禁/回归做「可对比上一版」的留档）
+ *   --gate  三项验收任一未达标则退出码 1（默认只报告、不阻断）
  */
-
 const fs = require('fs');
+const path = require('path');
+
+/** 报告中的输入路径优先用仓库相对路径，避免把本机绝对路径写进可提交的基线。 */
+const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
+function displayPath(p) {
+  const abs = path.resolve(p);
+  const rel = path.relative(REPO_ROOT, abs).replace(/\\/g, '/');
+  return rel.startsWith('..') ? abs.replace(/\\/g, '/') : rel;
+}
+
+function parseArgv(argv) {
+  const positional = [];
+  const opts = { iou: 0.5, jsonPath: null, gate: false };
+  const valueFlags = new Set(['--iou', '--json']);
+  for (let i = 0; i < argv.length; i += 1) {
+    const a = argv[i];
+    if (a === '--gate') opts.gate = true;
+    else if (valueFlags.has(a) && argv[i + 1] !== undefined) {
+      if (a === '--iou') opts.iou = Number(argv[i + 1]) || 0.5;
+      else opts.jsonPath = argv[i + 1];
+      i += 1;
+    } else if (a.startsWith('--')) {
+      console.error(`未知参数: ${a}`);
+      process.exit(1);
+    } else positional.push(a);
+  }
+  return { candPath: positional[0], gtPath: positional[1], ...opts };
+}
+const USAGE = '用法: node tools/eval-ai-segment.cjs <candidates.json> <ground-truth.json> '
+  + '[--iou 0.5] [--json <report.json>] [--gate]';
 
 function main() {
-  const [candPath, gtPath] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-  const iouIdx = process.argv.indexOf('--iou');
-  const IOU_MIN = iouIdx > -1 ? Number(process.argv[iouIdx + 1]) || 0.5 : 0.5;
+  const { candPath, gtPath, iou: IOU_MIN, jsonPath, gate } = parseArgv(process.argv.slice(2));
   if (!candPath || !gtPath) {
-    console.error('用法: node tools/eval-ai-segment.cjs <candidates.json> <ground-truth.json> [--iou 0.5]');
+    console.error(USAGE);
     process.exit(1);
   }
   const cand = JSON.parse(fs.readFileSync(candPath, 'utf8'));
@@ -33,6 +64,10 @@ function main() {
   const C = (cand.candidates ?? []).map((c) => ({ ...c }));
   const G = (gt.segments ?? []).map((s) => ({ ...s }));
   if (!G.length) { console.error('真值标注为空（segments 为空数组）'); process.exit(1); }
+  const badG = G.filter((s) => !Number.isFinite(s.start_ms) || !Number.isFinite(s.end_ms) || s.end_ms < s.start_ms);
+  if (badG.length) { console.error(`真值标注非法：${badG.length} 段缺少数值型 start_ms/end_ms 或 end_ms<start_ms`); process.exit(1); }
+  const badC = C.filter((c) => !Number.isFinite(c.start_ms) || !Number.isFinite(c.end_ms) || c.end_ms < c.start_ms);
+  if (badC.length) { console.error(`候选非法：${badC.length} 条缺少数值型 start_ms/end_ms 或 end_ms<start_ms`); process.exit(1); }
 
   const iou = (a, b) => {
     const inter = Math.max(0, Math.min(a.end_ms, b.end_ms) - Math.max(a.start_ms, b.start_ms));
@@ -75,6 +110,8 @@ function main() {
   }
 
   const pct = (x) => `${(x * 100).toFixed(1)}%`;
+  const rate = (x) => Number.isFinite(x) ? Number(x.toFixed(4)) : null;
+  const finiteOrNull = (x) => Number.isFinite(x) ? x : null;
   console.log('════════ AI 分解评测报告 ════════');
   console.log(`样本: ${cand.station_id ?? '?'} ｜ 真值 ${G.length} 段 ｜ 候选 ${C.length} 条 ｜ IoU≥${IOU_MIN}`);
   console.log(`匹配: ${matched.length} 对`);
@@ -95,6 +132,62 @@ function main() {
   console.log(`类型准确率 ≥70%:   ${okType ? '✓ 达标' : '✗ 未达标'}`);
   console.log(`查全率 ≥70%:       ${okRecall ? '✓ 达标' : '✗ 未达标'}`);
   console.log(matched.length < 3 ? '⚠ 样本过少，结论仅供参考——请补充真值段' : '');
+
+  const acceptance = { boundary: okBoundary, type: okType, recall: okRecall };
+  const acceptedCount = Object.values(acceptance).filter(Boolean).length;
+  console.log(`达标项: ${acceptedCount}/3`);
+
+  const report = {
+    schema: 'ai-segment-eval/v1',
+    generated_at: new Date().toISOString(),
+    inputs: {
+      candidates: displayPath(candPath),
+      ground_truth: displayPath(gtPath),
+      station_id: cand.station_id ?? gt.station_id ?? null,
+      video_name: gt.video_name ?? cand.video_name ?? null,
+      labeler: gt.labeler ?? null,
+      labeled_at: gt.labeled_at ?? null,
+    },
+    params: { iou_min: IOU_MIN },
+    counts: { ground_truth_segments: G.length, candidates: C.length, matched_pairs: matched.length },
+    metrics: {
+      recall: rate(matched.length / G.length),
+      precision: rate(matched.length / (C.length || 1)),
+      coverage: rate(gtDur ? covDur / gtDur : 0),
+      boundary: {
+        start_ms: {
+          median: finiteOrNull(med(se)),
+          p90: finiteOrNull(p90(se)),
+          hit_0_5s: rate(hitRate(se, 500)),
+          hit_1s: rate(hitRate(se, 1000)),
+          hit_2s: rate(hitRate(se, 2000)),
+        },
+        end_ms: {
+          median: finiteOrNull(med(ee)),
+          p90: finiteOrNull(p90(ee)),
+          hit_0_5s: rate(hitRate(ee, 500)),
+          hit_1s: rate(hitRate(ee, 1000)),
+          hit_2s: rate(hitRate(ee, 2000)),
+        },
+      },
+      type_accuracy: {
+        exact: rate(matched.length ? typeExact / matched.length : 0),
+        loose: rate(matched.length ? typeLoose / matched.length : 0),
+      },
+    },
+    acceptance: { ...acceptance, accepted: acceptedCount, total: 3, all: acceptedCount === 3 },
+    notes: {
+      sample_too_small: matched.length < 3,
+      acceptance_targets: '边界 ±2s 命中≥70%；类型严格准确率≥70%；查全率≥70%',
+      ground_truth_source: '必须由人独立标注；不得用 AI 候选反向生成真值。',
+    },
+  };
+  if (jsonPath) {
+    fs.mkdirSync(path.dirname(path.resolve(jsonPath)), { recursive: true });
+    fs.writeFileSync(path.resolve(jsonPath), JSON.stringify(report, null, 2), 'utf8');
+    console.log(`JSON: ${path.resolve(jsonPath)}`);
+  }
+  if (gate && acceptedCount !== 3) process.exitCode = 1;
 }
 
 main();

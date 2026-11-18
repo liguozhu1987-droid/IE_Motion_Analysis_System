@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsNumber, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 
 /**
  * 要素提交 DTO。
@@ -23,7 +23,12 @@ export class ElementItemDto {
   @IsOptional() @IsString() source?: 'manual' | 'ai_assisted';
 }
 
-export class SubmitElementsDto {
+/** Phase 3 / D1：可选任务上下文。不传 → 服务端 resolveTaskId 自动继承 / legacy 回落 */
+export class TaskScopedDto {
+  @IsOptional() @IsString() @MaxLength(32) task_id?: string;
+}
+
+export class SubmitElementsDto extends TaskScopedDto {
   /** 写守卫：必须等于工位当前 version（封存版本只读），缺省视为当前版本 */
   @IsOptional() @IsNumber() bol_version?: number;
   /** 有效循环数（V3 规则的服务端裁决字段，缺失由 V3 报"不足15个"，与 MVP 口径一致） */
@@ -36,7 +41,7 @@ export class SubmitElementsDto {
   elements!: ElementItemDto[];
 }
 
-export class ImportCsvDto {
+export class ImportCsvDto extends TaskScopedDto {
   @IsString() csv!: string;
 }
 

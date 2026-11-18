@@ -7,6 +7,9 @@ import { BaseRepository } from './base.repository';
 import { AiTask } from '../../entities/ai-task.entity';
 import { AiUsageEvent } from '../../entities/ai-usage-event.entity';
 import { AuditLog } from '../../entities/audit-log.entity';
+import { BatchExportRecord } from '../../entities/batch-export-record.entity';
+import { DecompositionTask } from '../../entities/decomposition-task.entity';
+import { TaskStation } from '../../entities/task-station.entity';
 import { StationCollaborator, LineShare } from '../../entities/collaboration.entity';
 import { Element } from '../../entities/element.entity';
 import { Improvement } from '../../entities/improvement.entity';
@@ -39,7 +42,8 @@ import { AiWasteKb } from '../../modules/ai-waste/entities/ai-waste-kb.entity';
  * 显式数组在 dev（node 直跑 dist）与 SEA 两种形态下行为完全一致。
  */
 export const ENTITIES = [
-  AiTask, AiUsageEvent, AuditLog, StationCollaborator, LineShare, Element, Improvement, Line,
+  AiTask, AiUsageEvent, AuditLog, BatchExportRecord, DecompositionTask, TaskStation,
+  StationCollaborator, LineShare, Element, Improvement, Line,
   PasswordReset, Project, Role, Permission, UserRole, RolePermission, RefreshToken,
   RuleSet, Station, Tenant, User, VideoAsset, VideoDerivative,
   SsoUser, SsoUserMap,

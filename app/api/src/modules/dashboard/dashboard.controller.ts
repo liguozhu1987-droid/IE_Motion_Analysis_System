@@ -39,6 +39,7 @@ export class DashboardController {
     @Query('process') process: string | undefined,
     @Query('product_type') product_type: string | undefined,
     @Query('project') project: string | undefined,
+    @Query('task_id') task_id: string | undefined,
     @CurrentUser() user: AuthUser | null,
   ) {
     const visibleIds = user
@@ -49,6 +50,7 @@ export class DashboardController {
       user?.tenantId ?? 'DEFAULT',
       this.crossTenant(user),
       visibleIds,
+      task_id,
     );
   }
 

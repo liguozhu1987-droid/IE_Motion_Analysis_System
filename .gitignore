@@ -39,3 +39,11 @@ deliverables/IE-Platform-*/
 app/api/bin/ffmpeg.exe
 # 视频文件
 *.mp4
+
+# 运行时上传与导出（storage 实测 156MB：视频/派生/留档 XLSX，不进版本历史；
+# 目录由 API 运行时创建，0b 基线提交前必须忽略，否则 git add -A 会吞入大文件）
+app/api/storage/
+
+# esbuild 测试产物（test:desc-hints 每次生成）
+app/web/*.built.cjs
+app/web/*.built.cjs.map

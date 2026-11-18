@@ -28,7 +28,12 @@ export class AuditService {
 
   constructor(@InjectDataSource() private readonly ds: DataSource) {}
 
-  record(user: AuthUser | null, action: string, entity: string, entityId: string | null, before: any, after: any, ip: string): void {
+  /**
+   * Phase 3 / #108：末位可选 taskId 为分解任务号（D5）。
+   * 存量 7 个调用点一律不传 → 写 NULL，action 派生规则与既有日志逐字不变；
+   * 只有业务侧显式自审计（如批量导出）才带任务号。兼容模式传 null，不冒充。
+   */
+  record(user: AuthUser | null, action: string, entity: string, entityId: string | null, before: any, after: any, ip: string, taskId?: string | null): void {
     const repo = this.ds.getRepository('t_audit_log');
     // transaction:false：单行 INSERT 无需自带 BEGIN——sqlite 单连接共享下，
     // 即发即忘的审计保存若自带事务，会与请求的显式事务race（BEGIN 套 BEGIN）。
@@ -41,6 +46,7 @@ export class AuditService {
       user_id: user?.userId ?? null,
       username: user?.username ?? null,
       action: clip(action, 128), entity: clip(entity, 64), entity_id: entityId ? clip(entityId, 64) : null,
+      task_id: taskId ? clip(taskId, 32) : null,
       before_json: before ? JSON.stringify(sanitize(before)) : null,
       after_json: after ? JSON.stringify(sanitize(after)) : null,
       ip,

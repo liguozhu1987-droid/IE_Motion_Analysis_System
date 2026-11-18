@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { IsArray, IsNumber, IsString, Length } from 'class-validator';
+import { IsArray, IsNumber, IsOptional, IsString, Length } from 'class-validator';
 import { AiTaskService } from './ai-task.service';
 import { RequirePermission } from '../rbac/require-permission.decorator';
 import { Public } from '../rbac/public.decorator';
@@ -13,6 +13,8 @@ class PolishDto {
   @IsString() @Length(1, 200) measure!: string;
   @IsNumber() est_save_s!: number;
   @IsString() @Length(1, 1) method!: string;
+  /** Phase 3 / Wave 2：可选分解任务号（前端已显式选择当前任务时才带） */
+  @IsOptional() @IsString() @Length(1, 32) task_id?: string;
 }
 
 /**
@@ -36,7 +38,9 @@ export class AiController {
   @Post('polish')
   @RequirePermission('ai:use')
   async polish(@Body() dto: PolishDto, @Req() req: AuthedRequest) {
-    const task = await this.ai.submit('suggestion_polish', dto as unknown as Record<string, unknown>, req.user!.username);
+    const task = await this.ai.submit(
+      'suggestion_polish', dto as unknown as Record<string, unknown>, req.user!.username, dto.task_id ?? null,
+    );
     return task;
   }
 

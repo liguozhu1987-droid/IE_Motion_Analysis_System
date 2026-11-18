@@ -15,6 +15,7 @@
  *   styles/components.css    通用自绘控件：SelectMenu 下拉 / 右键浮层（v3.60 拆出）
  *   styles/diff.css          版本对比页（v3.60 拆出）
  *   styles/help.css          系统使用帮助文档页（v3.60 拆出）
+ *   styles/export.css        批量导出弹窗（v3.61 新增）
  *
  * Vite 原生处理 @import 并内联打包，输出顺序与此处一致。
  * 拆分原则：机械切分、类名零变更；已用脚本校验「跨文件无同名选择器」，
@@ -33,3 +34,4 @@
 @import './styles/diff.css';
 @import './styles/help.css';
 @import './styles/videos.css';
+@import './styles/export.css';

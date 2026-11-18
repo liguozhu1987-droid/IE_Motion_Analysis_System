@@ -10,6 +10,7 @@ import { round2 } from '../../core/shared/util';
 import { DataScope } from '../../auth/auth-user.interface';
 import { FULL_ACCESS_ROLES } from '../../rbac/full-access';
 import { currentTenantId } from '../../tenant/tenant-context';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
 
 /**
  * 工位服务（MVP stations/service.js 平移示例）。
@@ -86,6 +87,8 @@ export class StationsService {
     private readonly ds: DataSource,
     // v3.44 P2-2：SOP 封闭词表校验（RulesModule 是 @Global，直接注入）
     private readonly rules: RulesService,
+    // Phase 3 #107：#/diff 跨任务对比按任务取版本（@Global，无循环依赖）
+    private readonly taskScope: TaskScopeService,
   ) {
     this.repo = new StationRepository(ds);
     this.lineRepo = new LineRepository(ds);
@@ -542,6 +545,7 @@ export class StationsService {
    */
   async startRetest(stationId: string, operator: string) {
     const s = await this.get(stationId);
+    /* [task-scope:compat] 工位生命周期操作：按 station_id 处理全部版本/任务要素，非任务范围枚举；删除工位/作废复测必须清干净，不能按任务过滤。 */
     const cnt = await this.ds.getRepository('t_element').count({
       where: { station_id: stationId, bol_version: s.version, tenant_id: s.tenant_id } as any,
     });
@@ -560,6 +564,7 @@ export class StationsService {
   /** 回写 CT（要素提交/VA 改判后调用；tenant 过滤防跨租户串算） */
   async recalcCt(stationId: string, operator: string) {
     const s = await this.get(stationId);
+    /* [task-scope:compat] 工位生命周期操作：按 station_id 处理全部版本/任务要素，非任务范围枚举；删除工位/作废复测必须清干净，不能按任务过滤。 */
     const rows = await this.ds.getRepository('t_element').find({
       where: { station_id: stationId, bol_version: s.version, outlier_flag: 0, tenant_id: s.tenant_id },
     } as any) as any[];
@@ -572,14 +577,23 @@ export class StationsService {
    * 版本清单（前端工作台"已封存版本"与版本切换；MVP StationDetail.versions 同口径）。
    * 版本自 t_element.bol_version 聚合推导；无要素的历史版本（如刚复测的新版）也要出现（element_count=0）。
    */
-  async versions(stationId: string) {
+  async versions(stationId: string, taskId?: string) {
     const s = await this.get(stationId);
-    const rows = await this.ds.getRepository('t_element')
+    /* [task-scope:compat] 工位生命周期操作：按 station_id 处理全部版本/任务要素，非任务范围枚举；删除工位/作废复测必须清干净，不能按任务过滤。
+       Phase 3 #107 例外：显式传 task_id（#/diff 跨任务对比）时按该任务过滤版本；
+       可读性/租户校验走 TaskScopeService 唯一口径（跨租户任务 → 404）。不传 task_id 时行为逐字不变。 */
+    let scopeTaskId: string | null = null;
+    if (taskId) {
+      scopeTaskId = (await this.taskScope.resolveCurrent(stationId, taskId)).task_id;
+    }
+    const qb = this.ds.getRepository('t_element')
       .createQueryBuilder('e')
       .select('e.bol_version', 'version')
       .addSelect('COUNT(*)', 'element_count')
       .addSelect('COALESCE(SUM(CASE WHEN e.outlier_flag = 0 THEN e.std_time ELSE 0 END), 0)', 'ct')
-      .where('e.station_id = :sid AND e.tenant_id = :tid', { sid: stationId, tid: s.tenant_id })
+      .where('e.station_id = :sid AND e.tenant_id = :tid', { sid: stationId, tid: s.tenant_id });
+    if (scopeTaskId) qb.andWhere('e.task_id = :taskId', { taskId: scopeTaskId });
+    const rows = await qb
       .groupBy('e.bol_version')
       .orderBy('e.bol_version', 'ASC')
       .getRawMany() as any[];
@@ -607,6 +621,7 @@ export class StationsService {
     if (s.version <= 1) throw new BadRequestException('v1 为首个版本，无复测可作废');
     /* v3.47 跨线销毁守卫（P0-B5）：作废复测会物理删除当前版本全部要素且无软删/无回收站，
        若该版本是 AI 自动分解写入的成果，一次点击即永久丢失。此处先盘 AI 要素，非空即拒绝。 */
+    /* [task-scope:compat] 工位生命周期操作：按 station_id 处理全部版本/任务要素，非任务范围枚举；删除工位/作废复测必须清干净，不能按任务过滤。 */
     const aiCount = await this.ds.getRepository('t_element').count({
       where: { station_id: stationId, bol_version: s.version, tenant_id: s.tenant_id, source: 'ai_assisted' } as any,
     });
@@ -616,6 +631,7 @@ export class StationsService {
         `请在「AI 自动分解」页签处理该版本；若确需以手工分解接管，请联系 IE 主管执行版本接管。`,
       );
     }
+    /* [task-scope:compat] 工位生命周期操作：按 station_id 处理全部版本/任务要素，非任务范围枚举；删除工位/作废复测必须清干净，不能按任务过滤。 */
     await this.ds.getRepository('t_element').delete({
       station_id: stationId, bol_version: s.version, tenant_id: s.tenant_id,
     } as any);
@@ -634,7 +650,8 @@ export class StationsService {
     if (actor) await this.assertWritable(stationId, actor.userId, actor.roles);
     const s = await this.get(stationId);
     const [elements, improvements] = await Promise.all([
-      this.ds.getRepository('t_element').countBy({ station_id: stationId } as any),
+      /* [task-scope:compat] 工位生命周期操作：按 station_id 处理全部版本/任务要素，非任务范围枚举；删除工位/作废复测必须清干净，不能按任务过滤。 */
+    this.ds.getRepository('t_element').countBy({ station_id: stationId } as any),
       this.ds.getRepository('t_improvement').countBy({ station_id: stationId } as any),
     ]);
     await this.repo.transaction(async (m) => {
@@ -648,7 +665,8 @@ export class StationsService {
       await m.getRepository('t_ai_waste_finding').delete({ station_id: stationId } as any);
       await m.getRepository('t_ai_waste_issue').delete({ station_id: stationId } as any);
       await m.getRepository('t_ai_waste_batch').delete({ station_id: stationId } as any);
-      await m.getRepository('t_element').delete({ station_id: stationId } as any);
+      /* [task-scope:compat] 工位生命周期操作：按 station_id 处理全部版本/任务要素，非任务范围枚举；删除工位/作废复测必须清干净，不能按任务过滤。 */
+    await m.getRepository('t_element').delete({ station_id: stationId } as any);
       await m.getRepository('t_improvement').delete({ station_id: stationId } as any);
       // v3.42 协作者授权随工位删除（铁律：引用 t_station 的子表先进级联）
       await m.getRepository('t_station_collaborator').delete({ station_id: stationId } as any);

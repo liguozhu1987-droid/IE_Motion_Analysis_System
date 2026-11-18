@@ -8,10 +8,14 @@ import { AnalysisService } from '../analysis/analysis.service';
 import { ImprovementRepository } from './improvement.repository';
 import { estimateBenefit, getLineParams, pairElements } from './engine';
 import { round1, round2 } from '../../core/shared/util';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
+import { TaskScope } from '../../core/task-scope/task-scope';
 
 export interface CompareQuery {
   v1?: number | string;
   v2?: number | string;
+  /** Phase 3 / D1：可选任务上下文；不传 → 自动继承 / legacy 回落 */
+  task_id?: string;
 }
 
 /**
@@ -28,19 +32,21 @@ export class CompareService {
     @InjectDataSource() private readonly ds: DataSource,
     private readonly analysis: AnalysisService,
     private readonly rules: RulesService,
+    private readonly scope: TaskScopeService,
   ) {
     this.stationRepo = new StationRepository(ds);
     this.impRepo = new ImprovementRepository(ds);
   }
 
   /** 该工位存在要素的版本列表（降序；封存版本只读可对比） */
-  private async listVersions(stationId: string, tenantId: string): Promise<number[]> {
-    const rows = (await this.ds.getRepository(Element)
+  private async listVersions(stationId: string, tenantId: string, scope: TaskScope): Promise<number[]> {
+    const qb = this.ds.getRepository(Element)
       .createQueryBuilder('e')
       .select('DISTINCT e.bol_version', 'v')
-      .where('e.station_id = :sid AND e.tenant_id = :tid', { sid: stationId, tid: tenantId })
-      .orderBy('e.bol_version', 'DESC')
-      .getRawMany()) as any[];
+      .where('e.station_id = :sid AND e.tenant_id = :tid', { sid: stationId, tid: tenantId });
+    // Phase 3：版本列表也必须按任务隔离，否则会列出其它任务才有的版本
+    if (scope.task_id) qb.andWhere('e.task_id = :taskId', { taskId: scope.task_id });
+    const rows = (await qb.orderBy('e.bol_version', 'DESC').getRawMany()) as any[];
     return rows.map((r) => Number(r.v));
   }
 
@@ -48,7 +54,8 @@ export class CompareService {
     const station = await this.stationRepo.findOne({ station_id: stationId });
     if (!station) throw new NotFoundException(`工位 ${stationId} 不存在`);
 
-    const versions = await this.listVersions(stationId, station.tenant_id);
+    const scope = await this.scope.resolveCurrent(stationId, query.task_id);
+    const versions = await this.listVersions(stationId, station.tenant_id, scope);
     if (versions.length < 2) {
       throw new ConflictException('该工位尚无复测版本，无法对比');
     }
@@ -58,8 +65,8 @@ export class CompareService {
       throw new NotFoundException(`版本 ${prevV}/${currV} 不存在`);
     }
 
-    const prevAnalysis = await this.analysis.analyzeStationAtVersion(station, prevV);
-    const currAnalysis = await this.analysis.analyzeStationAtVersion(station, currV);
+    const prevAnalysis = await this.analysis.analyzeStationAtVersion(station, prevV, scope.task_id);
+    const currAnalysis = await this.analysis.analyzeStationAtVersion(station, currV, scope.task_id);
     const prevActive = prevAnalysis.elements.filter((el: any) => Number(el.outlier_flag) === 0);
     const currActive = currAnalysis.elements.filter((el: any) => Number(el.outlier_flag) === 0);
 

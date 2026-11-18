@@ -32,9 +32,9 @@ export class AiWasteStationController {
   @Post('generate')
   @HttpCode(200)
   @RequirePermission('suggestion:generate')
-  async generate(@Param('stationId') stationId: string, @CurrentUser() user: AuthUser) {
+  async generate(@Param('stationId') stationId: string, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     await this.stations.assertWritable(stationId, user.userId, user.roles);
-    return this.svc.generate(stationId, user.userId).then((r) => r.payload);
+    return this.svc.generate(stationId, user.userId, 'ai_assisted', taskId).then((r) => r.payload);
   }
 
   /**
@@ -46,9 +46,9 @@ export class AiWasteStationController {
   @Post('generate-manual')
   @HttpCode(200)
   @RequirePermission('suggestion:generate')
-  async generateManual(@Param('stationId') stationId: string, @CurrentUser() user: AuthUser) {
+  async generateManual(@Param('stationId') stationId: string, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     await this.stations.assertWritable(stationId, user.userId, user.roles);
-    return this.svc.generate(stationId, user.userId, 'manual').then((r) => r.payload);
+    return this.svc.generate(stationId, user.userId, 'manual', taskId).then((r) => r.payload);
   }
 
   /** 最新批次视图（findings + issues + 批次元信息 + ct/summary；无批 → 空结构）。
@@ -56,18 +56,18 @@ export class AiWasteStationController {
    *  v3.55：按可见范围校验。 */
   @Get('latest')
   @RequirePermission('suggestion:generate')
-  async latest(@Param('stationId') stationId: string, @Query() query: WasteLatestQuery, @CurrentUser() user: AuthUser) {
+  async latest(@Param('stationId') stationId: string, @Query() query: WasteLatestQuery, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     await this.stations.assertReadable(stationId, user.userId, user.roles, user.dataScope);
-    return this.svc.latest(stationId, query.source);
+    return this.svc.latest(stationId, query.source, taskId);
   }
 
   /** 批次历史（只读溯源；?source= 可选，缺省 ai_assisted）
    *  v3.55：按可见范围校验。 */
   @Get('batches')
   @RequirePermission('suggestion:generate')
-  async batches(@Param('stationId') stationId: string, @Query() query: ListWasteBatchesQuery, @CurrentUser() user: AuthUser) {
+  async batches(@Param('stationId') stationId: string, @Query() query: ListWasteBatchesQuery, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     await this.stations.assertReadable(stationId, user.userId, user.roles, user.dataScope);
-    return this.svc.listBatches(stationId, query.source);
+    return this.svc.listBatches(stationId, query.source, taskId);
   }
 
   // ─────────────────── v3.51：清单查询（AI 关停亦可查）+ 人工录入 + 知识库 ───────────────────
@@ -80,9 +80,9 @@ export class AiWasteStationController {
    */
   @Get('items')
   @RequirePermission('suggestion:generate')
-  async items(@Param('stationId') stationId: string, @Query() query: WasteItemsQuery, @CurrentUser() user: AuthUser) {
+  async items(@Param('stationId') stationId: string, @Query() query: WasteItemsQuery, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
     await this.stations.assertReadable(stationId, user.userId, user.roles, user.dataScope);
-    return this.svc.items(stationId, query.origin ?? 'all', query.scope ?? 'latest', query.source ?? 'ai_assisted');
+    return this.svc.items(stationId, query.origin ?? 'all', query.scope ?? 'latest', query.source ?? 'ai_assisted', taskId);
   }
 
   /** 人工录入·浪费点（数字服务端计算；与 AI 产出同表并存，origin='manual'）
@@ -240,9 +240,10 @@ export class AiWasteIssueController {
     @Param('id') id: string,
     @Body() body: UpdateWasteIssueDto,
     @CurrentUser() user: AuthUser,
+    @Query('task_id') taskId?: string,
   ) {
     const stationId = await this.svc.stationIdOfIssue(id);
     await this.stations.assertWritable(stationId, user.userId, user.roles);
-    return this.svc.settle(id, body.status, user.username);
+    return this.svc.settle(id, body.status, user.username, taskId);
   }
 }

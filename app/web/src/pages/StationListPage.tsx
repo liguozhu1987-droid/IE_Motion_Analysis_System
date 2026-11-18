@@ -4,6 +4,7 @@ import { useAuth } from '../auth';
 import CreateStationWizard from '../components/CreateStationWizard';
 import ShareDialog from '../components/ShareDialog';
 import SelectMenu from '../components/SelectMenu';
+import BatchExportDialog from '../components/BatchExportDialog';
 
 interface Props {
   /** 全量工位（App 持有，对象树与本页共用）；本页按 lineId 过滤 */
@@ -49,9 +50,12 @@ export default function StationListPage({ stations, lineId, onLineChange, create
   const [editTarget, setEditTarget] = useState<Station | null>(null);
   const [shareTarget, setShareTarget] = useState<Station | null>(null);
   const [showLineShare, setShowLineShare] = useState(false);
+  /* v3.61 批量导出主入口：产线总览顶部工具条（不新增页面 / 路由） */
+  const [showBatchExport, setShowBatchExport] = useState(false);
 
   const canWrite = can('station:write');
   const canImport = can('element:write');
+  const canExport = can('element:read');
   /* 建议清单需要 suggestion:generate（viewer 无此权限）——无权时整块不请求、不展示 */
   const canPlan = can('suggestion:generate');
 
@@ -191,6 +195,10 @@ export default function StationListPage({ stations, lineId, onLineChange, create
               value: line,
               label: `${line}（${stations.filter((s) => s.line_id === line).length}工位）`,
             }))} />
+        )}
+        {canExport && (
+          <button className="btn sm" onClick={() => setShowBatchExport(true)}
+            title="按产线多选工位，批量导出动作分解与增值分析 XLSX（固定 6 张 sheet）">批量导出</button>
         )}
         {canWrite && (
           <button className="btn sm" onClick={() => setShowLineShare(true)} title="把名下某产线的工位批量共享给同事">整线共享</button>
@@ -403,6 +411,16 @@ export default function StationListPage({ stations, lineId, onLineChange, create
         editStation={editTarget}
         onClose={() => { setShowCreate(false); setEditTarget(null); }}
         onCreated={(created, targetLine) => { void onWizardDone(created, targetLine, Boolean(editTarget)); }}
+      />
+
+      {/* v3.61 批量导出：范围与工位多选在弹窗内完成，后端再做一次可见性与聚合过滤 */}
+      <BatchExportDialog
+        open={showBatchExport}
+        lineId={lineId}
+        stations={stations}
+        lineAnalysis={lineAnalysis}
+        onClose={() => setShowBatchExport(false)}
+        onDone={(m) => setMsg(m)}
       />
     </div>
   );

@@ -2,7 +2,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@
 import { IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { StationsService } from './stations.service';
 import { RequirePermission } from '../../rbac/require-permission.decorator';
-import { AuthedRequest } from '../../auth/auth-user.interface';
+import { AuthedRequest, AuthUser } from '../../auth/auth-user.interface';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
 
 /** 每个字段必须带装饰器：全局 ValidationPipe(whitelist:true) 会剥离无装饰器属性 */
 class CreateStationDto {
@@ -12,6 +13,8 @@ class CreateStationDto {
   line_id!: string;
   @IsString() @MaxLength(64) name!: string;
   @IsOptional() @IsNumber() @Min(0) @Max(600) tt?: number;
+  /** Phase 3 / D1：可选任务上下文；不传则自动继承唯一生效任务 / legacy 回落 */
+  @IsOptional() @IsString() @MaxLength(32) task_id?: string;
 }
 
 /**
@@ -25,6 +28,8 @@ class CreateStationFromCmcDto {
   @IsOptional() @IsString() @MaxLength(32) program_number?: string;
   @IsString() @MaxLength(64) name!: string;
   @IsOptional() @IsNumber() @Min(0) @Max(600) tt?: number;
+  /** Phase 3 / D1：同上，CMC 向导也不新增前端必填步骤 */
+  @IsOptional() @IsString() @MaxLength(32) task_id?: string;
 }
 
 class PatchStationDto {
@@ -62,7 +67,10 @@ class ShareLineDto extends ShareDto {
 
 @Controller('stations')
 export class StationsController {
-  constructor(private readonly stations: StationsService) {}
+  constructor(
+    private readonly stations: StationsService,
+    private readonly scope: TaskScopeService,
+  ) {}
 
   /** v3.42：列表按 ACL 过滤——admin/全权角色全量；普通用户 = 我的 + 共享给我（v3.55 叠加 data_scope） */
   @Get()
@@ -99,11 +107,19 @@ export class StationsController {
 
   @Post()
   @RequirePermission('station:write')
-  create(@Body() dto: CreateStationDto, @Req() req: AuthedRequest) {
-    return this.stations.create({
+  async create(@Body() dto: CreateStationDto, @Req() req: AuthedRequest) {
+    const station = await this.stations.create({
       ...dto, operator: req.user!.username, tenantId: req.user!.tenantId,
       ownerUserId: req.user!.userId,
     });
+    // A-103-6：新建工位自动关联当前任务（写 t_task_station，锁 bol_version）；前端零必填步骤
+    const link = await this.scope.linkNewStation(
+      { tenantId: req.user!.tenantId } as AuthUser,
+      { station_id: station.station_id, line_id: station.line_id, name: station.name,
+        version: Number(station.version) || 1, ct: station.ct ?? null, tt: station.tt ?? null },
+      dto.task_id,
+    );
+    return { ...station, task_link: link };
   }
 
   /**
@@ -113,8 +129,8 @@ export class StationsController {
    */
   @Post('from-cmc')
   @RequirePermission('station:write')
-  createFromCmc(@Body() dto: CreateStationFromCmcDto, @Req() req: AuthedRequest) {
-    return this.stations.createFromCmc({
+  async createFromCmc(@Body() dto: CreateStationFromCmcDto, @Req() req: AuthedRequest) {
+    const station = await this.stations.createFromCmc({
       cmc_line_id: dto.cmc_line_id,
       station_id: dto.station_id?.trim() || undefined,
       program_number: dto.program_number?.trim() || undefined,
@@ -124,6 +140,14 @@ export class StationsController {
       tenantId: req.user!.tenantId,
       ownerUserId: req.user!.userId,
     });
+    // A-103-6：CMC 向导路径同样自动关联，口径与 /stations 一致
+    const link = await this.scope.linkNewStation(
+      { tenantId: req.user!.tenantId } as AuthUser,
+      { station_id: station.station_id, line_id: station.line_id, name: station.name,
+        version: Number(station.version) || 1, ct: station.ct ?? null, tt: station.tt ?? null },
+      dto.task_id,
+    );
+    return { ...station, task_link: link };
   }
 
   /** v3.42：编辑走资源级 ACL（owner/editor/admin），RBAC 的 station:write 仍由守卫把关 */
@@ -150,13 +174,14 @@ export class StationsController {
     return this.stations.cancelRetest(id, req.user!.username);
   }
 
-  /** 版本清单（工作台"已封存版本"；版本自 t_element.bol_version 聚合推导） */
+  /** 版本清单（工作台"已封存版本"；版本自 t_element.bol_version 聚合推导）。
+   *  Phase 3 #107：可选 task_id = #/diff 跨任务对比按任务取版本；不传时行为逐字不变。 */
   @Get(':id/versions')
   @RequirePermission('station:read')
-  async versions(@Param('id') id: string, @Req() req: AuthedRequest) {
+  async versions(@Param('id') id: string, @Req() req: AuthedRequest, @Query('task_id') taskId?: string) {
     // v3.55：版本清单含各版 CT 汇总 → 属工位级敏感数据，须过可见范围
     await this.stations.assertReadable(id, req.user!.userId, req.user!.roles, req.user!.dataScope);
-    return this.stations.versions(id);
+    return this.stations.versions(id, taskId);
   }
 
   /**

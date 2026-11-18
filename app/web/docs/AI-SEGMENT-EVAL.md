@@ -1,22 +1,47 @@
-# AI 分解评测基线操作指南（P1-4）
+# AI 分解评测基线操作指南（P1-4 / 门禁 0c · P0-4）
 
 目的：回答「AI 分解到底准不准」。当前系统只有代理指标（覆盖率/段中位时长），本指南建立
 **人工真值 → 量化报告** 的最小闭环，对齐行业验收目标（边界 ±2s 命中 ≥70%、类型准确率 ≥70%、查全率 ≥70%）。
+
+> 路径唯一权威：评测脚本 `app/web/tools/eval-ai-segment.cjs`，真值模板与本文档在
+> `app/web/docs/`。仓库根下**没有** `tools/`、`docs/` 副本，别按根路径找。
 
 ## 流程（每个工位约 30–60 分钟）
 
 1. **导出候选**：AI 自动分解页 → 载入视频 → 开始分析 → 右上「导出候选JSON」
    （文件名形如 `ai-candidates-L01-ST01-2026-10-26.json`）
-2. **人工标注真值**：复制 `docs/ai-segment-ground-truth.template.json`，
-   填 `segments`（起止毫秒 + 6 类之一 + 备注）。片段级标注即可，**不用逐帧精标**；
-   标 30–60s 代表片段、≥20 段即可满足统计意义。
-3. **跑评测**：
-   ```bash
-   cd app/web
-   node tools/eval-ai-segment.cjs <候选.json> <真值.json>
+2. **人工标注真值**：复制 `app/web/docs/ai-segment-ground-truth.template.json`，
+   填 `segments`（起止毫秒 + 6 类之一 + 备注）与 `labeler`（实际标注人）。
+   片段级标注即可，**不用逐帧精标**；标 30–60s 代表片段、≥20 段即可满足统计意义。
+3. **放置评测输入（门禁自动发现）**：
    ```
-4. 输出报告含：查全/查准、覆盖率、边界误差（中位/P90/±0.5s/±1s/±2s 命中率）、
-   类型准确率（严格/宽松双口径）、三项验收对照。
+   deliverables/ai-segment/eval/candidates.json      # 候选导出
+   deliverables/ai-segment/eval/ground-truth.json    # 人工真值
+   ```
+   也可用 `deliverables/ai-segment/eval/fixtures.json` 指定路径（相对该清单目录）：
+   ```json
+   { "candidates": "candidates.json", "ground_truth": "ground-truth.json" }
+   ```
+4. **跑评测（两种等价方式）**：
+   ```bash
+   # 单命令门禁（推荐；自动落档 + 打印达标项）
+   npm run test:eval
+
+   # 直接调用（带结构化 JSON 输出）
+   node app/web/tools/eval-ai-segment.cjs <候选.json> <真值.json> --json <报告.json>
+   ```
+5. 输出报告含：查全/查准、覆盖率、边界误差（中位/P90/±0.5s/±1s/±2s 命中率）、
+   类型准确率（严格/宽松双口径）、三项验收对照、`达标项 n/3`。
+   门禁留档在 `deliverables/gates/eval/ai-segment-YYYYMMDD-HHMMSS.json` 与 `latest.json`。
+
+## 与统一门禁的关系
+
+- `npm run test:gate` 的 `eval:ai-segment` 门：**没有真值/候选对时明确 SKIPPED（退出码 78），不计为 PASS**；
+  模板占位（`labeler` 仍是「填写标注人姓名」）同样判 SKIPPED。
+- `npm run test:eval -- --enforce`：三项验收未全达标则退出码 1。默认只记录基线，不阻断。
+- 改规则集 / 切分算法前后各跑一次，用同一份真值对比 `latest.json` 与历史时间戳报告。
+- **真值必须由人独立标注**，不得用 AI 候选反向生成真值；否则测的是「人机一致性」不是准确率。
+  真值 JSON 属于工位知识资产，建议随工位保留。
 
 ## 判读
 
@@ -29,6 +54,6 @@
 
 ## 注意
 
-- 真值请由**人**标注（可参考候选但独立判断），否则测的是「人机一致性」不是准确率。
 - 每次调整 ROI / 检测方式 / 阈值后，用同一份真值重跑即可量化改进幅度。
-- 真值 JSON 属于工位知识资产，建议随工位保留（后续人工修正回流 P2-3 会复用）。
+- 评测输入只进本地 `deliverables/` 留档，不上传；报告里的路径是本机绝对路径，外发前按需脱敏。
+- 样本过少（匹配对 < 3）时报告会标 `⚠`；结论仅供参考，不得升级为对客户声明的 ±x%。

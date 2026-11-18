@@ -9,6 +9,13 @@
 /** video/ 模块（分片上传 XHR 链路）复用：与 request 的 401 单航班刷新重放对齐 */
 export const BASE: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api';
 const REFRESH_KEY = 'ie_refresh_token';
+import { captureTaskScope, captureTaskScopeBody, getCurrentTaskId } from './taskContext';
+
+/** Phase 3 / D1：task_id 一律可选；只有调用方显式传入才附加，未选择当前任务时请求逐字不变 */
+const taskQuery = (path: string, taskId?: string | null): string =>
+  taskId ? `${path}${path.includes('?') ? '&' : '?'}task_id=${encodeURIComponent(taskId)}` : path;
+const taskBody = <T extends object>(body: T, taskId?: string | null): T =>
+  taskId ? { ...body, task_id: taskId } : body;
 
 /* ---------------- token 存取 ---------------- */
 
@@ -118,10 +125,88 @@ export async function request<T>(path: string, options: RequestInit = {}, allowR
     throw new ApiError(401, { detail: '登录已过期，请重新登录' });
   }
 
+  // Phase 3 / D2：记录服务端任务上下文（兼容模式回落时供 UI 显示风险提示）
+  captureTaskScope(res);
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) throw new ApiError(res.status, data ?? {});
+  captureTaskScopeBody(data);
   return data as T;
+}
+
+/* ---------------- 文件下载（认证 + 单航班刷新重放） ---------------- */
+
+/**
+ * 与 request() 同口径的二进制请求：access token 在内存、<a href> 带不上 token，
+ * 且页面重载后首个业务请求必然 401 → 先预刷一次，401 再刷新重放一次。
+ * 只处理认证与传输；错误信封解析与落地下载交给 downloadFile。
+ */
+async function authFetch(path: string, signal?: AbortSignal, allowRetry = true): Promise<Response> {
+  if (!accessToken && allowRetry && getRefreshToken()) {
+    if (!(await refreshTokens())) {
+      clearTokens(); broadcastAuthLost();
+      throw new ApiError(401, { detail: '登录已过期，请重新登录' });
+    }
+  }
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  const res = await fetch(`${BASE}${path}`, { headers, signal });
+  if (res.status === 401 && allowRetry) {
+    if (await refreshTokens()) return authFetch(path, signal, false);
+    clearTokens(); broadcastAuthLost();
+    throw new ApiError(401, { detail: '登录已过期，请重新登录' });
+  }
+  return res;
+}
+
+/**
+ * 取服务端 Content-Disposition 里的文件名（优先 RFC 5987 filename*）。
+ * Phase 2：批量导出文件名带任务号 + 时间段，服务端是唯一口径；前端自己拼会漏掉任务号。
+ * 解析失败返回 null，由调用方回退本地命名，绝不因文件名阻断下载。
+ */
+function serverFilename(res: Response): string | null {
+  const cd = res.headers.get('Content-Disposition');
+  if (!cd) return null;
+  const star = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(cd);
+  if (star) {
+    try {
+      const name = decodeURIComponent(star[1].trim().replace(/^"|"$/g, ''));
+      if (name) return name;
+    } catch { /* 非法百分号编码 → 回落 ASCII filename / 本地名 */ }
+  }
+  const plain = /filename\s*=\s*"([^"]+)"/i.exec(cd);
+  return plain?.[1] || null;
+}
+
+/**
+ * fetch + blob 下载。失败按统一错误信封抛 ApiError（含 detail / errors），
+ * 不再把 4xx/5xx 静默吞成一个空 payload。返回后端统计头供页面提示。
+ * useServerName=true 时优先采用服务端文件名（批量导出用，保证任务号不丢）。
+ */
+async function downloadFile(
+  path: string, filename: string, signal?: AbortSignal, useServerName = false,
+): Promise<string | null> {
+  const res = await authFetch(path, signal);
+  captureTaskScope(res);
+  if (!res.ok) {
+    let payload: Record<string, unknown> = {};
+    try {
+      const t = await res.text();
+      payload = t ? JSON.parse(t) as Record<string, unknown> : {};
+    } catch { /* 网关返回非 JSON：保留空信封，ApiError 会给出状态码兜底文案 */ }
+    throw new ApiError(res.status, payload);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (useServerName && serverFilename(res)) || filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // 立即 revoke 在部分浏览器会截断下载；延后释放，Blob 已被 a.click 引用
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return res.headers.get('X-Export-Stats');
 }
 
 const get = <T,>(path: string) => request<T>(path);
@@ -175,6 +260,49 @@ export interface VideoAssetView {
 export interface LoginResult {
   accessToken: string; refreshToken: string; mustChangePwd: boolean;
   tokenType: string; expiresIn: number;
+}
+
+/** 批量导出留档记录（v3.62：GET /export/batch/records 返回行） */
+export interface BatchExportRecord {
+  record_id: string;
+  created_at: string;
+  username: string;
+  line_id: string;
+  line_name: string;
+  /** Phase 2：按产线兼容模式的 v3.62 存量留档为 null */
+  task_id: string | null;
+  task_no: string | null;
+  station_count: number;
+  element_count: number;
+  focus_count: number;
+  sheet_count: number;
+  file_size: number;
+  status: string;
+  download_count: number;
+  with_focus: boolean;
+  include_outliers: boolean;
+  include_undecomposed: boolean;
+  focus_top: number;
+}
+
+/** Phase 2 · 分解任务（一次「产线 × 项目 × 时间段」的动作分解与改善活动） */
+export interface DecompositionTask {
+  task_id: string; task_no: string; line_id: string; name: string;
+  round_type: string; round_no: number; period_start: string; period_end: string;
+  status: string; baseline_task_id: string | null; project_id: string | null;
+  project_no_snapshot: string | null; rule_versions: string | null;
+  created_by: string | null; created_at: string;
+  station_count: number; is_legacy: boolean;
+}
+export interface TaskStationLink {
+  station_id: string; station_code_snapshot: string; station_name_snapshot: string;
+  bol_version: number; seq_no: number;
+}
+export interface TaskDetail extends DecompositionTask { stations: TaskStationLink[] }
+export interface CreateTaskPayload {
+  line_id: string; name: string;
+  period_start?: string; period_end?: string; round_type?: string;
+  baseline_task_id?: string; project_no_snapshot?: string; station_ids?: string[];
 }
 
 /** 工位实体（后端原样返回；统计字段由前端用线分析/建议接口补齐） */
@@ -344,7 +472,7 @@ export interface SuggestResult {
   note: string | null; rule_versions: { ecrsa_map: number };
 }
 export interface Improvement {
-  imp_id: string; station_id: string; element_ids: string; waste_type: string; method: string; measure: string;
+  imp_id: string; station_id: string; task_id?: string | null; element_ids: string; waste_type: string; method: string; measure: string;
   est_save_s: number; priority: number; status: string; owner: string | null; due: string | null;
   before_ct: number | null; after_ct: number | null; created_at: string;
   station_name?: string; line_id?: string;
@@ -525,8 +653,8 @@ export const api = {
   /* 工位 */
   stations: (lineId?: string) => get<Station[]>(`/stations${lineId ? `?line_id=${encodeURIComponent(lineId)}` : ''}`),
   station: (id: string) => get<Station>(`/stations/${encodeURIComponent(id)}`),
-  createStation: (payload: { station_id: string; line_id: string; name: string; tt?: number }) =>
-    post<Station>('/stations', payload),
+  createStation: (payload: { station_id: string; line_id: string; name: string; tt?: number }, taskId?: string | null) =>
+    post<Station>('/stations', taskBody(payload, taskId)),
   updateStation: (id: string, payload: { name?: string; tt?: number; roi?: string | null; roi_zones?: string | null; sop_steps?: string | null }) =>
     patch<Station>(`/stations/${encodeURIComponent(id)}`, payload),
   /** 删除工位（v3.21 主数据维护）：级联删除全部版本要素与改善记录，不可恢复 */
@@ -547,34 +675,66 @@ export const api = {
     post('/stations/line-shares', { line_id: lineId, user_id: userId, acl_role: aclRole }),
   unshareLine: (lineId: string, userId: string) =>
     del(`/stations/line-shares/${encodeURIComponent(lineId)}/${encodeURIComponent(userId)}`),
-  stationVersions: (id: string) => get<StationVersion[]>(`/stations/${encodeURIComponent(id)}/versions`),
+  /** Phase 3 #107：可选 task_id = #/diff 跨任务对比按任务取版本；不传时行为不变 */
+  stationVersions: (id: string, taskId?: string | null) =>
+    get<StationVersion[]>(taskQuery(`/stations/${encodeURIComponent(id)}/versions`, taskId)),
 
   /* 要素 */
   /** 取要素：version 省略=当前版本；指定则取历史版本（跨循环复用） */
-  elements: (id: string, version?: number) => get<{ station_id: string; version: number; current_version: number; elements: Element[] }>(
-    `/stations/${encodeURIComponent(id)}/elements${version ? `?version=${version}` : ''}`),
+  elements: (id: string, version?: number, taskId?: string | null) => get<{ station_id: string; version: number; current_version: number; elements: Element[] }>(
+    taskQuery(`/stations/${encodeURIComponent(id)}/elements${version ? `?version=${version}` : ''}`, taskId)),
   validateElements: (id: string, payload: SubmitPayload) =>
     post<ValidateResult>(`/stations/${encodeURIComponent(id)}/elements/validate`, payload),
-  submitElements: (id: string, payload: SubmitPayload) =>
-    post<SubmitResult>(`/stations/${encodeURIComponent(id)}/elements/submit`, payload),
-  importCsv: (id: string, csv: string) =>
-    post<SubmitResult>(`/stations/${encodeURIComponent(id)}/elements/import`, { csv }),
-  /** 导出 CSV（接口需认证，普通 <a href> 带不上 token → fetch+blob 下载） */
-  exportElementsCsv: async (id: string) => {
-    const res = await fetch(`${BASE}/stations/${encodeURIComponent(id)}/elements/export`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-    if (!res.ok) throw new ApiError(res.status, {});
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `elements-${id}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  submitElements: (id: string, payload: SubmitPayload, taskId?: string | null) =>
+    post<SubmitResult>(`/stations/${encodeURIComponent(id)}/elements/submit`, taskBody(payload, taskId)),
+  importCsv: (id: string, csv: string, taskId?: string | null) =>
+    post<SubmitResult>(`/stations/${encodeURIComponent(id)}/elements/import`, taskBody({ csv }, taskId)),
+  /** 导出单工位 CSV（回导模板；接口需认证 → fetch+blob 下载，401 走单航班刷新重放） */
+  exportElementsCsv: (id: string, taskId?: string | null) =>
+    downloadFile(taskQuery(`/stations/${encodeURIComponent(id)}/elements/export`, taskId), `elements-${id}.csv`),
+  /* Phase 2 · 分解任务：一个工作簿 = 一个任务，产线只是任务下拉的筛选器 */
+  listTasks: (p: { line_id?: string; project_id?: string; station_id?: string; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (p.line_id) qs.set('line_id', p.line_id);
+    if (p.project_id) qs.set('project_id', p.project_id);
+    if (p.station_id) qs.set('station_id', p.station_id);
+    if (p.limit) qs.set('limit', String(p.limit));
+    return get<{ items: DecompositionTask[] }>(`/tasks${qs.size ? `?${qs}` : ''}`);
   },
+  taskDetail: (id: string) => get<TaskDetail>(`/tasks/${encodeURIComponent(id)}`),
+  createTask: (p: CreateTaskPayload) => post<TaskDetail>('/tasks', p),
+  cloneTaskElements: (id: string, from_task_id: string) =>
+    post<{ copied: number; skipped: number; task_id: string }>(
+      `/tasks/${encodeURIComponent(id)}/clone-elements`, { from_task_id }),
+
+  /**
+   * 批量导出 XLSX（v3.61 → Phase 2）：指定 task_id 时按任务锁定版本导出，
+   * 未指定为按产线兼容模式。服务端按可见范围二次过滤；04 表在无 analysis:read 时自动降级不生成。
+   */
+  exportBatchXlsx: (p: {
+    line_id: string; task_id?: string | null; stations?: string[]; focus_top?: number;
+    include_outliers?: boolean; include_undecomposed?: boolean; with_focus?: boolean;
+  }, signal?: AbortSignal) => {
+    const qs = new URLSearchParams({ line_id: p.line_id });
+    if (p.task_id) qs.set('task_id', p.task_id);
+    if (p.stations?.length) qs.set('stations', p.stations.join(','));
+    if (p.focus_top !== undefined) qs.set('focus_top', String(p.focus_top));
+    if (p.include_outliers !== undefined) qs.set('include_outliers', p.include_outliers ? '1' : '0');
+    if (p.include_undecomposed !== undefined) qs.set('include_undecomposed', p.include_undecomposed ? '1' : '0');
+    if (p.with_focus !== undefined) qs.set('with_focus', p.with_focus ? '1' : '0');
+    const d = new Date();
+    const z = (n: number) => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;
+    const safe = p.line_id.replace(/[^A-Za-z0-9_-]/g, '_');
+    // 文件名以服务端 Content-Disposition 为准（含任务号 + 时间段）；本地名仅作兜底
+    return downloadFile(`/export/batch.xlsx?${qs.toString()}`, `VA分析_${safe}_${stamp}.xlsx`, signal, true);
+  },
+  /** v3.62 留档：历史导出列表（本人 ∪ 全权角色可见；每行含统计与复下载状态） */
+  listBatchExportRecords: (limit = 10) =>
+    get<{ items: BatchExportRecord[] }>(`/export/batch/records?limit=${limit}`),
+  /** v3.62 留档：复下载当时的快照文件（不重新计算；文件被清理时服务端 404） */
+  downloadBatchExportRecord: (id: string, filename: string) =>
+    downloadFile(`/export/batch/records/${encodeURIComponent(id)}/file`, filename),
   vaOverride: (stationId: string, elementId: string, payload: { va_class: string; reason: string }) =>
     patch<{ element_id: string; va_class: string; desc: string; ct: number }>(
       `/stations/${encodeURIComponent(stationId)}/elements/${encodeURIComponent(elementId)}/va-class`, payload),
@@ -583,8 +743,10 @@ export const api = {
       `/stations/${encodeURIComponent(stationId)}/elements/${encodeURIComponent(elementId)}/va-confirm`, payload),
 
   /* 分析 */
-  analysis: (id: string) => get<StationAnalysis>(`/stations/${encodeURIComponent(id)}/analysis`),
-  lineAnalysis: (lineId: string) => get<LineAnalysis>(`/lines/${encodeURIComponent(lineId)}/analysis`),
+  analysis: (id: string, taskId?: string | null) =>
+    get<StationAnalysis>(taskQuery(`/stations/${encodeURIComponent(id)}/analysis`, taskId)),
+  lineAnalysis: (lineId: string, taskId?: string | null) =>
+    get<LineAnalysis>(taskQuery(`/lines/${encodeURIComponent(lineId)}/analysis`, taskId)),
   /** v3.53 AI 诊断：基于分析结果生成根因诊断 + 改善方向（纯文案，待审态） */
   diagnose: (id: string) =>
     post<{ report: string; status: string; generated_by: string; model: string }>(
@@ -624,22 +786,25 @@ export const api = {
         `/cmc/lines/${cmcLineId}/projects`),
   },
   /** 自 CMC 创建分析工位：基础信息实时取自 CMC；v3.22 station_id 可手动维护（缺省自动生成） */
-  createStationFromCmc: (payload: { cmc_line_id: number; station_id?: string; program_number?: string; name: string; tt?: number }) =>
-    post<Station & { program_number: string | null; cmc_line_id: number | null }>('/stations/from-cmc', payload),
+  createStationFromCmc: (payload: { cmc_line_id: number; station_id?: string; program_number?: string; name: string; tt?: number }, taskId?: string | null) =>
+    post<Station & { program_number: string | null; cmc_line_id: number | null }>('/stations/from-cmc', taskBody(payload, taskId)),
 
   /* 建议 */
-  suggest: (id: string) => post<SuggestResult>(`/stations/${encodeURIComponent(id)}/suggestions/generate`),
+  suggest: (id: string) => post<SuggestResult>(
+    taskQuery(`/stations/${encodeURIComponent(id)}/suggestions/generate`, getCurrentTaskId())),
   adopt: (id: string, payload: AdoptPayload) =>
     post<{ station_id: string; created: number; imp_ids: string[] }>(
-      `/stations/${encodeURIComponent(id)}/suggestions/adopt`, payload),
+      taskQuery(`/stations/${encodeURIComponent(id)}/suggestions/adopt`, getCurrentTaskId()), payload),
   improvements: (query: { line_id?: string; station_id?: string; status?: string; project_type?: string; process?: string; product_type?: string } = {}) => {
     const qs = new URLSearchParams(
       Object.entries(query).filter(([, v]) => Boolean(v)) as [string, string][],
     ).toString();
-    return get<{ improvements: Improvement[] }>(`/improvements${qs ? `?${qs}` : ''}`);
+    return get<{ improvements: Improvement[] }>(
+      taskQuery(`/improvements${qs ? `?${qs}` : ''}`, getCurrentTaskId()));
   },
   updateImprovementStatus: (impId: string, status: string) =>
-    patch<Improvement>(`/improvements/${encodeURIComponent(impId)}/status`, { status }),
+    patch<Improvement>(
+      taskQuery(`/improvements/${encodeURIComponent(impId)}/status`, getCurrentTaskId()), { status }),
   improvementReport: (impId: string) => get<SuggestionReport>(`/improvements/${encodeURIComponent(impId)}/report`),
 
   /* AI 改善建议模块（规格书 §4；权限 suggestion:generate / ai:governance / user:write） */
@@ -659,16 +824,20 @@ export const api = {
       if (version) q.push(`version=${version}`);
       if (source) q.push(`source=${source}`);
       const qs = q.length > 0 ? `?${q.join('&')}` : '';
-      return get<AiSuggestionsResult>(`/stations/${encodeURIComponent(stationId)}/ai-suggestions${qs}`);
+      return get<AiSuggestionsResult>(taskQuery(
+        `/stations/${encodeURIComponent(stationId)}/ai-suggestions${qs}`, getCurrentTaskId()));
     },
     /** 触发生成：done/done_empty 幂等 200（idempotent_hit=true）；pending/running→409；配额尽→429；failed→重开。
      *  成功响应为扁平结构——页面刷新统一走 list()，本响应只用于 409/429/成功提示判定。
      *  v3.46：source 可选；mixed/缺省不拼 query（legacy 请求逐字节不变） */
     generate: (stationId: string, source?: AiSuggestElementSource) =>
-      post<AiGenerateResult>(`/stations/${encodeURIComponent(stationId)}/ai-suggestions/generate${source && source !== 'mixed' ? `?source=${source}` : ''}`),
+      post<AiGenerateResult>(taskQuery(
+        `/stations/${encodeURIComponent(stationId)}/ai-suggestions/generate${source && source !== 'mixed' ? `?source=${source}` : ''}`,
+        getCurrentTaskId())),
     /** 采纳：422 REDLINE_CONFIRM_REQUIRED 时需带 confirmations 重试（quality/ergonomics 两类红线） */
     adopt: (suggestionId: string, confirmations?: { quality?: { name: string; date?: string }; ergonomics?: { name: string; date?: string } }) =>
-      post<AiAdoptResult>(`/ai-suggestions/${encodeURIComponent(suggestionId)}/adopt`, confirmations ? { confirmations } : undefined),
+      post<AiAdoptResult>(taskQuery(`/ai-suggestions/${encodeURIComponent(suggestionId)}/adopt`, getCurrentTaskId()),
+        confirmations ? { confirmations } : undefined),
     /** 否决（可选 reason ≤256 字） */
     reject: (suggestionId: string, reason?: string) =>
       post<{ suggestion_id: string; status: string }>(`/ai-suggestions/${encodeURIComponent(suggestionId)}/reject`, reason ? { reason } : undefined),
@@ -718,19 +887,24 @@ export const api = {
     /** 最新批次视图（findings + issues + 批次元信息 + ct/summary；无批 → batch=null）。
      *  source 可选：不传 = 旧行为（服务端默认 ai_assisted 线，逐字节不变）。 */
     latest: (stationId: string, source?: AiWasteElementSource) =>
-      get<AiWasteLatestResult>(`/stations/${encodeURIComponent(stationId)}/ai-waste/latest${source ? `?source=${source}` : ''}`),
+      get<AiWasteLatestResult>(taskQuery(
+        `/stations/${encodeURIComponent(stationId)}/ai-waste/latest${source ? `?source=${source}` : ''}`, getCurrentTaskId())),
     /** 批次历史（只读溯源；source 可选，缺省 ai_assisted 线） */
     batches: (stationId: string, source?: AiWasteElementSource) =>
-      get<AiWasteBatchesResult>(`/stations/${encodeURIComponent(stationId)}/ai-waste/batches${source ? `?source=${source}` : ''}`),
+      get<AiWasteBatchesResult>(taskQuery(
+        `/stations/${encodeURIComponent(stationId)}/ai-waste/batches${source ? `?source=${source}` : ''}`, getCurrentTaskId())),
     /** 识别生成·AI 分解线：done/done_empty 幂等 200（idempotent_hit=true）；running→409；无 AI 要素→400；服务关→503 */
     generate: (stationId: string) =>
-      post<AiWasteLatestResult>(`/stations/${encodeURIComponent(stationId)}/ai-waste/generate`),
+      post<AiWasteLatestResult>(taskQuery(
+        `/stations/${encodeURIComponent(stationId)}/ai-waste/generate`, getCurrentTaskId())),
     /** 识别生成·手工分解线（v3.45）：基于已提交 manual 要素；幂等/409/503 与 generate 对称且按 source 隔离 */
     generateManual: (stationId: string) =>
-      post<AiWasteLatestResult>(`/stations/${encodeURIComponent(stationId)}/ai-waste/generate-manual`),
+      post<AiWasteLatestResult>(taskQuery(
+        `/stations/${encodeURIComponent(stationId)}/ai-waste/generate-manual`, getCurrentTaskId())),
     /** 问题条目状态流转：已确认→复制进 t_improvement（source=ai）；已忽略→终态 */
     settle: (issueId: string, status: '已确认' | '已忽略') =>
-      post<AiWasteIssue>(`/ai-waste/issues/${encodeURIComponent(issueId)}/settle`, { status }),
+      post<AiWasteIssue>(taskQuery(
+        `/ai-waste/issues/${encodeURIComponent(issueId)}/settle`, getCurrentTaskId()), { status }),
 
     /* —— v3.51：人工录入与改善知识库 —— */
 
@@ -741,7 +915,8 @@ export const api = {
       if (opts?.scope) qs.set('scope', opts.scope);
       if (opts?.source) qs.set('source', opts.source);
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
-      return get<AiWasteItemsResult>(`/stations/${encodeURIComponent(stationId)}/ai-waste/items${suffix}`);
+      return get<AiWasteItemsResult>(taskQuery(
+        `/stations/${encodeURIComponent(stationId)}/ai-waste/items${suffix}`, getCurrentTaskId()));
     },
     /** 人工录入·浪费点（数字服务端算） */
     createFinding: (stationId: string, payload: { waste_type: string; evidence: string; element_seqs?: number[] }) =>
@@ -794,10 +969,11 @@ export const api = {
   },
 
   /* 对比 */
-  compare: (id: string, v1?: number, v2?: number) => {
+  compare: (id: string, v1?: number, v2?: number, taskId?: string | null) => {
     const qs = new URLSearchParams();
     if (v1) qs.set('v1', String(v1));
     if (v2) qs.set('v2', String(v2));
+    if (taskId) qs.set('task_id', taskId);
     const suffix = qs.toString() ? `?${qs}` : '';
     return get<CompareResult>(`/stations/${encodeURIComponent(id)}/compare${suffix}`);
   },
@@ -1254,6 +1430,8 @@ export function parseValidationTrace(t: AiSuggestion['validation_trace']): unkno
 }
 
 export interface SubmitPayload {
+  /** Phase 3 / D1：可选任务上下文；不传由服务端自动继承 / legacy 回落 */
+  task_id?: string;
   bol_version?: number; cycle_count: number; cv: number; video_id?: string;
   elements: {
     seq: number; start_ms: number; dur_s: number; hand: string; type: string; desc: string;

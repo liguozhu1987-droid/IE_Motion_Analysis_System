@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, type Element, type Station, type StationVersion } from '../api';
+import { api, type DecompositionTask, type Element, type Station, type StationVersion } from '../api';
 import { computeDiff, normalizeDesc, type DiffResult } from '../diff';
 import SelectMenu from '../components/SelectMenu';
 
@@ -23,29 +23,116 @@ const sign = (n: number) => (n > 0 ? `+${fmtS(n)}` : fmtS(n));
 
 export default function DiffPage({ stationId, vA, vB }: { stationId: string; vA: number; vB: number }) {
   const [station, setStation] = useState<Station | null>(null);
-  const [versions, setVersions] = useState<StationVersion[]>([]);
+  /* Phase 3 #107：跨任务对比——A/B 侧各带可选任务上下文；'' = 默认（兼容模式：产线 legacy 回落，旧路由行为不变） */
+  const [tasks, setTasks] = useState<DecompositionTask[]>([]);
+  const [taskA, setTaskA] = useState('');
+  const [taskB, setTaskB] = useState('');
+  const [versionsA, setVersionsA] = useState<StationVersion[]>([]);
+  const [versionsB, setVersionsB] = useState<StationVersion[]>([]);
   const [elsA, setElsA] = useState<Element[] | null>(null);
   const [elsB, setElsB] = useState<Element[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
+  /* 工位元数据 + 本工位可参与的任务（t_task_station 成员过滤） */
   useEffect(() => {
     let alive = true;
-    setStation(null); setVersions([]); setElsA(null); setElsB(null); setError(null);
+    setStation(null); setTasks([]); setTaskA(''); setTaskB(''); setError(null);
     (async () => {
       try {
-        const [st, vs] = await Promise.all([api.station(stationId), api.stationVersions(stationId)]);
+        const st = await api.station(stationId);
         if (!alive) return;
-        setStation(st); setVersions(vs);
-        const [ea, eb] = await Promise.all([api.elements(stationId, vA), api.elements(stationId, vB)]);
+        setStation(st);
+        const ts = await api.listTasks({ station_id: stationId, limit: 100 });
         if (!alive) return;
-        setElsA(ea.elements ?? []); setElsB(eb.elements ?? []);
+        setTasks(ts.items ?? []);
       } catch (err) {
         if (alive) setError((err as Error).message);
       }
     })();
     return () => { alive = false; };
-  }, [stationId, vA, vB]);
+  }, [stationId]);
+
+  /* 各侧版本清单（随任务上下文取数；后端 versions?task_id= 按任务过滤） */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const vs = await api.stationVersions(stationId, taskA || undefined);
+        if (!alive) return;
+        setVersionsA(vs);
+        /* 切任务后若当前 vA 不属于该任务 → 自动落该任务最新版（hash 驱动，路由不变式保持） */
+        if (taskA && vs.length > 0 && !vs.some((v) => v.version === vA)) {
+          window.location.hash = `#/diff/${stationId}/${vs[vs.length - 1].version}/${vB}`;
+        }
+      } catch (err) {
+        if (alive) setError((err as Error).message);
+      }
+    })();
+    return () => { alive = false; };
+  }, [stationId, taskA, vA, vB]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const vs = await api.stationVersions(stationId, taskB || undefined);
+        if (!alive) return;
+        setVersionsB(vs);
+        if (taskB && vs.length > 0 && !vs.some((v) => v.version === vB)) {
+          window.location.hash = `#/diff/${stationId}/${vA}/${vs[vs.length - 1].version}`;
+        }
+      } catch (err) {
+        if (alive) setError((err as Error).message);
+      }
+    })();
+    return () => { alive = false; };
+  }, [stationId, taskB, vA, vB]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 各侧要素（elements?task_id= 已是 Wave1 统一口径） */
+  useEffect(() => {
+    let alive = true;
+    setElsA(null);
+    (async () => {
+      try {
+        const ea = await api.elements(stationId, vA, taskA || undefined);
+        if (alive) setElsA(ea.elements ?? []);
+      } catch (err) {
+        if (alive) setError((err as Error).message);
+      }
+    })();
+    return () => { alive = false; };
+  }, [stationId, vA, taskA]);
+
+  useEffect(() => {
+    let alive = true;
+    setElsB(null);
+    (async () => {
+      try {
+        const eb = await api.elements(stationId, vB, taskB || undefined);
+        if (alive) setElsB(eb.elements ?? []);
+      } catch (err) {
+        if (alive) setError((err as Error).message);
+      }
+    })();
+    return () => { alive = false; };
+  }, [stationId, vB, taskB]);
+
+  /* #107 复用 baseline_task_id：B 侧选了带基准的任务且 A 侧还是默认 → 自动带上基准任务 */
+  const pickTask = (side: 'a' | 'b', id: string) => {
+    if (side === 'b') {
+      const t = tasks.find((x) => x.task_id === id);
+      if (t?.baseline_task_id && !taskA && tasks.some((x) => x.task_id === t.baseline_task_id)) {
+        setTaskA(t.baseline_task_id);
+      }
+    }
+    if (side === 'a') setTaskA(id); else setTaskB(id);
+  };
+
+  const taskOptions = [
+    { value: '', label: '默认（兼容模式）' },
+    ...tasks.map((t) => ({ value: t.task_id, label: `${t.task_no} ${t.name}` })),
+  ];
 
   const diff: DiffResult | null = useMemo(
     () => (elsA && elsB ? computeDiff(elsA as unknown as Parameters<typeof computeDiff>[0], elsB as unknown as Parameters<typeof computeDiff>[1]) : null),
@@ -148,12 +235,24 @@ export default function DiffPage({ stationId, vA, vB }: { stationId: string; vA:
           <span className="sub mono">{station.station_id} · {station.name}</span>
         </div>
         <div className="diffp-versions">
+          {/* Phase 3 #107：跨任务对比任务选择（自绘 SelectMenu）；本工位无任务时不渲染，保持旧 UI */}
+          {tasks.length > 0 && (
+            <>
+              <label>A 侧任务
+                <SelectMenu ariaLabel="A 侧任务" value={taskA} onChange={(v) => pickTask('a', v)} options={taskOptions} />
+              </label>
+              <label>B 侧任务
+                <SelectMenu ariaLabel="B 侧任务" value={taskB} onChange={(v) => pickTask('b', v)} options={taskOptions} />
+              </label>
+              <span className="diffp-arrow">·</span>
+            </>
+          )}
           <label>前一版
             {/* v3.59.1 SelectMenu 自绘，根治原生 popup 漂移飞走 */}
             <SelectMenu ariaLabel="前一版"
               value={String(vA)}
               onChange={(v) => switchVersion('a', Number(v))}
-              options={versions.filter((v) => v.version !== vB && v.element_count > 0).map((v) => ({
+              options={versionsA.filter((v) => v.version !== vB && v.element_count > 0).map((v) => ({
                 value: String(v.version),
                 label: `v${v.version}（${v.element_count} 要素 / CT ${v.ct}s）`,
               }))} />
@@ -163,11 +262,17 @@ export default function DiffPage({ stationId, vA, vB }: { stationId: string; vA:
             <SelectMenu ariaLabel="当前版"
               value={String(vB)}
               onChange={(v) => switchVersion('b', Number(v))}
-              options={versions.filter((v) => v.version !== vA && v.element_count > 0).map((v) => ({
+              options={versionsB.filter((v) => v.version !== vA && v.element_count > 0).map((v) => ({
                 value: String(v.version),
                 label: `v${v.version}（${v.element_count} 要素 / CT ${v.ct}s）`,
               }))} />
           </label>
+          {(() => {
+            const tb = tasks.find((t) => t.task_id === taskB);
+            if (!tb?.baseline_task_id) return null;
+            const base = tasks.find((t) => t.task_id === tb.baseline_task_id);
+            return <span className="muted">B 侧基准：{base?.task_no ?? tb.baseline_task_id}</span>;
+          })()}
         </div>
       </div>
 

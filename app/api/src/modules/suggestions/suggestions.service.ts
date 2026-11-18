@@ -13,6 +13,7 @@ import { AdoptCandidatesDto, ImprovementQuery } from './dto';
 import { round2, today } from '../../core/shared/util';
 import { StationsService } from '../stations/stations.service';
 import { DataScope } from '../../auth/auth-user.interface';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
 
 /** 三态流转合法迁移表（MVP 口径：待实施→已完成→已验证） */
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -47,6 +48,7 @@ export class SuggestionsService {
     private readonly analysis: AnalysisService,
     private readonly rules: RulesService,
     private readonly stations: StationsService,
+    private readonly scope: TaskScopeService,
   ) {
     this.stationRepo = new StationRepository(ds);
     this.impRepo = new ImprovementRepository(ds);
@@ -54,11 +56,11 @@ export class SuggestionsService {
   }
 
   /** 生成候选建议（不落库；日产量未配置时优先级按频次=1 计算并提示） */
-  async generateCandidates(stationId: string) {
+  async generateCandidates(stationId: string, taskId?: string | null) {
     const station = await this.stationRepo.findOne({ station_id: stationId });
     if (!station) throw new NotFoundException(`工位 ${stationId} 不存在`);
 
-    const analysis = await this.analysis.analyzeStationAtVersion(station, station.version);
+    const analysis = await this.analysis.analyzeStationAtVersion(station, station.version, taskId);
     const ecrsa = this.rules.getActive('ecrsa_map');
     const params = getLineParams(this.rules.getActive('benefit_params').json, station.line_id);
     const candidates = buildCandidates(analysis, ecrsa.json, params?.daily_output ?? null);
@@ -77,9 +79,11 @@ export class SuggestionsService {
   }
 
   /** 采纳候选建议：红线未确认 → 422 REDLINE_CONFIRM_REQUIRED（requires 随信封透传） */
-  async adoptCandidates(stationId: string, payload: AdoptCandidatesDto) {
+  async adoptCandidates(stationId: string, payload: AdoptCandidatesDto, explicitTaskId?: string | null) {
     const station = await this.stationRepo.findOne({ station_id: stationId });
     if (!station) throw new NotFoundException(`工位 ${stationId} 不存在`);
+    // Wave2 / #106：采纳产生的改善任务写入当前分解任务（显式校验 / 自动继承 / legacy 回落）
+    const taskId = (await this.scope.resolveCurrent(stationId, explicitTaskId)).task_id;
 
     const list = Array.isArray(payload.candidates) ? payload.candidates : [];
     if (list.length === 0) throw new BadRequestException('没有选中任何建议');
@@ -106,6 +110,7 @@ export class SuggestionsService {
           imp_id: impId,
           tenant_id: station.tenant_id,
           station_id: stationId,
+          task_id: taskId,
           element_ids: (c.element_ids ?? []).join(','),
           waste_type: c.waste_type,
           method: c.method,
@@ -159,6 +164,8 @@ export class SuggestionsService {
   async listImprovements(query: ImprovementQuery = {}, visibleStationIds: string[] | null = null) {
     const where: Record<string, unknown> = {};
     if (query.station_id) where.station_id = query.station_id;
+    // Wave2 / #106：?task_id= 按任务过滤；不传时逐字保持原有行为（dashboard / 报表调用零变化）
+    if (query.task_id) where.task_id = query.task_id;
     if (query.status) where.status = query.status;
     if (query.project_type) where.project_type = query.project_type;
     if (query.line_id) where.station = { line_id: query.line_id };
@@ -185,7 +192,7 @@ export class SuggestionsService {
   }
 
   /** 三态流转：已验证要求存在复测版本（≥2 个 bol_version）并回填 after_ct=当前版CT */
-  async updateStatus(impId: string, status: string) {
+  async updateStatus(impId: string, status: string, taskId?: string | null) {
     const imp = await this.impRepo.findOne({ imp_id: impId });
     if (!imp) throw new NotFoundException(`改善建议 ${impId} 不存在`);
 
@@ -200,11 +207,13 @@ export class SuggestionsService {
     if (status === '已验证') {
       const station = await this.stationRepo.findOne({ station_id: imp.station_id });
       if (!station) throw new NotFoundException(`工位 ${imp.station_id} 不存在`);
-      const versionRow = await this.ds.getRepository(Element)
+      const scope = await this.scope.resolveCurrent(imp.station_id, taskId);
+      const versionQb = this.ds.getRepository(Element)
         .createQueryBuilder('e')
         .select('COUNT(DISTINCT e.bol_version)', 'c')
-        .where('e.station_id = :sid AND e.tenant_id = :tid', { sid: imp.station_id, tid: station.tenant_id })
-        .getRawOne();
+        .where('e.station_id = :sid AND e.tenant_id = :tid', { sid: imp.station_id, tid: station.tenant_id });
+      if (scope.task_id) versionQb.andWhere('e.task_id = :taskId', { taskId: scope.task_id });
+      const versionRow = await versionQb.getRawOne();
       const versions = Number(versionRow?.c ?? 0);
       if (versions < 2) {
         throw new ConflictException({
@@ -212,12 +221,13 @@ export class SuggestionsService {
           hint: '先在该工位点“开始复测”并提交复测分解',
         });
       }
-      const ctAgg = await this.ds.getRepository(Element)
+      const ctQb = this.ds.getRepository(Element)
         .createQueryBuilder('e')
         .select('COALESCE(SUM(e.std_time), 0)', 'ct')
         .where('e.station_id = :sid AND e.bol_version = :ver AND e.outlier_flag = 0 AND e.tenant_id = :tid',
-          { sid: imp.station_id, ver: station.version, tid: station.tenant_id })
-        .getRawOne();
+          { sid: imp.station_id, ver: station.version, tid: station.tenant_id });
+      if (scope.task_id) ctQb.andWhere('e.task_id = :taskId', { taskId: scope.task_id });
+      const ctAgg = await ctQb.getRawOne();
       const ct = round2(Number(ctAgg?.ct ?? 0));
       await this.impRepo.update({ imp_id: impId }, { status, after_ct: ct });
       const updated = await this.impRepo.findOne({ imp_id: impId });
@@ -241,6 +251,8 @@ export class SuggestionsService {
     const ids = String(imp.element_ids ?? '').split(',').map((s) => s.trim()).filter(Boolean);
     let involved: { seq: number; type: string; desc: string; std_time: number; va_class: string }[] = [];
     if (ids.length > 0) {
+      /* [task-scope:compat] 建议书按创建时记录的 element_id 精确取回（不是任务范围枚举），
+         存量引用可能跨任务；t_improvement.task_id 归属属 #106，本轮不改写引用关系。 */
       const rows = await this.ds.getRepository(Element).find({
         where: { element_id: In(ids), tenant_id: station.tenant_id },
       });
@@ -291,6 +303,8 @@ export class SuggestionsService {
     return {
       imp_id: r.imp_id,
       station_id: r.station_id,
+      /** Wave2 / #106：归属分解任务（兼容模式为 null，不冒充任务号） */
+      task_id: r.task_id ?? null,
       element_ids: r.element_ids,
       waste_type: r.waste_type,
       method: r.method,

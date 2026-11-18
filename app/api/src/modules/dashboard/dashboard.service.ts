@@ -7,6 +7,8 @@ import { analyzeStation } from '../analysis/engine';
 import { round1, round2 } from '../../core/shared/util';
 import { TtlCache } from '../../core/shared/ttl-cache';
 import { APP_CONFIG, AppConfig } from '../../core/config/configuration';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
+import { NO_SCOPE, matchesTask } from '../../core/task-scope/task-scope';
 
 /**
  * 集团综合驾驶舱聚合服务（v3.3）。
@@ -73,6 +75,7 @@ export class DashboardService {
     @InjectDataSource() private readonly ds: DataSource,
     private readonly rules: RulesService,
     @Inject(APP_CONFIG) private readonly cfg: AppConfig,
+    private readonly scope: TaskScopeService,
   ) {
     this.cache = new TtlCache({ ttlMs: this.cfg.dashboardCacheTtlMs, maxEntries: 64, label: 'dashboard' });
     this.cacheMetrics = dashboardCacheCounter();
@@ -120,7 +123,7 @@ export class DashboardService {
    * 租户集合不再被 region/company 预过滤——筛选下钻与显示层级同源，点击"China"不再筛空。
    * 返回均为内存结构，绝不含跨公司要素明细外泄（工位仅用于定位与聚合）。
    */
-  private async resolveScope(f: DashboardFilters, tenantScope: string[] | null = null, visibleStationIds: string[] | null = null): Promise<Scope> {
+  private async resolveScope(f: DashboardFilters, tenantScope: string[] | null = null, visibleStationIds: string[] | null = null, taskId?: string | null): Promise<Scope> {
     const tenantRepo = this.ds.getRepository('t_tenant');
     const lineRepo = this.ds.getRepository('t_line');
     const stationRepo = this.ds.getRepository('t_station');
@@ -161,11 +164,19 @@ export class DashboardService {
     const scoped = scopedStations.filter((s) => allowedLines.has(lineKey(s.tenant_id, s.line_id)));
     const stationMap = new Map(scoped.map((s) => [s.station_id as string, s]));
 
-    // 4. 要素（一次取回，内存按工位生效版本过滤）
+    // 4. 要素（一次取回，内存按工位生效版本 + 任务上下文过滤）
+    //    Phase 3：跨租户视图下每个工位按自己的 tenant_id 解析任务，绝不共用调用者租户。
+    const scopeMap = await this.scope.resolveStationMap(
+      scoped.map((s) => ({
+        station_id: String(s.station_id), tenant_id: String(s.tenant_id), line_id: String(s.line_id),
+      })),
+      taskId,
+    );
     const stationIds = scoped.map((s) => s.station_id as string);
     const elements = stationIds.length > 0 ? ((await elementRepo.find({ where: { station_id: In(stationIds) } })) as any[]) : [];
     const elByStation = new Map<string, any[]>();
     for (const e of elements) {
+      if (!matchesTask(e, scopeMap.get(String(e.station_id)) ?? NO_SCOPE)) continue;
       const arr = elByStation.get(e.station_id) ?? [];
       arr.push(e);
       elByStation.set(e.station_id, arr);
@@ -205,19 +216,19 @@ export class DashboardService {
    * 同时缓存键必须按可见范围分区（见 cacheKey），否则同租户不同用户的
    * 聚合结果会互相串味（这正是「看板显示别人数据」的技术根因之一）。
    */
-  async summary(f: DashboardFilters, tenantId: string, crossTenant = false, visibleStationIds: string[] | null = null) {
+  async summary(f: DashboardFilters, tenantId: string, crossTenant = false, visibleStationIds: string[] | null = null, taskId?: string | null) {
     // v3.42：非全权角色锁本租户（决策 1 综合看板全角色开放后，租户边界必须收口）；
     // 缓存键按 scope 分区——同租户普通用户共享一份缓存，全权角色共享 'ALL' 一份。
     // v3.55：再按可见范围分区（不同用户可见集不同 → 缓存键必须区分）。
-    const key = this.cacheKey('summary', crossTenant ? 'ALL' : tenantId, f, visibleStationIds);
-    const outcome = await this.cache.resolve(key, () => this.computeSummary(f, crossTenant ? null : [tenantId], visibleStationIds));
+    const key = this.cacheKey('summary', crossTenant ? 'ALL' : tenantId, f, visibleStationIds, taskId ?? null);
+    const outcome = await this.cache.resolve(key, () => this.computeSummary(f, crossTenant ? null : [tenantId], visibleStationIds, taskId));
     this.cacheMetrics.inc({ result: outcome.result });
     // 注意：不往响应体里加 cached 字段——前端与既有 contract 测试按字段白名单校验
     return outcome.value;
   }
 
-  private async computeSummary(f: DashboardFilters, tenantScope: string[] | null, visibleStationIds: string[] | null) {
-    const { allowedLines, lineOrg, scoped, metrics, imps } = await this.resolveScope(f, tenantScope, visibleStationIds);
+  private async computeSummary(f: DashboardFilters, tenantScope: string[] | null, visibleStationIds: string[] | null, taskId?: string | null) {
+    const { allowedLines, lineOrg, scoped, metrics, imps } = await this.resolveScope(f, tenantScope, visibleStationIds, taskId);
     const vaRules = this.rules.getActive('va_rules');
     const wasteRules = this.rules.getActive('waste_triggers');
 
@@ -466,7 +477,7 @@ export class DashboardService {
    */
   private cacheKey(
     kind: 'summary' | 'improvements', tenantId: string,
-    f: DashboardFilters & { status?: string }, visibleStationIds: string[] | null = null,
+    f: DashboardFilters & { status?: string }, visibleStationIds: string[] | null = null, taskId: string | null = null,
   ): string {
     const filters = Object.entries(f)
       .filter(([, v]) => v !== undefined && v !== null && String(v).length > 0)
@@ -478,7 +489,8 @@ export class DashboardService {
     const scopeKey = visibleStationIds === null
       ? 'ALL'
       : `V${visibleStationIds.length}-${this.fingerprint(visibleStationIds)}`;
-    return `${kind}|${tenantId || 'DEFAULT'}|${rules}|${filters}|${scopeKey}`;
+    // Phase 3：不同任务上下文的聚合结果不能互相命中缓存（与可见范围指纹同理）
+    return `${kind}|${tenantId || 'DEFAULT'}|${rules}|${filters}|${scopeKey}|T=${taskId ?? 'auto'}`;
   }
 
   /** 稳定短哈希（FNV-1a 32bit → 8 位十六进制）：可见工位集 → 缓存分区键 */

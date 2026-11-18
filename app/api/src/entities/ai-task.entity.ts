@@ -4,6 +4,8 @@ import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn } fro
 @Entity({ name: 't_ai_task' })
 export class AiTask {
   @PrimaryColumn({ length: 36 }) task_id: string;
+  /** Phase 3 Wave2：所属分解任务（D5 命名避让——本表 task_id 是 AI 队列 UUID 主键）。无存量行，零回填。 */
+  @Column({ length: 32, nullable: true }) decomp_task_id: string | null;
   @Column({ length: 32 }) tenant_id: string;
   @Column({ length: 32 }) type: string; // suggestion_polish|analysis_summary
   @Column({ length: 16, default: 'pending' }) status: string;

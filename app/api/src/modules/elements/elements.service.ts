@@ -8,10 +8,12 @@ import { StationsService } from '../stations/stations.service';
 import { ElementRepository } from './element.repository';
 import { computeStd, validateSubmission, ValidateInput } from './validation';
 import { ElementItemDto, SubmitElementsDto } from './dto';
-import { ELEMENT_TYPES, HANDS, VA_CLASSES, elementId, round2, round3, stripVaMarker, today } from '../../core/shared/util';
+import { ELEMENT_TYPES, HANDS, VA_CLASSES, elementId, taskElementId, round2, round3, stripVaMarker, today } from '../../core/shared/util';
 import { parseCsv, toCsv } from '../../core/shared/csv';
 import { currentTenantId } from '../../tenant/tenant-context';
 import { DataScope } from '../../auth/auth-user.interface';
+import { TaskScopeService } from '../../core/task-scope/task-scope.service';
+import { scopeMarker, withTask } from '../../core/task-scope/task-scope';
 
 /**
  * 要素分解服务（MVP elements/service.js 1:1 平移）。
@@ -26,6 +28,7 @@ export class ElementsService {
     @InjectDataSource() private readonly ds: DataSource,
     private readonly stations: StationsService,
     private readonly rules: RulesService,
+    private readonly scope: TaskScopeService,
   ) {
     this.repo = new ElementRepository(ds);
   }
@@ -55,14 +58,18 @@ export class ElementsService {
 
   /** 当前版本要素列表（按 seq 升序；工位不存在 → 404） */
   /** 取要素：默认当前版本；version 指定时取历史版本（跨循环/上一版复用要素的数据源） */
-  async list(stationId: string, version?: number) {
+  async list(stationId: string, version?: number, taskId?: string | null) {
     const station = await this.stations.get(stationId);
     const target = Number.isFinite(version) && (version as number) > 0 ? (version as number) : station.version;
+    const scope = await this.scope.resolveCurrent(stationId, taskId);
     const elements = await this.repo.find(
-      { station_id: stationId, bol_version: target },
+      withTask({ station_id: stationId, bol_version: target }, scope),
       { order: { seq: 'ASC' } },
     );
-    return { station_id: stationId, version: target, current_version: station.version, elements };
+    return {
+      station_id: stationId, version: target, current_version: station.version, elements,
+      task_scope: scopeMarker(scope),
+    };
   }
 
   /** 干跑校验（不落库）：前端"提交前预检"用 */
@@ -110,9 +117,11 @@ export class ElementsService {
    * 提交分解（事务：清当前版本 → 写入 → 重算 CT → 回写工位；文档01 §10）。
    * 写守卫：bol_version 必须等于工位当前 version（封存版本只读）。
    */
-  async submit(stationId: string, payload: SubmitElementsDto, user: string) {
+  async submit(stationId: string, payload: SubmitElementsDto, user: string, taskId?: string | null) {
     const station = await this.stations.get(stationId);
     const version = station.version;
+    // Phase 3 / D1：显式任务优先（body.task_id / 参数），否则自动继承 / legacy 回落
+    const scope = await this.scope.resolveCurrent(stationId, taskId ?? payload.task_id);
     if (payload.bol_version !== undefined && Number(payload.bol_version) !== version) {
       throw new ConflictException(`只能提交当前版本 v${version}（封存版本只读）`);
     }
@@ -138,9 +147,9 @@ export class ElementsService {
          ② CSV 导入整版覆盖 AI 版本（importCsv 构造的载荷不带 source）
          ③ 任何绕过 UI 直接打接口的无来源标记整版提交
        放行条件：AI 要素条数不减少——AI 成果可被手工线引用/精修，但不得被吞掉。 */
-    const aiExisting = await this.ds.getRepository(Element).countBy({
+    const aiExisting = await this.ds.getRepository(Element).countBy(withTask({
       station_id: stationId, bol_version: version, tenant_id: tenantId, source: 'ai_assisted',
-    });
+    }, scope));
     if (aiExisting > 0) {
       const aiSubmitted = sorted.filter((el) => el.source === 'ai_assisted').length;
       if (aiSubmitted < aiExisting) {
@@ -153,14 +162,21 @@ export class ElementsService {
     }
 
     const result = await this.repo.transaction(async (mgr) => {
-      await mgr.delete(Element, { station_id: stationId, bol_version: version, tenant_id: tenantId });
+      // A-103-1：delete 必须带 task_id —— 否则提交 T1 会连坐删掉同工位同版本的 T2 要素
+      await mgr.delete(Element, withTask({ station_id: stationId, bol_version: version, tenant_id: tenantId }, scope));
       for (let i = 0; i < sorted.length; i += 1) {
         const el = sorted[i];
         const seq = i + 1;
         const rating = round3(Number(el.rating ?? 1));
         const allowance = round3(Number(el.allowance ?? 0.15));
+        // A-103-3 / D3：带任务上下文的新写入才用带任务号编码；存量 element_id 零改写
+        const newElementId = scope.task_no
+          ? taskElementId(scope.task_no, stationId, version, seq)
+          : elementId(stationId, version, seq);
+        if (newElementId.length > 96) throw new BadRequestException(`要素编码超长（96）：${newElementId}`);
         const row = mgr.create(Element, {
-          element_id: elementId(stationId, version, seq),
+          element_id: newElementId,
+          ...(scope.task_id ? { task_id: scope.task_id } : {}),
           tenant_id: tenantId,
           station_id: stationId,
           seq,
@@ -181,6 +197,9 @@ export class ElementsService {
         });
         await mgr.save(row);
       }
+      /* [task-scope:compat] 工位级 CT 是 t_station.ct 单值，Phase 3 不改 CT 模型
+         （t_task_station.ct_snapshot 的按任务落库属后续范围），故此处仍按工位聚合，
+         与 StationsService.recalcCt 口径一致；显式标注为兼容路径，不是漏改。 */
       const agg = await mgr.createQueryBuilder(Element, 'e')
         .select('COALESCE(SUM(e.std_time), 0)', 'ct')
         .where('e.station_id = :sid AND e.bol_version = :ver AND e.outlier_flag = 0 AND e.tenant_id = :tid',
@@ -191,14 +210,17 @@ export class ElementsService {
       return { ct, count: sorted.length };
     });
 
-    return { station_id: stationId, version, ct: result.ct, element_count: result.count, warnings: warnings ?? [] };
+    return {
+      station_id: stationId, version, ct: result.ct, element_count: result.count,
+      warnings: warnings ?? [], task_scope: scopeMarker(scope),
+    };
   }
 
   /**
    * Excel/CSV 导入：任一行失败整批不入库（文档01 §9.3）。
    * 表头中文/英文均可；无起点列，按顺序累加时长生成时间轴；循环数按 15 计。
    */
-  async importCsv(stationId: string, csvText: string, user: string) {
+  async importCsv(stationId: string, csvText: string, user: string, taskId?: string | null) {
     const station = await this.stations.get(stationId);
     const rows = parseCsv(csvText);
     if (rows.length < 2) {
@@ -278,23 +300,31 @@ export class ElementsService {
       return el;
     });
 
+    // A-103-4：CSV 模板列逐字不变，任务号由请求上下文注入（不新增列、不破坏回导闭环）
     return this.submit(
       stationId,
-      { bol_version: station.version, cycle_count: 15, cv: 0, video_id: 'excel-import', elements } as SubmitElementsDto,
+      { bol_version: station.version, cycle_count: 15, cv: 0, video_id: 'excel-import', elements, task_id: taskId ?? undefined } as SubmitElementsDto,
       user,
+      taskId,
     );
   }
 
-  /** 导出当前版本要素为 CSV（Excel 可直接打开） */
-  async exportCsv(stationId: string): Promise<string> {
+  /** 导出当前版本要素为 CSV（Excel 可直接打开）；A-103-7：按任务上下文过滤 */
+  async exportCsv(stationId: string, taskId?: string | null): Promise<string> {
     const station = await this.stations.get(stationId);
-    const elements = await this.repo.find({ station_id: stationId, bol_version: station.version }, { order: { seq: 'ASC' } });
+    const scope = await this.scope.resolveCurrent(stationId, taskId);
+    const elements = await this.repo.find(
+      withTask({ station_id: stationId, bol_version: station.version }, scope),
+      { order: { seq: 'ASC' } },
+    );
     const header = ['工位编码', '版本', '序号', '手别', '类型', '描述', '时长s', 'VA类别', '异常标记', '异常原因', '评比', '宽放', '标准工时', '起点ms'];
     const rows = [header, ...elements.map((el) => [
       station.station_id, station.version, el.seq, el.hand, el.type, el.desc, el.dur_s, el.va_class,
       el.outlier_flag, el.outlier_reason ?? '', el.rating, el.allowance, el.std_time, el.start_ms,
     ])];
-    return toCsv(rows);
+    /* UTF-8 BOM：Excel 打开无 BOM 的 UTF-8 CSV 会按本机 ANSI（GBK）解码，
+       中文表头/数据行变乱码；BOM 仅导出时加，解析侧 parseCsv 已兼容去除。 */
+    return `\uFEFF${toCsv(rows)}`;
   }
 
   /** 人工改判：写 va_class + desc 结构化标记（文档02 §2.2 同格式），封存版本拒绝写入 */
