@@ -103,8 +103,10 @@
 ### 验证命令与实际输出
 | 命令 | 实际输出 |
 |---|---|
-| `node scripts/gates/run-gates.cjs` | **PASS**；阻断门 7/7 通过：api:typecheck 1/0、web:typecheck 1/0、CSS 未定义 0、desc-hints 6/0、原生 select 0（69 文件）、batch-export 17/0、smoke **147/0（双遍）**；eval **SKIPPED**（无真值/候选）；repo:traceability **FAIL 0/3**（advisory，0b 未达成） |
+| `node scripts/gates/run-gates.cjs`（0b 前） | **PASS**；阻断门 7/7 通过：api:typecheck 1/0、web:typecheck 1/0、CSS 未定义 0、desc-hints 6/0、原生 select 0（69 文件）、batch-export 17/0、smoke **147/0（双遍）**；eval **SKIPPED**（无真值/候选）；repo:traceability **FAIL 0/3**（advisory，当时 0b 未达成） |
 | `npm run test:gate -- --no-report` | **PASS**；7/7 阻断门通过（证明 npm 单命令接线可用） |
+| `node scripts/gates/check-repo-traceability.cjs`（0b 后 strict） | `TRACE_DIRTY_COUNT=0`、`TRACE_TAGS=baseline-2026-11-19`、`TRACE_TAG_WITH_GATES=baseline-2026-11-19`、`TRACE_GATE_FILES_IN_TAG=5/5`、`TRACE_CHECKS=3/3` → **PASS** |
+| `npm run test:gate -- --no-report`（tag 后复核） | **PASS**；阻断 7/7；`repo:traceability` **通过 3 / 失败 0**；eval **SKIPPED(78)** |
 | `node app/api/test/isolated-run.cjs --repeat 2 smoke` | 147/0、147/0；一致性 PASS、清理 PASS、正式库/storage 指纹未变化 |
 | `node scripts/gates/run-eval-gate.cjs` | `EVAL_SKIP=1`，退出码 **78**（不冒充 PASS） |
 | 评测脚本合成夹具自测（临时、非基线） | 可生成 JSON；`EVAL_ACCEPTED=2/3`；`--enforce` 退出 1；模板占位/测试夹具均 SKIP；合成报告已删除，未留 latest |
@@ -113,9 +115,10 @@
 （另保留 `gate-report-20261118-231855` 的失败报告作为 flake 证据）。
 
 ### 提交状态（如实说明）
-- **0b ✅（2026-11-19）**：基线提交 + tag `baseline-2026-11-19`；执行器、门禁报告与
-  Phase 2/3 全量成果同批进入版本历史。tag 后 strict 复核命令：
-  `node scripts/gates/check-repo-traceability.cjs`（结果见 2026-11-19 日志）。
+- **0b ✅（2026-11-19）**：基线提交 `0a72733` + tag `baseline-2026-11-19`；执行器、门禁报告与
+  Phase 2/3 全量成果同批进入版本历史。tag 后 strict 复核：
+  `TRACE_DIRTY_COUNT=0` / `TRACE_TAG_WITH_GATES=baseline-2026-11-19` / `TRACE_GATE_FILES_IN_TAG=5/5` /
+  `TRACE_CHECKS=3/3` → **PASS**。
 - 本次改动均为 scripts / test / tool / docs，**未改生产代码**；为跑 smoke 已用
   `npx tsc -p tsconfig.json --outDir dist` 重建 `dist`（构建产物不入库）。
 - 0b 判据三项：工作区干净 + 已打 tag + **某 tag** 指向含 `scripts/gates/` 全部文件的 commit；

@@ -12,8 +12,8 @@
 - 厂商 ROI 数字（提速 90% / 年省数百万美元）均为厂商自述或内部建模，未经第三方审计，**不得作为投资决策基准**。
 - **0a 门禁执行器已落地（2026-11-18）**：`scripts/gates/` + `npm run test:gate`（fast）/`test:gate:full`、
   `npm run test:eval`；首份基线 `deliverables/gates/gate-report-20261119-070834.md`（阻断门 7/7 PASS）。
-- **0b 版本历史已补齐（2026-11-19）**：基线提交 + tag `baseline-2026-11-19`，执行器与基线同批；
-  `repo:traceability` 三项可判死判据见 `scripts/gates/check-repo-traceability.cjs`。
+- **0b 版本历史已补齐（2026-11-19）**：基线提交 `0a72733` + tag `baseline-2026-11-19`，执行器与基线同批；
+  strict 复核 `TRACE_CHECKS=3/3`（tag 含 `scripts/gates` 5/5）。
   **这不等于 QA 解禁**：0c（人工真值评测基线）仍未闭环，No-Go 维持。
 
 ## 二、活跃风险

@@ -43,7 +43,7 @@
 - 契约 setupStation 按名 purge；清 t_station 按 FK 倒序 finding→issue→batch→station；限流桶经 `x-real-ip` 分桶。
 
 ## 回归与现状
-- **门禁执行器（2026-11-18 续，0a ✅）**：`npm run test:gate`（fast，阻断 7/7 PASS）／`test:gate:full`／`test:eval`；唯一执行器 `scripts/gates/run-gates.cjs` + `gates.config.cjs`；报告落 `deliverables/gates/`（含 HEAD/未提交数/tag）；**SKIPPED 不计 PASS**。基线 `gate-report-20261119-070834.md`。**0b ✅ 2026-11-19 基线提交 + tag `baseline-2026-11-19`；0c 缺人工真值 → No-Go 维持**。烟测 flake 已修（`smoke.ts` 随机工位号撞号，test-only `uniqueStationId`）。
+- **门禁执行器（2026-11-18 续，0a ✅）**：`npm run test:gate`（fast，阻断 7/7 PASS）／`test:gate:full`／`test:eval`；唯一执行器 `scripts/gates/run-gates.cjs` + `gates.config.cjs`；报告落 `deliverables/gates/`（含 HEAD/未提交数/tag）；**SKIPPED 不计 PASS**。基线 `gate-report-20261119-070834.md`。**0b ✅ 2026-11-19 基线提交 `0a72733` + tag `baseline-2026-11-19`（strict 3/3）；0c 缺人工真值 → No-Go 维持**。烟测 flake 已修（`smoke.ts` 随机工位号撞号，test-only `uniqueStationId`）。
 - 基线（2026-10-30）：smoke 147／ai-waste 85／acl-guard 56／dashboard 34 等全绿；权限矩阵 125/125、拆包 6/6、k6 50VU 0 错、Lighthouse LCP 1.082s。`test:deps` api **FAIL 10 high/1 critical**、web PASS；无 CI。
 - **清库后仅余 ST010**，v341/v343/v344/v351/v353 依赖 L01-ST01/ST11 跑不起来（**严禁 `npm run seed`**）；可跑 ST010 系（v349 22/0，v348 恒定 3 项数据态失败）。缺 ST11 跑 `_setup-st11.cjs`。
 - 批量导出：v3.61 6-sheet MVP／v3.62 `t_batch_export_record` 留档落库／**Phase 2（2026-11-09，看板 #102）分解任务全链路完成**：`t_decomposition_task`+`t_task_station`+`element.task_id`+`element_id` 48→96、`DT-LEGACY` 按 (tenant,line) 回填（BJFA1 19／L01 3，**单条 legacy 会违反"任务属于单产线"**）、MS1.4 `time_bucket` 配置化（**改 JSON 不生效，须走 `/rules/motion_standard/publish` 发布到 DB**）、任务 API、按任务导出+留档、前端任务下拉/创建。验证：迁移 11/11、离线 17/17、HTTP 27/27、Chrome UI **43/43**、smoke 147/0×2、前端门禁全绿。复跑 `test:batch-export` / `:http` / `:ui` / `phase2-migration-verify.cjs`。
