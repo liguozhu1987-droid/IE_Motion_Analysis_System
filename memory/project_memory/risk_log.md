@@ -21,10 +21,10 @@
 | ID | 风险 | 证据 | 影响 | 推荐项（待用户拍板） |
 |---|---|---|---|---|
 | **R01** | **四套记忆文件口径冲突、无唯一事实源** | `SKILL.md` 指向不存在的 `memory/`；`AGENT必读.md` / `项目记忆.md` / `docs/CODE-WIKI.md` / `.workbuddy/memory/` 各记一份，历史文档出现「无宽放/评比」「无标准时间」等低估 | 新 Agent 读错口径 → 提出重复建设建议 | **已处置**：本目录建成，`business_rules.md` 为唯一准绳 + 勘误三条。推荐：后续每次评审先做实码复核再下结论 |
-| **R02** | **SKILL.md 是跨项目模板，技术栈与验证命令全错配** | 原文写 Intelligent Capacity System / Python / `.venv\Scripts\python.exe -m pytest` / `app.main` / `frontend` / `alembic` / `sql_migrations`；本项目为 NestJS+React+SQL Server；§七把 `.workbuddy/` 列为反模式，与 `AGENT必读.md` §7 冲突 | 按 SKILL.md 跑命令必然失败；治理动作被误判 | **推荐**：修订 `SKILL.md` §五验证命令与 §七反模式措辞，改为本项目落地映射（已在 `README.md` §五给出对照表）。**属口径变更，须用户确认后执行，本轮未改原文件** |
+| **R02** | **SKILL.md 是跨项目模板，技术栈与验证命令全错配** | 原文写 Intelligent Capacity System / Python / `.venv\Scripts\python.exe -m pytest` / `app.main` / `frontend` / `alembic` / `sql_migrations`；本项目为 NestJS+React+SQL Server；§七把 `.workbuddy/` 列为反模式，与 `AGENT必读.md` §7 冲突 | 按 SKILL.md 跑命令必然失败；治理动作被误判 | **已处置（2026-11-19）**：用户确认修订，`SKILL.md` 已按本项目重写（旧跨项目模板清空）；验证命令改为 `test:gate` / `test:eval` / `smoke:isolated` / `migrate:prod`，反模式纠正 `.workbuddy` 口径 |
 | **R03** | **文档路径口径不一致** | 看板/汇报写 `tools/eval-ai-segment.cjs`、`docs/AI-SEGMENT-EVAL.md`，实际在 **`app/web/tools/` 与 `app/web/docs/`**；根 `tools/`、根 `docs/` 下无 | 门/CI 按根路径写会找不到脚本；QA 判「有地基无门」 | **推荐**：统一为 `app/web/...` 全路径，并把该脚本接进单命令回归门 |
 | **R04** | **AGENT必读.md 看板结构损坏** | §6 表格在 §7「看板更新规则」之后又散落 `\|57\|…\|108\|` 行；编号重复（两个 57、两个 93）、顺序倒错；看板更新规则夹在表格中间 | 看板不再可读，无法作为进度事实源 | **推荐**：把散落行归回 §6 表格、编号去重、§7 移到表格之后。**本轮未大改，仅按规则追加一行 #109** |
-| **R05** | **版本历史断裂（最高优先级）** | `git log` 仅 1 提交（884b71e / 2026-11-09 init）；`git status` **95 文件未提交**（80 在 `app/`，含 `SKILL.md`、`AGENT必读.md`、`migrate.ts`、deliverables）；分支 main；Phase 2/3 成果无版本历史 | 无法回滚到上一个可用状态；所有「通过数」对应 HEAD 之外代码 | **推荐**：立即做一次**基线提交**（不改动任何代码），打 tag；随后按模块分批提交。**这是 QA No-Go 的第一解禁条件** |
+| **R05** | **版本历史断裂（最高优先级）** | `git log` 仅 1 提交（884b71e / 2026-11-09 init）；`git status` **95 文件未提交**（80 在 `app/`，含 `SKILL.md`、`AGENT必读.md`、`migrate.ts`、deliverables）；分支 main；Phase 2/3 成果无版本历史 | 无法回滚到上一个可用状态；所有「通过数」对应 HEAD 之外代码 | **已处置（2026-11-19）**：基线提交 `0a72733` + tag `baseline-2026-11-19`；`git status` 干净；strict `TRACE_CHECKS=3/3`（tag 含 gates 5/5）。不再按未提交文件数核对 |
 | **R06** | **回归门缺位 / 断言腐蚀** | 无 CI；`eval-ai-segment.cjs` 未证实绑定单命令门；`test-ai-segment` 28/30 中 B2/B10 断言过期；11 套 UI 串行回归未跑；`test-dw-isolation-guard.cjs` 未迁隔离基座；v348 恒定 3 项失败 | 「历史跑过」被误写为「持续已验证」 | **推荐**：按 QA 解禁路径 ②–⑤ 逐条收口；放宽期望须先说明「原期望为何错」并给 Spec 依据 |
 | **R07** | **安全依赖与部署** | `test:deps` api **FAIL 10 high / 1 critical**、web PASS；无 CI 拦截；OIDC/IIS-ARR/内网证书未落地；SMTP 告警未配；留档导出无自动清理 | 上线合规不通过 | **推荐**：先清 critical，再逐条 high 带复审日期豁免；接 CI 快门（`perf-security-baseline.mjs`） |
 | **R08** | **AI 切分现场泛化未验证** | #90 实证 ROI 写死 0.18–0.78 / 0.30–0.80，换工位须重标复测；光照突变、机位漂移无护栏；MediaPipe 手部在蓝手套场景检出率仅 34.6%（左手 0.3%），已改帧差默认 | 固定 30fps 固定机位全绿 ≠ 换工位可用 | **推荐**：保留帧差默认（勿回切姿态路线）；把「ROI 标定 + 换工位复测」写进上线检查表；补 3 类素材对照 |
@@ -37,11 +37,12 @@
 
 | ID | 待决策 | 推荐项 |
 |---|---|---|
-| D-A | 是否引入 PMTS 预定时间标准（MTM/MOST/MODAPTS/GSD） | **缓 / P2**：先访谈 3 名 IE 确认是否用于报价与产能计划；「工具做薄」哲学下不默认引入 |
+| D-A | 是否引入 PMTS 预定时间标准（MTM/MOST/MODAPTS/GSD） | **C 待拍板**：已解释 PMTS 是预定动作时间系统（TMU 码表，非实测）；推荐 **C1 不做**，ST 锁定「实测×评比×宽放」。若客户需要，另立独立导入/导出，不覆盖 `std_time` |
 | D-B | 是否把 AI 从 `AI_ENABLED=false` 改为受控灰度 | **先做零 LLM 的规则层闭环**（帕累托、置信透出、改善闭环接线），AI 灰度排在之后 |
 | D-C | 是否做逐帧 REBA/RULA 工效学、SMED、OEE | **砍/缓**：偏离「帮 IE 看出问题」主线，且依赖 R09 时间轴前置 |
-| D-D | 是否输出 Yamazo 式 ±x% 精度声明 | **分层**：面向 IE/管理层的分析页与 6-sheet 导出只写「基于 N 个周期」不给答案；**内部评测/校准报告**应声明样本量、精度边界与「样本不足判不可靠」 |
-| D-E | 是否修订 SKILL.md 原文 | **推荐修订**（见 R02），但须用户确认后执行 |
+| D-D | 是否输出 Yamazo 式 ±x% 精度声明 | **已确认 B2（2026-11-19）**：分析页与 6-sheet 导出只写「基于 N 个周期」不给答案；**内部评测/校准报告**才声明 ±x% 与「样本不足判不可靠」；硬前置 P0-0/P0-4 |
+| D-E | 是否修订 SKILL.md 原文 | **已处置（2026-11-19）**：`SKILL.md` 已按本项目重写，旧跨项目模板清空 |
+| D-F | 全 B（双手）要素是否拆左右手 | **已确认 A1（2026-11-19）**：维持现状，分析页标注「双手要素未拆手，双手图仅供参考」；不改 `hand` 语义 |
 
 ## 四、2026-11-18 实码新发现（评审收口补充）
 
@@ -65,6 +66,12 @@
 > **0b 可判死三项**：`git status --porcelain` 为空 ＋ 已打 tag ＋ tag 指向 commit 含 `scripts/gates/` 全部文件。
 > **禁止按文件数核对**：文档里 95 / 96 / 98 均为各自成文时点快照（本轮新建 memory/、报告、日志后实测 98），
 > 该漂移本身即证明「未提交清单」不可核对。
+>
+> **R05 / R06 / R17 状态更新 2026-11-19（实码复核）**：0a ✅ 门禁执行器已落地
+> （`scripts/gates/` 5 文件 + root/api/web 三处 `test:gate`/`test:eval` 脚本）；
+> 0b ✅ 基线提交 `0a72733`（141 files）+ tag `baseline-2026-11-19`、strict `TRACE_CHECKS=3/3`、
+> 工作区干净；**R05 版本历史断裂已闭合**。0c 仍 ⛔：缺人工真值标注，`test:eval` SKIPPED(78)。
+> **QA No-Go 维持**（0c 未出首次可比基线）；本节 ①…⑥ 的「补齐版本历史」项已完成，勿重复执行。
 
 ① 补齐版本历史（R05：基线提交+tag）→ ①后插「门禁基线」→ ② 评测资产进单命令回归门（R03/R06）
 → ③ 断言腐蚀收口 + G12 检查 → ④ 11 套 UI 串行回归 → ⑤ 真机换工况三类素材

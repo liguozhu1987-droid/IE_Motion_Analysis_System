@@ -1,9 +1,33 @@
-# IE 项目记忆（精简索引 · 最近收口 2026-11-18）
+# IE 项目记忆（精简索引 · 最近复核 2026-11-19）
 细节见 `.workbuddy/memory/2026-*.md`、`AGENT必读.md`、`memory/`。
 **唯一事实源＝`memory/project_memory/business_rules.md`（业务口径）；本文件仅为跨会话索引**，
 `.workbuddy/memory/2026-*.md` 是 Append-only 会话日志，不得充当口径源；`项目记忆.md` 已冻结。
 
-## 2026-11-18 全面功能评审 + 行业对标（只读，零代码改动／未跑测试／未 commit）
+## 当前状态（2026-11-19 20:30 实码复核，优先于下方历史快照）
+- **版本历史已建立**：`main` 4 个提交 `884b71e → 0a72733 → 6eae591 → 0141c78`，
+  tag `baseline-2026-11-19`，HEAD=`0141c78`，**`git status --porcelain` 为空、工作区干净**。
+  下方 11-18 段落写的「仅 1 提交 / 96 文件未提交 / 0a 现无文件」均为**评审当时快照，已失效**。
+- **QA 解禁路径**：**0a ✅**（`scripts/gates/` 5 文件已落地：`run-gates.cjs` / `gates.config.cjs` /
+  `run-eval-gate.cjs` / `check-no-native-select.cjs` / `check-repo-traceability.cjs`；
+  root+api+web 三处 package.json 均有 `test:gate` / `test:eval`；`npm run test:gate` 阻断门 7/7 PASS）；
+  **0b ✅**（基线提交 `0a72733` + tag，strict `TRACE_CHECKS=3/3`，tag 含 gates 5/5）；
+  **0c ⛔**（真实候选 20 条已导出至 `deliverables/ai-segment/eval/candidates.json`，
+  `ground-truth.json` 的 `segments` 为空 → `npm run test:eval` 明确 **SKIPPED(78)**，不得冒充 PASS；
+  缺口是**人工标注 ≥20 段**，非代码问题）。**QA No-Go 维持**；0c 后按 P0-0 → P0-4 推进。
+- **服务（本轮实际启动并验证）**：API `node app/api/dist/src/main.js` 起在 `127.0.0.1:3001/api`
+  （`/api/health`=200 `{"status":"ok"}`、`/api/ready`=200 `ready/db:up/rules:up/ai:enabled:false`）；
+  前端 vite `node app/node_modules/vite/bin/vite.js --port 5174 --strictPort --host 127.0.0.1`
+  起在 `127.0.0.1:5174`（首页 200、`/api` 代理 200）。**启动自检 ok=11 warn=1 fail=0**
+  （唯一 WARN＝`WEB_DIST` 未找到，纯 API 形态属预期，前端由 vite/IIS 托管）。
+  `MSSQLSERVER` Running、1433 可连；`AI_ENABLED=false`、`OIDC 关闭`、`SELF_REGISTER 关闭`、
+  `METRICS_TOKEN 已配`、`VIDEO_DERIVED_MAX_GB=90`。
+- **端口铁律（复发）**：`5173` 被**另一个项目** `D:\Application\Intelligent Capacity System\frontend`
+  的 vite 长期占用（PID 随会话变），本项目必须 `--port 5174 --strictPort`；
+  `3001` 只绑 127.0.0.1。回环代理 `HTTP_PROXY=127.0.0.1:50410` 会让 curl 访问本地失败，
+  探测一律 `curl --noproxy '*'` 或 `NO_PROXY=127.0.0.1`。
+- 看板 `AGENT必读.md` #110 与上条同步；当日日志 `.workbuddy/memory/2026-11-19.md`。
+
+## 2026-11-18 全面功能评审 + 行业对标（历史快照：只读，零代码改动／未跑测试／未 commit）
 - **记忆治理**：按 `SKILL.md` 新建 `memory/` 骨架 10 文件（project_memory 5 + project_management 2 + agent_memory 3）。
   **`SKILL.md` 描述的是另一个项目**（Python/pytest/alembic/.venv），跨项目模板错配 R02；**未擅自修订**，登记为待决 D（推荐修 §五验证命令与 §七反模式措辞，须用户确认）。
 - **品类边界**：本系统＝问题发现品类（视频→动素→浪费→改善），**非标准工时品类**。ST 链（观测×评比×宽放）已完整落库并贯穿 CT / VA 占比 / 6-sheet 导出；**PMTS（MTM/MOST/MODAPTS/GSD 的 TMU 码）按「工具做薄」哲学应砍，不是欠账**。真实短板＝已有能力散落／未串可审计闭环／未进回归门／未进版本历史。

@@ -1,12 +1,13 @@
 ---
 name: project-memory-workflow
-description: Intelligent Capacity System 的统一项目记忆与交接工作流：接手任务前按总入口确认业务口径、任务状态与风险；工作中坚持口径优先、代码证据与生产/非生产分类；收口时回写 memory/ 与进度文件。适用于新会话接手、开始编码/分析/调研任务、口径或验收标准变更、任务收口与跨 Agent 交接。
+description: IE Improvement Platform 的统一项目记忆与交接工作流：接手任务前按总入口确认业务口径、任务状态与风险；工作中坚持口径优先、代码证据与生产/非生产分类；收口时回写 memory/ 与进度文件。适用于新会话接手、开始编码/分析/调研任务、口径或验收标准变更、任务收口与跨 Agent 交接。
 ---
 
-# 统一项目记忆与交接工作流
+# 统一项目记忆与交接工作流（IE Improvement Platform）
 
-本 skill 把本项目的 Agent 记忆体系与项目管理方式固化为一套可重复执行的流程。
-**记忆的唯一事实来源是 `memory/`，不是工具本地缓存、会话日志或代码注释。**
+本 skill 把本项目的 Agent 记忆体系与项目管理方式固化为可重复流程。
+**记忆的唯一事实来源是 `memory/`，不是会话日志、工具缓存或代码注释。**
+技术栈：NestJS 10 + TypeORM + SQL Server/SQLite；React 19 + Vite；Windows 本地开发/部署。
 
 ## 一、开工：按总入口读取（顺序不可颠倒）
 
@@ -42,30 +43,35 @@ description: Intelligent Capacity System 的统一项目记忆与交接工作流
 - 文档、注释与代码行为不一致时，**以实际运行代码为准**，并把偏差写入 `risk_log.md`；
   同时更正文档，避免下一轮继续被误导。
 - 不擅自变更口径；确需变更时，先写入 `business_rules.md` 再改代码。
+- **规则改 JSON 不生效**：磁盘 `app/config/rules/*.json` 只是只读兜底，必须
+  `POST /rules/:code/publish` 写入 DB 并升 RV；RV 验收用四点对齐，文件 RV 不参与一致性断言。
+- **不可逆 DB 变更**（加列、回填、改唯一键）须逐项确认；`app/api/scripts/migrate.ts`
+  是表结构唯一来源，改实体必跑 `npm run migrate:prod` + **真起 API**。
 
 ### 3.2 证据原则
-- 每个结论都要同时给出「业务事实 + 代码证据（`file.py:line`）」。
+- 每个结论都要同时给出「业务事实 + 代码证据（`file:line`）」。
 - “不可达分支 / 死代码”类结论，必须用函数的实际返回值范围或调用链证明，
   **不能只凭注释或函数名推断**。
 - 验证用最小命令，并在 `progress.md` 记录**实际输出**（通过数/失败数），不要写“应该通过”。
+- 门禁 `SKIPPED` 不是 `PASS`；不得把未执行、模板占位或夹具数据写成通过。
 
-### 3.3 生产 / 非生产分离（详见根目录 `AGENTS.md`）
+### 3.3 生产 / 非生产分离（本项目映射）
 | 分类 | 位置 | 要求 |
 |---|---|---|
-| `PRODUCTION` | `app/`、`database/`、`alembic/`、根配置 | 不随手改，改动需有明确理由 |
-| `TEST_ONLY` | `tests/` | 必须有 `# TAG: NON_PRODUCTION` 头 |
-| `DEBUG_OR_TEST_ONLY` | 一次性脚本 | 必须带 TAG 头，不得被运行时导入 |
-| `ARCHIVED` | `archive/non_production/` | 归档优先于删除，并在 README 中留索引 |
+| `PRODUCTION` | `app/api/src/`、`app/api/scripts/`、`app/web/src/`、`app/config/rules/`、根配置 | 不随手改，改动需有明确理由 |
+| `TEST_ONLY` | `app/api/test/`、`app/web/test-*.cjs`、`app/web/test-fixtures/` | 必须有 TAG 头；不得被运行时导入 |
+| `DEBUG_OR_TEST_ONLY` | `.temp-probe/`、一次性导出/截图脚本 | 必须带 TAG 头并加入 `.gitignore`，不得被运行时导入 |
+| `ARCHIVED` | `deliverables/`、历史报告 | 归档优先于删除，并在报告中留索引 |
 
-非生产文件头部模板：
+非生产文件头部模板（JS/TS）：
 
-```python
-# TAG: NON_PRODUCTION
-# CATEGORY: TEST_ONLY | DEBUG_OR_TEST_ONLY | ARCHIVED
-# STATUS: ACTIVE | ARCHIVED
-# SYSTEM_IMPACT: NONE
-# DO_NOT_IMPORT_IN_RUNTIME: TRUE
-# PURPOSE: <一句话说明>
+```js
+// TAG: NON_PRODUCTION
+// CATEGORY: TEST_ONLY | DEBUG_OR_TEST_ONLY | ARCHIVED
+// STATUS: ACTIVE | ARCHIVED
+// SYSTEM_IMPACT: NONE
+// DO_NOT_IMPORT_IN_RUNTIME: TRUE
+// PURPOSE: <一句话说明>
 ```
 
 - 清理冗余代码时**归档优先于硬删除**。
@@ -75,6 +81,7 @@ description: Intelligent Capacity System 的统一项目记忆与交接工作流
 - 历史快照、旧版本数据不得被静默覆盖或回溯改写。
 - 口径变更必须在交接说明中写明影响范围。
 - 新增 DB 默认值、返回字段删除等兼容性动作，优先选择“保留字段形状、只删除不可达分支”。
+- `std_time` 是正式口径（实测×评比×宽放），模拟值不得回写；AI 建议恒待审。
 
 ## 四、收口：回写记忆（缺一不可）
 
@@ -85,6 +92,8 @@ description: Intelligent Capacity System 的统一项目记忆与交接工作流
 - [ ] `risk_log.md`：新增风险/待确认项；已解决项移入「已确认事项」
 - [ ] 文档与代码不一致之处一并更正（含 PRD、更改说明、测试 docstring）
 - [ ] 向用户说明：改动是否已提交、提交在哪个分支、是否有未提交内容
+- [ ] 按 `AGENT必读.md` §7：看板改状态+日期、追加 `.workbuddy/memory/YYYY-MM-DD.md`、
+      跨会话决策提炼进 `.workbuddy/memory/MEMORY.md`
 
 记忆文件职责表：
 
@@ -98,21 +107,31 @@ description: Intelligent Capacity System 的统一项目记忆与交接工作流
 | `progress.md` | 进度、验收证据、交接确认 |
 | `agent_memory/*` | 按 Agent 类型的细化工作规矩 |
 
-## 五、常用验证命令
-
-Windows（本项目默认）：
+## 五、常用验证命令（本项目，Windows）
 
 ```bash
-.venv\Scripts\python.exe -m pytest tests -q
-.venv\Scripts\python.exe -m pytest tests/test_matrix_preview_consistency.py -q
-.venv\Scripts\python.exe -c "import app.main"
-cd frontend && npx tsc --noEmit
+npm run test:gate                  # 统一门禁 fast：类型/静态/离线契约/隔离 smoke；SKIPPED 不计 PASS
+npm run test:gate:full             # fast + 全部隔离套件 + 依赖审计（advisory，耗时更长）
+npm run test:eval                  # AI 分解评测门；无人工真值时 SKIP(78)，不得当 PASS
+cd app/api && npm run test:smoke:isolated   # 隔离 smoke，基线 147/0 ×2
+cd app/api && npm run test:isolated         # 全部已迁移隔离套件（串行）
+cd app/api && npm run test:deps             # 生产依赖审计（当前 10 high / 1 critical）
+cd app/web && npm run typecheck             # 前端 tsc
+cd app/web && npm run test:css-classes      # CSS 未定义类名门禁
+cd app/web && npm run test:desc-hints       # 描述联想离线回归
+cd app/api && npx tsc -p tsconfig.json --outDir dist   # nest build 锁死时的编译替代
+cd app/api && npm run migrate:prod          # dist 重建后跑；必须再真起 API
+cd app/api && npm run ops:startup-check     # 真起 API + /health
 ```
 
-- 数据库迁移：`sql_migrations/NNN_*.sql` 由 `app/core/sql_migrator.py` 按数字前缀执行，
-  脚本必须幂等（`IF COL_LENGTH(...) IS NULL` 守卫）。
-- 测试库为 SQLite、生产库为 SQL Server：涉及方言的 SQL 必须走兼容 helper
-  （见 `app/utils/sql_dialect.py`），不要写死 `OUTPUT INSERTED`。
+- **首次基线**：`deliverables/gates/gate-report-20261119-070834.md`（阻断门 7/7 PASS）。
+- **评测基线**：真值与候选放 `deliverables/ai-segment/eval/`，报告落 `deliverables/gates/eval/`。
+- **规则发布**：改 `app/config/rules/*.json` → `POST /rules/:code/publish`；RV 四点对齐。
+- **禁止 `npm run seed`**（会清库/覆盖正式数据）；清库后正式库仅余 ST010。
+- **隔离回归必须串行**；UI 测试禁并行；前置 `t_ai_llm_profile.enabled=0`，跑完置回 1。
+- **端口**：`5173` 被另一个项目长期占用；本项目固定 `--port 5174 --strictPort`，API `3001`。
+- **回环探测**：带 `HTTP_PROXY` 时用 `curl --noproxy '*'` 或 `NO_PROXY=127.0.0.1`。
+- **禁原生 `<select>`**；改 UI 必跑 `test:css-classes`。
 
 ## 六、固定交接话术
 
@@ -130,7 +149,20 @@ cd frontend && npx tsc --noEmit
 
 - 从散落文件、会话日志里搜状态，而不是从总入口读。
 - 不同 Agent / 工具各维护一份“事实”。
-- 把 `.workbuddy/`、`.claude/` 本地缓存、工具日志当作项目事实来源。
-- 未验证就写「已完成 / 已修复」。
+- 把 `.workbuddy/memory/` 当业务口径源（它可以作 Append-only 日志，但不能替代 `business_rules.md`）。
+- 未验证就写「已完成 / 已修复」；把 `SKIPPED` 写成 `PASS`。
 - 用删除代替归档；或在清理任务里顺带改运行时逻辑。
 - 只改代码不改文档，导致注释、PRD 与实现长期背离。
+- 按“未提交文件数”当完成判据（0b 判据是干净工作区 + tag + tag 含 `scripts/gates/` 全部文件）。
+- 改规则 JSON 不 `publish`；改实体不 `migrate`；运行 `npm run seed`。
+- 使用原生 `<select>`；并行跑隔离/UI 回归。
+
+## 八、当前 QA 解禁路径（2026-11-19）
+
+`0a 门禁执行器 → 0b 基线提交 + tag → 0c 首次评测基线 → P0-0 → P0-1 → P0-4 → 决策 B`
+
+- 0a ✅：`scripts/gates/` + `test:gate` / `test:eval`；基线 `gate-report-20261119-070834.md`。
+- 0b ✅：提交 `0a72733` + tag `baseline-2026-11-19`；strict `TRACE_CHECKS=3/3`。
+- 0c ⛔：候选 20 条已导出；**人工真值 `segments` 为空** → `test:eval` SKIP(78)。
+  `ground-truth.json` 填 ≥20 段 + 实名 `labeler` 后才放行；不得参考候选反向生成真值。
+- **发卡不等于解禁**；QA No-Go 维持。
