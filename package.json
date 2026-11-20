@@ -11,6 +11,7 @@
     "dev:web": "npm --prefix app/web run dev",
     "typecheck": "npm --prefix app/api run typecheck && npm --prefix app/web exec tsc --noEmit",
     "ops:startup-check": "npm --prefix app/api run ops:startup-check",
+    "ops:db-scope-check": "node app/api/scripts/db-scope-check.cjs",
     "ops:audit-retention": "npm --prefix app/api run audit:retention",
     "ops:audit-retention:apply": "npm --prefix app/api run audit:retention:apply",
     "ops:backup": "powershell -ExecutionPolicy Bypass -File deploy/sql/backup.ps1"

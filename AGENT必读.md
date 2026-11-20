@@ -4,6 +4,19 @@
 
 ---
 
+## 0. 数据库操作硬性规则（最高优先级，2026-11-20）
+
+> 本节优先级高于本文件其余章节；完整清单见根目录 `CLAUDE.md`。
+
+- 生产 SQL Server：`IRSCNYTFINEREPORT.ap.inalfa.local:1433`，库 `CN_AME`，账号 `publicUser`；**口令只存 `app/api/.env`（gitignored）**，禁止写入任何受版本控制的文件、日志或文档。
+- 所有 **DDL + 写入**只允许落在 `CN_AME` 的 **30 张本系统表**（清单见 `CLAUDE.md`）；禁止对其他库、其他表执行 `CREATE/ALTER/DROP/TRUNCATE/INSERT/UPDATE/DELETE/MERGE`。
+- `CMC.dbo.*` 仅允许 **SELECT 只读**；禁止任何写/DDL。`CN_AME_SSO_*` 仅在启用 OIDC 时只读，默认关闭。
+- 禁止 `CREATE/ALTER/DROP DATABASE`、`USE <其他库>`、链接服务器、`OPENROWSET/OPENQUERY`、`xp_cmdshell`。
+- 新增表必须先更新 `CLAUDE.md` 白名单并取得用户书面同意。
+- 提交/部署前必须执行 `npm run ops:db-scope-check`；失败即禁止部署。
+
+---
+
 ## 1. 项目定位与当前状态
 
 - **项目**：IE（工业工程）改善平台 = 「AI 赋能的 IE 分析改善效率工具」。工作区 `D:/Application/IE_Improvement_Platform`。

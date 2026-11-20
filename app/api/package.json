@@ -17,6 +17,7 @@
     "test:sso:isolated": "node test/sso-oidc-isolated.cjs",
     "migrate:prod": "node dist/scripts/migrate.js",
     "ops:startup-check": "node dist/scripts/startup-check.js",
+    "ops:db-scope-check": "node scripts/db-scope-check.cjs",
     "audit:retention": "node dist/scripts/audit-retention.js",
     "audit:retention:apply": "node dist/scripts/audit-retention.js --apply",
     "test:integration": "node test/frontend-integration.js",
