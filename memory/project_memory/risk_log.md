@@ -15,6 +15,9 @@
 - **0b 版本历史已补齐（2026-11-19）**：基线提交 `0a72733` + tag `baseline-2026-11-19`，执行器与基线同批；
   strict 复核 `TRACE_CHECKS=3/3`（tag 含 `scripts/gates` 5/5）。
   **这不等于 QA 解禁**：0c（人工真值评测基线）仍未闭环，No-Go 维持。
+- **AI 自动分解口径已合并（2026-11-19）**：两版独立评审结论合并，硬事实无冲突；清单见
+  `AGENT必读.md` §4.1、`todo.md` §七。纠正：`motion_standard` MS1.4 = **28 类**（41 是 MS1.0 历史值）、
+  `va_rules` RV3.64 = **44 类**；**分类不查词表，但描述模板与 SOP 动词查 `motion_standard`**。
 
 ## 二、活跃风险
 
@@ -32,6 +35,9 @@
 | **R10** | **5173 端口被另一项目占用** | 2026-11-12 日志：`D:\Application\Intelligent Capacity System\frontend` 的 vite 占 5173（PID 23824），**不是本项目进程，不可擅自 kill** | 直接 `npm run dev` 会漂到不确定端口 | **推荐**：本项目固定 `--port 5174 --strictPort --host 127.0.0.1`；恢复 5173 须先与用户确认 |
 | **R11** | 进程内状态 / 无 down 脚本 | 登录限流桶、dashboard TTL 缓存、告警 firing 均在进程内；`migrate.ts` 无回滚脚本；无 CI | 多实例失效；迁移只能靠备份回滚 | 推荐：单实例部署（当前）；扩实例前状态外置；每次迁移前 `npm run ops:backup` |
 | **R12** | 不可逆决策门（架构评审 D1–D4） | 改 `hand` 语义会破坏 V2 同手链与三轨时间线；改 `std_time` 口径会让 CT/VA/平衡率/收益不可比；对外 ±x% 声明需统计方法背书；PMTS 覆盖 std_time 会污染历史 ST | 做错要重做整个分析体系 | **推荐：本轮一律不做**。若后续要做，逐项确认 + ADR + 双轨并存（不覆盖历史） |
+| **R19** | **AI 分解落库丢失源视频基准（审计链断）** | `AiSegmentPage.tsx:661-672` 用 cursor 从 0 重排、完全不用候选 `start_ms`；`:693` 写死 `video_id='ai-segment'`；导出 JSON 有真实时间但落库丢失 | 要素无法回指源帧；点数字跳源帧对 AI 要素不成立 | **推荐（P0，零 DDL）**：落库改用 `r.start_ms` + 真实 `video_id`。**改前须定重叠处理策略**（会触发 `validation.ts:116-131` V2 同手重叠），不得放宽校验 |
+| **R20** | **AI 证据帧无精确帧基准** | `AiSegmentPage.tsx:352-362` 用 `currentTime ±80ms` 经验偏移，无 `mediaTime`、无帧吸附 | 证据帧与要素边界有偏差，复核可能看错动作 | **推荐（P1）**：复用 `useVideoEngine.snapToFrameGrid` + `metadata.mediaTime`，判合格＝0 帧偏差 |
+| **R21** | **已建能力未接线（死代码/未接入）** | `AiBatchConfirm` 仅被 `ai-segment/index.ts` 导出、页面未引用；`chunkedUpload.ts` 仅 WorkbenchPage 使用、AI 页走单文件 XHR；`motion.ts:121` 的 `confAdj` 赋值后无消费 | 重复实现/功能缺失被误判为「已具备」 | **推荐（P1）**：接入 `AiBatchConfirm` 与分片上传；`confAdj` 要么参与分档（需口径确认）要么删除 |
 
 ## 三、行业对标带来的待决策（每条带推荐）
 

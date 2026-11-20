@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 分解真值标注器 · 0c</title>
+<!--
+  0c 人工真值标注器（单文件、零依赖、离线可用）
+
+  用途：独立观看视频，标出片段边界与 6 类动作，导出 `ground-truth.json`。
+  纪律：本页**不加载、不显示任何 AI 候选**，避免反向生成真值。
+  使用：双击本文件用 Chrome 打开；默认视频路径 ../../..//deliverables/ai-segment/real/sample60.mp4，
+        打不开时点「选择视频文件」。
+  键盘：空格 播放/暂停 · ←/→ 逐帧 · Shift+←/→ ±1s · N 在播放头切分
+        1–6 给播放头所在段赋类型 · B 把最近边界吸附到播放头 · Del 与下一段合并 · Ctrl+Z 撤销
+-->
+<style>
+  :root {
+    --bg: #13161b;
+    --panel: #1a1e25;
+    --panel-2: #21262f;
+    --line: #2d343f;
+    --text: #e7eaef;
+    --muted: #8e98a6;
+    --accent: #5b8def;
+    --warn: #d9a441;
+    --danger: #d96b5b;
+    --ok: #5bb98c;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.55 system-ui, "Segoe UI", "Microsoft YaHei", sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    height: 52px;
+    flex: 0 0 52px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+  header .spacer { flex: 1; }
+  header .hint { color: var(--muted); font-size: 12px; }
+  .field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .field input {
+    width: 130px; height: 28px; padding: 0 8px;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 12px;
+  }
+  .field input:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  .field input.invalid { border-color: var(--danger); }
+  button {
+    font: inherit; color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 6px;
+    height: 30px; padding: 0 10px; cursor: pointer; white-space: nowrap;
+  }
+  button:hover { border-color: #46515f; background: #29303a; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: #2f5d6c; border-color: #3d7488; }
+  button.primary:hover { background: #376b7d; }
+  button.warn { border-color: #5c4a26; color: var(--warn); }
+  button.danger { border-color: #5e332d; color: var(--danger); }
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 400px;
+    min-height: 0;
+  }
+  .stage {
+    display: flex; flex-direction: column; min-width: 0; min-height: 0;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .video-wrap {
+    flex: 1; min-height: 0;
+    background: #000; border: 1px solid var(--line); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    position: relative;
+  }
+  video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .video-empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 13px; text-align: center; padding: 20px; pointer-events: none;
+  }
+  .timeline {
+    position: relative; height: 30px; flex: 0 0 30px;
+    display: flex; border-radius: 6px; overflow: hidden;
+    background: var(--panel-2); cursor: pointer; user-select: none;
+  }
+  .timeline .seg { height: 100%; min-width: 1px; border-right: 1px solid rgba(0,0,0,.45); }
+  .timeline .seg:last-of-type { border-right: 0; }
+  .timeline .seg.unlabeled {
+    background: repeating-linear-gradient(135deg, #3a3f48 0 6px, #2e333b 6px 12px);
+  }
+  .timeline .seg.active { box-shadow: inset 0 0 0 2px rgba(255,255,255,.85); }
+  .timeline .playhead {
+    position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.6); pointer-events: none; transform: translateX(-1px);
+  }
+  .transport { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .transport .clock {
+    font-variant-numeric: tabular-nums; font-family: Consolas, "Courier New", monospace;
+    font-size: 13px; color: var(--text); min-width: 176px;
+  }
+  .transport .clock .muted { color: var(--muted); font-size: 12px; }
+  .speed-group { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .speed-group button { border: 0; border-radius: 0; height: 28px; padding: 0 9px; font-size: 12px; background: transparent; }
+  .speed-group button.on { background: #2b3947; color: #cfe3ff; }
+  .panel {
+    border-left: 1px solid var(--line); background: var(--panel);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .panel section { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .panel h2 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .06em; }
+  .type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .type-btn {
+    display: flex; align-items: center; gap: 7px; justify-content: flex-start;
+    height: 34px; padding: 0 8px; font-size: 13px;
+  }
+  .type-btn .dot { width: 10px; height: 10px; border-radius: 2px; flex: 0 0 10px; }
+  .type-btn .kbd { margin-left: auto; color: var(--muted); font-size: 11px; font-family: Consolas, monospace; }
+  .type-btn.on { border-color: #6f8fbd; background: #253142; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .seg-list {
+    flex: 1; min-height: 0; overflow-y: auto;
+    padding: 6px 8px;
+  }
+  .seg-row {
+    display: grid; grid-template-columns: 22px 10px 1fr auto auto 24px;
+    align-items: center; gap: 8px;
+    padding: 4px 6px; border-radius: 5px; cursor: pointer; font-size: 12px;
+    border: 1px solid transparent;
+  }
+  .seg-row:hover { background: var(--panel-2); }
+  .seg-row.active { background: #253142; border-color: #3b5b86; }
+  .seg-row .idx { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .seg-row .swatch { width: 10px; height: 10px; border-radius: 2px; background: #3a3f48; }
+  .seg-row .times { font-family: Consolas, "Courier New", monospace; color: #c3cad5; }
+  .seg-row .dur { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .seg-row .type { min-width: 44px; text-align: right; }
+  .seg-row .type.none { color: var(--warn); }
+  .seg-row .del {
+    height: 20px; width: 20px; padding: 0; line-height: 1; font-size: 14px;
+    border: 0; background: transparent; color: var(--muted);
+  }
+  .seg-row .del:hover { color: var(--danger); background: #33241f; }
+  .panel-foot { padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .status { font-size: 12px; color: var(--muted); min-height: 18px; }
+  .status .bad { color: var(--warn); }
+  .status .good { color: var(--ok); }
+  .foot-actions { display: flex; gap: 8px; }
+  .foot-actions button { flex: 1; }
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    background: #262d37; border: 1px solid #3c4655; color: var(--text);
+    padding: 8px 14px; border-radius: 8px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .18s ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: 80vw;
+  }
+  .toast.show { opacity: 1; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 11px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .note-row { display: flex; gap: 8px; margin-top: 8px; }
+  .note-row input {
+    flex: 1; height: 30px; padding: 0 8px; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 12px;
+  }
+  .note-row input:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  .keys { font-size: 11px; color: #6d7785; line-height: 1.9; }
+  .keys b { color: #9aa4b2; font-weight: 600; }
+  @media (max-width: 1100px) {
+    main { grid-template-columns: minmax(0, 1fr) 340px; }
+    header .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>AI 分解真值标注器</h1>
+  <span class="hint">候选未加载 · 真值须独立标注</span>
+  <span class="spacer"></span>
+  <label class="field">工位 <input id="station" value="L01-ST11" spellcheck="false" /></label>
+  <label class="field">帧率 <input id="fps" type="number" min="1" max="240" step="1" value="30" /></label>
+  <label class="field">标注人 <input id="labeler" placeholder="填写实名" spellcheck="false" /></label>
+</header>
+<main>
+  <section class="stage">
+    <div class="video-wrap">
+      <video id="video" preload="auto" playsinline></video>
+      <div class="video-empty" id="videoEmpty">默认视频未加载<br />用下方「选择视频文件」载入 sample60.mp4</div>
+    </div>
+    <div class="timeline" id="timeline" title="点击定位"></div>
+    <div class="transport">
+      <div class="clock">
+        <span id="clock">00:00.000</span>
+        <span class="muted">/ <span id="durClock">00:00.000</span> · 第 <span id="frameNo">0</span> 帧</span>
+      </div>
+      <button id="playBtn" title="空格">播放</button>
+      <button id="stepBack" title="←">上一帧</button>
+      <button id="stepFwd" title="→">下一帧</button>
+      <div class="speed-group" id="speeds">
+        <button data-rate="0.25">0.25×</button>
+        <button data-rate="0.5">0.5×</button>
+        <button data-rate="1" class="on">1×</button>
+      </div>
+      <button id="pickBtn">选择视频文件</button>
+      <input id="fileInput" type="file" accept="video/*" hidden />
+      <span class="spacer"></span>
+      <button id="cutBtn" class="primary" title="N">在播放头切分</button>
+    </div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <aside class="panel">
+    <section>
+      <h2>当前段类型（快捷键 1–6）</h2>
+      <div class="type-grid" id="typeGrid"></div>
+      <div class="note-row">
+        <input id="noteInput" placeholder="当前段备注（可选）" maxlength="80" />
+      </div>
+      <div class="actions">
+        <button id="snapBtn" title="B">吸附最近边界</button>
+        <button id="mergeBtn" title="Delete">与下一段合并</button>
+        <button id="undoBtn" title="Ctrl+Z">撤销</button>
+        <button id="resetBtn" class="danger">清空重标</button>
+      </div>
+    </section>
+    <section style="padding-bottom:6px">
+      <h2>片段（点击定位）</h2>
+    </section>
+    <div class="seg-list" id="segList"></div>
+    <div class="panel-foot">
+      <div class="status" id="status"></div>
+      <div class="foot-actions">
+        <button id="copyBtn">复制 JSON</button>
+        <button id="exportBtn" class="primary">导出 ground-truth.json</button>
+      </div>
+      <div class="keys">
+        <b>空格</b> 播放/暂停 · <b>←/→</b> 逐帧 · <b>Shift+←/→</b> ±1s ·
+        <b>N</b> 切分 · <b>1–6</b> 赋类型 · <b>B</b> 吸附边界 · <b>Del</b> 合并 · <b>Ctrl+Z</b> 撤销
+      </div>
+    </div>
+  </aside>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var TYPES = ['等待', '移物', '目检', '拿取', '装配', '其他'];
+  var TYPE_COLORS = {
+    '等待': '#7f8794',
+    '移物': '#4a90d9',
+    '目检': '#d9a441',
+    '拿取': '#5bb98c',
+    '装配': '#b0703c',
+    '其他': '#8f7bd9'
+  };
+  var PLACEHOLDER_LABELERS = ['', '填写标注人姓名', '待填写', 'TBD', 'placeholder'];
+  var DEFAULT_VIDEO = '../../../deliverables/ai-segment/real/sample60.mp4';
+  var STORE_PREFIX = 'ai-seg-labeler:v1:';
+  var EPS_FRAMES = 0.01;
+
+  var state = {
+    stationId: 'L01-ST11',
+    labeler: '',
+    fps: 30,
+    videoName: '',
+    durationMs: 0,
+    segments: []
+  };
+  var history = [];
+  var lastFrameMs = 0;
+  var toastTimer = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var video = $('video');
+
+  /* ---------- 基础工具 ---------- */
+
+  function pad(n, w) { n = String(n); while (n.length < w) n = '0' + n; return n; }
+  function fmt(ms) {
+    ms = Math.max(0, Math.round(ms));
+    var m = Math.floor(ms / 60000);
+    var s = Math.floor((ms % 60000) / 1000);
+    var r = ms % 1000;
+    return pad(m, 2) + ':' + pad(s, 2) + '.' + pad(r, 3);
+  }
+  function frameDurationMs() { return 1000 / state.fps; }
+  function frameIndexAt(ms) { return Math.floor((ms / 1000) * state.fps + EPS_FRAMES); }
+  function frameStartMs(frame) { return Math.round((frame * 1000) / state.fps); }
+  function currentFrame() {
+    return Math.floor((video.currentTime || 0) * state.fps + EPS_FRAMES);
+  }
+  function currentMs() { return frameStartMs(currentFrame()); }
+  function snapshot() { return JSON.parse(JSON.stringify(state.segments)); }
+  function pushHistory() {
+    history.push(snapshot());
+    if (history.length > 120) history.shift();
+  }
+  function toast(msg) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
+  }
+
+  /* ---------- 片段模型 ---------- */
+
+  function segmentIndexAt(ms) {
+    var segs = state.segments;
+    for (var i = 0; i < segs.length; i += 1) {
+      if (ms >= segs[i].start_ms && ms < segs[i].end_ms) return i;
+    }
+    return segs.length ? segs.length - 1 : -1;
+  }
+  function activeIndex() { return segmentIndexAt(currentMs()); }
+
+  function initSegments(durationMs) {
+    state.durationMs = durationMs;
+    state.segments = [{ start_ms: 0, end_ms: durationMs, type: null, note: '' }];
+    history = [];
+  }
+
+  function splitAtPlayhead() {
+    var i = activeIndex();
+    if (i < 0) return;
+    var seg = state.segments[i];
+    var t = currentMs();
+    var guard = frameDurationMs() + 0.5;
+    if (t - seg.start_ms < guard || seg.end_ms - t < guard) {
+      toast('离边界不足 1 帧，未切分');
+      return;
+    }
+    pushHistory();
+    state.segments.splice(i, 1,
+      { start_ms: seg.start_ms, end_ms: t, type: seg.type, note: seg.note },
+      { start_ms: t, end_ms: seg.end_ms, type: null, note: '' });
+    persist();
+    render();
+  }
+
+  function setType(i, type) {
+    if (i < 0 || !state.segments[i]) return;
+    if (state.segments[i].type === type) return;
+    pushHistory();
+    state.segments[i].type = type;
+    persist();
+    render();
+  }
+
+  function setNote(text) {
+    var i = activeIndex();
+    if (i < 0) return;
+    if (state.segments[i].note === text) return;
+    state.segments[i].note = text;
+    persist();
+    render();
+  }
+
+  function mergeWithNext(i) {
+    var segs = state.segments;
+    if (segs.length <= 1) { toast('只剩一段，无需合并'); return; }
+    if (i < 0) i = 0;
+    var j = i < segs.length - 1 ? i : i - 1;
+    pushHistory();
+    var a = segs[j];
+    var b = segs[j + 1];
+    a.end_ms = b.end_ms;
+    if (a.type !== b.type) a.type = null;
+    if (b.note && !a.note) a.note = b.note;
+    segs.splice(j + 1, 1);
+    persist();
+    render();
+  }
+
+  function snapNearestBoundary() {
+    var i = activeIndex();
+    if (i < 0) return;
+    var segs = state.segments;
+    var seg = segs[i];
+    var t = currentMs();
+    var frame = frameDurationMs();
+    var options = [];
+    if (i > 0) options.push({ edge: 'start', ms: seg.start_ms });
+    if (i < segs.length - 1) options.push({ edge: 'end', ms: seg.end_ms });
+    if (!options.length) { toast('整段视频没有内部边界'); return; }
+    options.sort(function (a, b) { return Math.abs(a.ms - t) - Math.abs(b.ms - t); });
+    var pick = options[0];
+
+    var lo, hi;
+    if (pick.edge === 'start') {
+      lo = i > 0 ? segs[i - 1].start_ms + frame : 0;
+      hi = seg.end_ms - frame;
+    } else {
+      lo = seg.start_ms + frame;
+      hi = i < segs.length - 1 ? segs[i + 1].end_ms - frame : state.durationMs;
+    }
+    if (t <= lo || t >= hi) { toast('目标位置越过相邻边界，未吸附'); return; }
+
+    pushHistory();
+    if (pick.edge === 'start') {
+      seg.start_ms = t;
+      segs[i - 1].end_ms = t;
+    } else {
+      seg.end_ms = t;
+      segs[i + 1].start_ms = t;
+    }
+    persist();
+    render();
+  }
+
+  function undo() {
+    if (!history.length) { toast('没有可撤销的操作'); return; }
+    state.segments = history.pop();
+    persist();
+    render();
+    toast('已撤销');
+  }
+
+  function unlabeledCount() {
+    return state.segments.filter(function (s) { return !s.type; }).length;
+  }
+
+  function resetAll() {
+    if (!state.durationMs) return;
+    if (!window.confirm('清空所有片段与类型，重新开始标注？')) return;
+    pushHistory();
+    initSegments(state.durationMs);
+    persist();
+    render();
+  }
+
+  /* ---------- 持久化 ---------- */
+
+  function storeKey() {
+    return STORE_PREFIX + (state.videoName || 'unknown') + '@' + state.stationId;
+  }
+  function persist() {
+    try {
+      localStorage.setItem(storeKey(), JSON.stringify({
+        stationId: state.stationId,
+        labeler: state.labeler,
+        fps: state.fps,
+        videoName: state.videoName,
+        durationMs: state.durationMs,
+        segments: state.segments
+      }));
+    } catch (e) { /* 隐私模式或配额受限时静默降级 */ }
+  }
+  function restoreDraft() {
+    try {
+      var raw = localStorage.getItem(storeKey());
+      if (!raw) return false;
+      var d = JSON.parse(raw);
+      if (!d || !Array.isArray(d.segments) || !d.segments.length) return false;
+      if (Math.abs((d.durationMs || 0) - state.durationMs) > 200) return false;
+      state.segments = d.segments;
+      if (d.labeler) { state.labeler = d.labeler; $('labeler').value = d.labeler; }
+      return true;
+    } catch (e) { return false; }
+  }
+
+  /* ---------- 渲染 ---------- */
+
+  function renderTimeline() {
+    var tl = $('timeline');
+    tl.innerHTML = '';
+    if (!state.durationMs) return;
+    var active = activeIndex();
+    state.segments.forEach(function (s, i) {
+      var el = document.createElement('div');
+      el.className = 'seg' + (s.type ? '' : ' unlabeled') + (i === active ? ' active' : '');
+      el.style.flex = Math.max(1, s.end_ms - s.start_ms) + ' 1 0px';
+      if (s.type) el.style.background = TYPE_COLORS[s.type] || '#666';
+      el.title = fmt(s.start_ms) + ' – ' + fmt(s.end_ms) + '  ' + (s.type || '未标注')
+        + (s.note ? '  · ' + s.note : '');
+      el.dataset.index = String(i);
+      el.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        seekToMid(i);
+      });
+      tl.appendChild(el);
+    });
+    var ph = document.createElement('div');
+    ph.className = 'playhead';
+    ph.id = 'playhead';
+    tl.appendChild(ph);
+    updatePlayhead();
+  }
+
+  function updatePlayhead() {
+    var ph = $('playhead');
+    if (!ph || !state.durationMs) return;
+    var ratio = Math.max(0, Math.min(1, currentMs() / state.durationMs));
+    ph.style.left = (ratio * 100) + '%';
+  }
+
+  function renderTypeGrid() {
+    var grid = $('typeGrid');
+    if (grid.childElementCount) return;
+    TYPES.forEach(function (t, i) {
+      var b = document.createElement('button');
+      b.className = 'type-btn';
+      b.dataset.type = t;
+      var dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = TYPE_COLORS[t];
+      var label = document.createElement('span');
+      label.textContent = t;
+      var kbd = document.createElement('span');
+      kbd.className = 'kbd';
+      kbd.textContent = String(i + 1);
+      b.appendChild(dot);
+      b.appendChild(label);
+      b.appendChild(kbd);
+      b.addEventListener('click', function () { setType(activeIndex(), t); });
+      grid.appendChild(b);
+    });
+    var legend = $('legend');
+    TYPES.forEach(function (t) {
+      var s = document.createElement('span');
+      var i = document.createElement('i');
+      i.style.background = TYPE_COLORS[t];
+      s.appendChild(i);
+      s.appendChild(document.createTextNode(t));
+      legend.appendChild(s);
+    });
+    var un = document.createElement('span');
+    var ui = document.createElement('i');
+    ui.style.background = 'repeating-linear-gradient(135deg,#4a505a 0 3px,#343941 3px 6px)';
+    un.appendChild(ui);
+    un.appendChild(document.createTextNode('未标注'));
+    legend.appendChild(un);
+  }
+
+  function renderList() {
+    var wrap = $('segList');
+    wrap.innerHTML = '';
+    var active = activeIndex();
+    state.segments.forEach(function (s, i) {
+      var row = document.createElement('div');
+      row.className = 'seg-row' + (i === active ? ' active' : '');
+      row.dataset.index = String(i);
+
+      var idx = document.createElement('span');
+      idx.className = 'idx';
+      idx.textContent = String(i + 1);
+
+      var sw = document.createElement('span');
+      sw.className = 'swatch';
+      if (s.type) sw.style.background = TYPE_COLORS[s.type];
+
+      var times = document.createElement('span');
+      times.className = 'times';
+      times.textContent = fmt(s.start_ms) + '–' + fmt(s.end_ms);
+
+      var dur = document.createElement('span');
+      dur.className = 'dur';
+      dur.textContent = ((s.end_ms - s.start_ms) / 1000).toFixed(1) + 's';
+
+      var type = document.createElement('span');
+      type.className = 'type' + (s.type ? '' : ' none');
+      type.textContent = s.type || '未标注';
+
+      var del = document.createElement('button');
+      del.className = 'del';
+      del.textContent = '×';
+      del.title = '与下一段合并';
+      del.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        mergeWithNext(i);
+      });
+
+      row.appendChild(idx);
+      row.appendChild(sw);
+      row.appendChild(times);
+      row.appendChild(dur);
+      row.appendChild(type);
+      row.appendChild(del);
+      row.addEventListener('click', function () { seekToMid(i); });
+      wrap.appendChild(row);
+    });
+
+    var activeRow = wrap.querySelector('.seg-row.active');
+    if (activeRow && activeRow.scrollIntoView) {
+      activeRow.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function renderStatus() {
+    var n = state.segments.length;
+    var miss = unlabeledCount();
+    var el = $('status');
+    el.innerHTML = '';
+    var main = document.createElement('span');
+    main.textContent = '共 ' + n + ' 段 · ';
+    el.appendChild(main);
+    var m2 = document.createElement('span');
+    if (miss) {
+      m2.className = 'bad';
+      m2.textContent = miss + ' 段未标注（导出前必须标注完）';
+    } else {
+      m2.className = 'good';
+      m2.textContent = '全部已标注';
+    }
+    el.appendChild(m2);
+    if (n < 20) {
+      var m3 = document.createElement('span');
+      m3.className = 'bad';
+      m3.textContent = ' · 建议 ≥20 段（当前 ' + n + '）';
+      el.appendChild(m3);
+    }
+  }
+
+  function render() {
+    renderTimeline();
+    renderList();
+    renderStatus();
+    var i = activeIndex();
+    var seg = i >= 0 ? state.segments[i] : null;
+    Array.prototype.forEach.call($('typeGrid').children, function (b) {
+      b.classList.toggle('on', !!(seg && seg.type === b.dataset.type));
+    });
+    $('noteInput').value = seg && seg.note ? seg.note : '';
+    $('noteInput').placeholder = seg ? '第 ' + (i + 1) + ' 段备注（可选）' : '当前段备注（可选）';
+  }
+
+  function renderClock() {
+    var ms = currentMs();
+    $('clock').textContent = fmt(ms);
+    $('frameNo').textContent = String(currentFrame());
+    updatePlayhead();
+  }
+
+  function seekToMid(i) {
+    var s = state.segments[i];
+    if (!s) return;
+    var mid = s.start_ms + Math.min(500, (s.end_ms - s.start_ms) / 2);
+    seekMs(mid);
+    render();
+  }
+
+  function seekMs(ms) {
+    if (!state.durationMs) return;
+    var clamped = Math.max(0, Math.min(state.durationMs, ms));
+    video.currentTime = clamped / 1000 + 0.0001;
+    renderClock();
+  }
+
+  function seekFrame(frame) {
+    var maxFrame = Math.max(0, Math.floor((state.durationMs / 1000) * state.fps) - 1);
+    var f = Math.max(0, Math.min(maxFrame, frame));
+    seekMs(frameStartMs(f));
+    render();
+  }
+
+  /* ---------- 导出 ---------- */
+
+  function buildPayload() {
+    return {
+      _说明: '人工片段级真值（0c 首次评测基线）。独立观看视频标注，未参考 AI 候选。',
+      station_id: state.stationId,
+      video_name: state.videoName || 'unknown.mp4',
+      labeler: state.labeler,
+      labeled_at: new Date().toISOString().slice(0, 10),
+      segments: state.segments.map(function (s) {
+        var o = { start_ms: s.start_ms, end_ms: s.end_ms, type: s.type };
+        if (s.note) o.note = s.note;
+        return o;
+      })
+    };
+  }
+
+  function validateForExport() {
+    var labeler = ($('labeler').value || '').trim();
+    if (!state.durationMs) return '视频尚未加载。';
+    if (PLACEHOLDER_LABELERS.indexOf(labeler) !== -1 || labeler.length < 2) {
+      return '请先在右上角填写标注人实名（≥2 字）。';
+    }
+    var miss = unlabeledCount();
+    if (miss) return '还有 ' + miss + ' 段未标注类型。';
+    var bad = state.segments.filter(function (s) {
+      return !Number.isFinite(s.start_ms) || !Number.isFinite(s.end_ms) || s.end_ms <= s.start_ms;
+    });
+    if (bad.length) return '存在非法片段（起止时间异常）。';
+    return null;
+  }
+
+  function exportJson() {
+    var err = validateForExport();
+    if (err) { toast(err); return; }
+    if (state.segments.length < 20
+      && !window.confirm('当前只有 ' + state.segments.length + ' 段，评测建议 ≥20 段。仍要导出？')) {
+      return;
+    }
+    var text = JSON.stringify(buildPayload(), null, 2) + '\n';
+    var blob = new Blob([text], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ground-truth.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    toast('已导出 ground-truth.json（移到 deliverables/ai-segment/eval/ 覆盖模板）');
+  }
+
+  function copyJson() {
+    var err = validateForExport();
+    if (err) { toast(err); return; }
+    var text = JSON.stringify(buildPayload(), null, 2);
+    var done = function () { toast('已复制 JSON 到剪贴板'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('已复制 JSON'); }
+    catch (e) { toast('复制失败，请改用「导出」'); }
+    ta.remove();
+  }
+
+  /* ---------- 视频 ---------- */
+
+  function loadVideoSrc(src, name) {
+    state.videoName = name || src.split('/').pop();
+    video.src = src;
+  }
+
+  video.addEventListener('loadedmetadata', function () {
+    $('videoEmpty').hidden = true;
+    var durationMs = Math.round(video.duration * 1000);
+    if (!Number.isFinite(durationMs) || durationMs <= 0) return;
+    var restored = false;
+    if (!state.segments.length || Math.abs((state.durationMs || 0) - durationMs) > 200) {
+      initSegments(durationMs);
+      restored = restoreDraft();
+    } else {
+      state.durationMs = durationMs;
+    }
+    $('durClock').textContent = fmt(durationMs);
+    if (restored) toast('已恢复上次标注草稿（' + state.segments.length + ' 段）');
+    render();
+    renderClock();
+  });
+
+  video.addEventListener('error', function () {
+    if (video.getAttribute('src')) {
+      $('videoEmpty').hidden = false;
+      $('videoEmpty').innerHTML = '视频加载失败<br />请用「选择视频文件」载入 sample60.mp4';
+    }
+  });
+
+  video.addEventListener('timeupdate', renderClock);
+  video.addEventListener('seeked', renderClock);
+  video.addEventListener('play', function () { $('playBtn').textContent = '暂停'; });
+  video.addEventListener('pause', function () { $('playBtn').textContent = '播放'; });
+  video.addEventListener('ended', function () { $('playBtn').textContent = '播放'; });
+
+  function togglePlay() {
+    if (video.paused) {
+      video.play().catch(function () { toast('浏览器拒绝播放，请先点击视频区域'); });
+    } else {
+      video.pause();
+    }
+  }
+
+  /* ---------- 事件绑定 ---------- */
+
+  $('playBtn').addEventListener('click', togglePlay);
+  $('stepBack').addEventListener('click', function () { video.pause(); seekFrame(currentFrame() - 1); });
+  $('stepFwd').addEventListener('click', function () { video.pause(); seekFrame(currentFrame() + 1); });
+  $('cutBtn').addEventListener('click', splitAtPlayhead);
+  $('snapBtn').addEventListener('click', snapNearestBoundary);
+  $('mergeBtn').addEventListener('click', function () { mergeWithNext(activeIndex()); });
+  $('undoBtn').addEventListener('click', undo);
+  $('resetBtn').addEventListener('click', resetAll);
+  $('exportBtn').addEventListener('click', exportJson);
+  $('copyBtn').addEventListener('click', copyJson);
+
+  $('pickBtn').addEventListener('click', function () { $('fileInput').click(); });
+  $('fileInput').addEventListener('change', function (ev) {
+    var f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    var url = URL.createObjectURL(f);
+    state.segments = [];
+    state.durationMs = 0;
+    loadVideoSrc(url, f.name);
+    video.load();
+  });
+
+  Array.prototype.forEach.call($('speeds').children, function (b) {
+    b.addEventListener('click', function () {
+      Array.prototype.forEach.call($('speeds').children, function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      video.playbackRate = Number(b.dataset.rate) || 1;
+    });
+  });
+
+  $('timeline').addEventListener('click', function (ev) {
+    if (!state.durationMs) return;
+    var rect = this.getBoundingClientRect();
+    var ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+    seekMs(Math.round(ratio * state.durationMs));
+    render();
+  });
+
+  $('station').addEventListener('change', function () {
+    state.stationId = this.value.trim() || 'L01-ST11';
+    persist();
+    render();
+  });
+  $('fps').addEventListener('change', function () {
+    var v = Number(this.value);
+    if (!Number.isFinite(v) || v <= 0) { this.value = String(state.fps); return; }
+    state.fps = Math.max(1, Math.min(240, Math.round(v)));
+    this.value = String(state.fps);
+    persist();
+    renderClock();
+    render();
+  });
+  $('labeler').addEventListener('input', function () {
+    state.labeler = this.value.trim();
+    this.classList.toggle('invalid', false);
+    persist();
+  });
+  $('noteInput').addEventListener('change', function () { setNote(this.value.trim()); });
+
+  document.addEventListener('keydown', function (ev) {
+    var tag = (ev.target && ev.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') {
+      if (ev.key === 'Escape') ev.target.blur();
+      return;
+    }
+    if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'z' || ev.key === 'Z')) {
+      ev.preventDefault();
+      undo();
+      return;
+    }
+    if (ev.key === ' ') { ev.preventDefault(); togglePlay(); return; }
+    if (ev.key === 'ArrowLeft') {
+      ev.preventDefault();
+      video.pause();
+      if (ev.shiftKey) seekMs(currentMs() - 1000); else seekFrame(currentFrame() - 1);
+      return;
+    }
+    if (ev.key === 'ArrowRight') {
+      ev.preventDefault();
+      video.pause();
+      if (ev.shiftKey) seekMs(currentMs() + 1000); else seekFrame(currentFrame() + 1);
+      return;
+    }
+    if (ev.key === 'n' || ev.key === 'N') { ev.preventDefault(); splitAtPlayhead(); return; }
+    if (ev.key === 'b' || ev.key === 'B') { ev.preventDefault(); snapNearestBoundary(); return; }
+    if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      ev.preventDefault();
+      mergeWithNext(activeIndex());
+      return;
+    }
+    var n = Number(ev.key);
+    if (n >= 1 && n <= 6) {
+      ev.preventDefault();
+      setType(activeIndex(), TYPES[n - 1]);
+    }
+  });
+
+  /* ---------- 启动 ---------- */
+
+  renderTypeGrid();
+  $('labeler').value = state.labeler;
+  loadVideoSrc(DEFAULT_VIDEO, 'sample60.mp4');
+  video.load();
+
+  /* 测试钩子：供自动化烟测读取状态与导出内容，不影响人工使用 */
+  window.__labeler = {
+    state: state,
+    TYPES: TYPES,
+    buildPayload: buildPayload,
+    validateForExport: validateForExport,
+    splitAtPlayhead: splitAtPlayhead,
+    setType: setType,
+    mergeWithNext: mergeWithNext,
+    undo: undo,
+    seekMs: seekMs,
+    activeIndex: activeIndex,
+    unlabeledCount: unlabeledCount
+  };
+}());
+</script>
+</body>
+</html>

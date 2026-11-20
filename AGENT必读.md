@@ -102,6 +102,32 @@ cd app/web && npm run build      # 产物 dist/
 9. **错误信封**（全局过滤器统一）：`{ title, status, detail, errors?, warnings?, code?, requires?, allowed?, hint?, request_id }`——业务附加字段在**顶层**透传。
 10. **前端权限**：按钮/页面级按 permission code 控制；无权限的操作不发请求（后端还有 Guard 兜底，双重保险）。
 
+## 4.1 AI 自动分解模块 · 修补清单（Agent 必读，2026-11-19）
+
+> 来源：两版独立评审合并（`deliverables/AI自动分解模块深度理解_20261119.md` + 二次实码复核）。
+> 口径基准 `memory/project_memory/business_rules.md` B1；任务状态 `memory/project_management/todo.md` §七；风险 `risk_log.md` R08/R19–R21。
+> **先纠正认知**：该模块不是 AI 模型，是浏览器端确定性规则（帧差默认 / MediaPipe 可选），**只产候选、不自动落库**；
+> `motion_standard` MS1.4 = **28 类**（41 是 MS1.0 历史值）、`va_rules` RV3.64 = **44 类**；
+> **分类不查词表，但描述模板与 SOP 动词查 `motion_standard`**。
+
+| 优先级 | 事项 | 状态 | 判据 / 备注 |
+|---|---|---|---|
+| P0-1 | 人工标注 ≥20 段真值 → `npm run test:eval` 首次基线 | 🔲 未开始 | 唯一解禁卡点；SKIPPED(78) 不得冒充 PASS |
+| P0-2 | 落库保留候选 `start_ms` + 真实 `video_id` | ⛔ 待决策 | 改前须定重叠策略（会触发 V2 同手重叠校验）；`AiSegmentPage.tsx:661-672,693` |
+| P0-3 | motion 分类阈值配置化 | 🔲 未开始 | 改 JSON 不生效，须 `POST /rules/motion_standard/publish` |
+| P0-4 | 机位漂移 / 光照突变护栏 | 🔲 未开始 | R08；异常段提示重拍/重标，不继续输出 |
+| P1-1 | 证据帧改 `mediaTime` + 帧吸附（0 帧偏差） | 🔲 未开始 | 现用 `currentTime ±80ms`，非工作台能力 |
+| P1-2 | 接入 `AiBatchConfirm` | 🔲 未开始 | 组件已存在，仅 `index.ts` 导出、页面未引用 |
+| P1-3 | 服务器视频改分片上传 | 🔲 未开始 | 复用 `chunkedUpload.ts`；现走单文件 XHR |
+| P1-4 | hand 复用分类 + 验证 `FLIP_HANDedness` | 🔲 未开始 | 现 hand 类型恒「其他」 |
+| P1-5 | 分析移入 Web Worker + 结果本地暂存 | 🔲 未开始 | 主线程逐帧循环；刷新即丢 |
+| P1-6 | 拆分 `AiSegmentPage.tsx`（1316 行） | 🔲 未开始 | 违反 Spec §10「单文件 ≤300 行」 |
+| P2-1 | 双手动作拆左右要素 | ⛔ 不排期 | 决策 A1 维持现状 |
+| P2-2 | 人脸匿名化 | ⛔ 待政策确认 | 涉现场隐私政策 |
+| P2-3 | 服务端推理 / 学用户习惯 / 自动真值 | ✅ 已否决 | 违反「工具做薄」与真值独立，勿再提 |
+
+**状态图例**：🔲 未开始 / 🚧 进行中 / ✅ 已完成 / ⛔ 待决策或已否决。
+
 ## 5. 后端 API 契约速查（前端对接唯一依据）
 
 统一前缀 `/api`。除登录/刷新/登出/注册/忘记密码/重置密码/health/ready/metrics 外全部需 `Authorization: Bearer <accessToken>`。
@@ -313,6 +339,11 @@ cd app/web && npm run build      # 产物 dist/
 | 109 | 全面功能评审 + 行业最佳实践对标 + 统一项目记忆治理（只读评审，零代码改动） | ✅ 已完成 | 2026-11-18 | 交付 `deliverables/系统功能全面评审与行业最佳实践对标_20261118.md`；按 `SKILL.md` §一/§四 新建 `memory/` 统一记忆骨架 10 文件（`project_memory` 5 / `project_management` 2 / `agent_memory` 3）并收口回写。**结论：品类边界＝问题发现品类（非标准工时品类），主链路已跑通，QA 裁决 No-Go，真实短板是「能力散落未串成可审计闭环／未进回归门／未提交进版本历史」**。**三条实锤新发现**：① P0-1 跨引擎口径分裂（`engine.ts:95-96,117-119` 分子 dur_s / `:190` 分母 std_time，默认宽放 pct 偏低 13.04%，`ratioOf:'CT'` 六条阈值触发漏报，污染建议候选与收益）；② E15 采纳幂等（`suggestions.service.ts:102` 用 Date.now() 生成 imp_id）；③ 版本历史断裂（仅 1 提交 884b71e、96 文件未提交、分支 main）。本轮纠正 7 处文档误记（含编造字段 end_ms、误判「无宽放/评比/标准时间」「AI_ENABLED=false 即 AI 校未生效」「视频不上传」）。质量解禁路径 0a→0b→0c→①…⑥ 见报告 §6.1。三道单向门：A 当次发卡（推荐 A1 维持现状）、B 已登记卡暂缓至 P0-0/P0-4 落地、C 按产品哲学三铁律记录「不做 PMTS」。**本轮未改生产代码、未跑测试、未提交**；所有通过数均为引用既有基线并标出处 |
 
 | 110 | QA 解禁路径 0a–0c：门禁执行器落地 | 🚧 进行中 | 2026-11-18 | **0a ✅**：新增 `scripts/gates/run-gates.cjs`、`gates.config.cjs`、`check-no-native-select.cjs`、`check-repo-traceability.cjs`、`run-eval-gate.cjs`；root/api/web 三处 package.json 新增 `test:gate` / `test:gate:full` / `test:eval`；`eval-ai-segment.cjs` 增 `--json` / `--gate`。实测 `npm run test:gate` = **PASS**（阻断门 7/7：api/web typecheck、CSS 未定义 0、desc-hints 6/0、原生 select 0（69 文件）、batch-export 17/0、isolated smoke **147/0 ×2**），基线 `deliverables/gates/gate-report-20261119-070834.md`；同时修复 smoke 随机工位号碰撞 flake（test-only `uniqueStationId`，证据报告 `...231855`）。**0b ✅**（2026-11-19 基线提交 `0a72733` + tag `baseline-2026-11-19`，执行器与基线同批；严格复核 `TRACE_CHECKS=3/3`，tag 含 `scripts/gates` 5/5 文件）。**0c ⛔ 待人工真值**（候选已导出 20 条至 `deliverables/ai-segment/eval/candidates.json`；真值 `segments` 为空，eval 门明确 SKIPPED 退出码 78，不得冒充 PASS）。**No-Go 维持**。 |
+
+| 111 | 用户决策 A/B/D + SKILL.md 按本项目重写 | ✅ 已完成 | 2026-11-19 | A=A1 维持现状（分析页标注双手图仅供参考）；B=B2 分层（界面只标 N，内部报告才声明 ±x%；硬前置 P0-0/P0-4）；C 待拍板（已解释 PMTS，推荐 C1 不做）；D=修订 `SKILL.md`（旧跨项目模板已清空，验证命令/反模式改为本项目）。 |
+| 112 | MSIA 风格登录页 UI 改造 | ✅ 已完成 | 2026-11-19 | 按《MSIA风格登录页技术交底书》：本地背景图 + 深蓝蒙层 + 蓝青氛围光 + 440px 白色玻璃卡片；Logo/系统名/英文副标题/登录提示/统一身份入口/本地登录/辅助入口。保留全部认证逻辑与双轨开关；注册/找回/改密共用新认证层样式。验证：web typecheck EXIT=0、CSS 门禁 0 未定义、Chrome 1440/400 无横向溢出、OIDC mock 与找回页截图。交接：`deliverables/login-ui-msia/README.md` + 4 张截图。 |
+
+| 113 | AI 自动分解模块修补清单合并与记忆收口（零代码改动） | ✅ 已完成 | 2026-11-19 | 合并两版评审：P0 真值/落库基准/阈值配置化/机位护栏；P1 证据帧/AiBatchConfirm/分片/Worker/拆页；P2 双手/匿名化/服务端推理。纠正「41 类→28 类」「AI 分类不查词表但描述模板与 SOP 查表」「conf 仅 hand=median」。清单见 §4.1 + `todo.md` §七；`overview/architecture/business_rules/risk_log/CODE-WIKI` 已同步；未改代码、未跑测试。 |
 
 **状态图例**：🔲 未开始 → 🚧 进行中 → ✅ 已完成（附日期）→ ⛔ 已阻塞（附原因）。
 

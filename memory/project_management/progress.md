@@ -135,3 +135,39 @@
    首次报告落 `deliverables/gates/eval/`。视频：`deliverables/ai-segment/real/sample60.mp4`。
 2. 0c 后按链条推进 P0-0 → P0-4；P0-1 数值修复仍须先写会红的测试并在 0c 基线之后动工。
 3. 解禁路径 ①–⑥（断言腐蚀、11 套 UI、双库/多实例、critical 依赖）按 `todo.md` 顺序推进。
+
+## 2026-11-19 · AI 自动分解模块两版评审合并 + 修补清单入库
+
+### 任务
+用户要求：对比此前两条独立评审结论，综合为一份修补清单，注入项目记忆与任务清单、记录状态、
+设为 Agent 必读，并纠正错误判断、更新各处非最新描述。
+
+### 结论（合并后无硬事实冲突）
+1. **本质一致**：浏览器端确定性规则算法（帧差默认 / MediaPipe 可选），只产候选、不自动落库；
+   后端无分解推理，仅 ffmpeg 场景切分辅助。
+2. **对方增量（经本轮实码复核为真）**：落库丢失 `start_ms` 与真实 `video_id`（审计链断）；
+   证据帧 `currentTime ±80ms` 无帧吸附；`confAdj` 死字段；`AiBatchConfirm` 未接入；
+   AI 页未走分片上传；hand 类型恒「其他」；写入固定 `rating=1/allowance=0.15` 不判 ST。
+3. **本会话增量（对方未覆盖）**：机位漂移/光照突变护栏、主线程逐帧循环性能、1316 行页面违反
+   Spec §10、分析结果刷新即丢、循环数人工猜。
+
+### 本轮纠正（唯一实质分歧）
+- 「AI 不查词表」过宽 → 修正为：**分类不查词表**（motion 6 类硬编码、hand 恒「其他」）；
+  **描述模板与 SOP 动词查 `motion_standard`**（`AiSegmentPage.tsx:192-204,1172-1174`；
+  后端 `stations.service.ts:526-528` 强校验）。
+- `motion_standard` 41 类 → **MS1.4 = 14 一级 + 14 二级 = 28 类**；`va_rules` RV3.64 = 44 类。
+- 物理验证命令：`node -e` 读取两份 JSON，输出 `level1 14 / subs 14 / total 28`、`va types 44`（本轮实际执行）。
+
+### 产出（文件）
+- `AGENT必读.md`：新增 §4.1 修补清单（Agent 必读）+ 看板 #113。
+- `memory/project_management/todo.md`：新增 §七 AIS-P0/P1/P2 清单与状态。
+- `memory/project_memory/`：`overview.md`（41→28、补确定性规则定位）、`business_rules.md` B1
+  （限定词表范围）、`architecture.md`（conf 机制与落库脱钩）、`risk_log.md`（R19–R21 + 已确认条目）。
+- `deliverables/AI自动分解模块深度理解_20261119.md`：修订「不查词表」表述并追加修订记录。
+- `docs/CODE-WIKI.md`：41 类 → 28 类；`AiBatchConfirm` 标注未接入。
+
+### 验证与提交状态
+- **本轮未改生产代码、未跑测试**；仅文档/记忆更新。
+- 上述 JSON 计数为唯一下达命令的实际输出；其余为静态读码复核。
+- **未提交**（按纪律不擅自 commit）。
+

@@ -77,3 +77,10 @@
 - **Wave 2（2026-11-11 20:31 6/6 按推荐确认、即刻执行）**：5 表加列（`t_ai_task.decomp_task_id`、另四表 `task_id`，`NVARCHAR(32) NULL` 无 DEFAULT）+ 6 行按 (tenant,line) 回填 `DT-LEGACY`（原值全 NULL 可逆）+ `UQ_ai_batch_slot` 删旧建新含 task_id + 6 条索引；`t_audit_log` 7731 行零回填。清单 `deliverables/Phase3_Wave2_加列回填逐项确认清单.md`（已冻结）。四发现：t_ai_task 无 station_id 且 0 行 / ai-waste 无缓存键 / 槽位唯一索引缺 task_id 会撞 2601 / GET 导出无审计须显式 record。新决策 D6 action `export_batch_xlsx`、D7 表级快照、D8 不收紧 NOT NULL、D9 保留 #108。
 - 遗留：留档无自动清理；UI 11 套串行回归未跑；焦点阈值待真实产线校准；双手双轨时间线未完成；SQL Server/IIS 生产容量、spike/soak、现场 INP 未跑；生产依赖 10 high/1 critical；部署未开始。
 - 用户偏好：中文；重成本；实操反馈细；要求真落地；不可逆 DB 变更前须逐项确认。
+
+## AI 自动分解（2026-11-19 口径合并）
+- **必读**：`AGENT必读.md` §4.1；任务状态 `memory/project_management/todo.md` §七（AIS-P0/P1/P2）；风险 R19–R21。
+- 本质＝浏览器端确定性规则（帧差默认/MediaPipe 可选），只产候选不落库；后端无推理。
+- **分类不查词表**（6 类硬编码/hand 恒「其他」）；**描述模板与 SOP 动词查 `motion_standard`**。
+- `motion_standard` MS1.4 = 28 类（41 为 MS1.0 历史值）；`va_rules` RV3.64 = 44 类。
+- P0：0c 人工真值 / 落库保留 `start_ms`+真实 `video_id`（须先定重叠策略）/ 阈值配置化 / 机位光照护栏。

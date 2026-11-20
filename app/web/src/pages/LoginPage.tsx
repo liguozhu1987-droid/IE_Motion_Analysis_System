@@ -2,37 +2,6 @@ import { useEffect, useState } from 'react';
 import { api, type AuthConfigVo } from '../api';
 import { useAuth } from '../auth';
 
-/** 装饰性仪表：IE 工时研究主题（测速表 + 节拍刻度） */
-function DialBadge() {
-  const ticks = Array.from({ length: 36 }, (_, i) => i);
-  return (
-    <svg className="la-dial" viewBox="0 0 240 150" fill="none" aria-hidden>
-      <path d="M16 128 A104 104 0 0 1 224 128" stroke="rgba(233,237,240,.26)" strokeWidth="1.4" />
-      {ticks.map((i) => {
-        const a = Math.PI - (i / 35) * Math.PI;
-        const long = i % 5 === 0;
-        const r1 = long ? 82 : 92;
-        return (
-          <line
-            key={i}
-            x1={120 + Math.cos(a) * r1} y1={128 - Math.sin(a) * r1}
-            x2={120 + Math.cos(a) * 104} y2={128 - Math.sin(a) * 104}
-            stroke={long ? 'rgba(233,237,240,.55)' : 'rgba(233,237,240,.24)'} strokeWidth={long ? 1.6 : 1}
-          />
-        );
-      })}
-      <path d="M16 128 A104 104 0 0 1 224 128" stroke="rgba(176,112,60,.85)" strokeWidth="3"
-        strokeDasharray="196 999" strokeLinecap="round" />
-      <line x1="120" y1="128" x2="186" y2="88" stroke="#E5B98D" strokeWidth="2.6" strokeLinecap="round" />
-      <circle cx="120" cy="128" r="6" fill="#1E272D" stroke="#E5B98D" strokeWidth="2" />
-      <text x="120" y="150" textAnchor="middle" fill="rgba(233,237,240,.45)"
-        fontFamily="IBM Plex Mono, Consolas, monospace" fontSize="10" letterSpacing="2.4">
-        TAKT · CT · BALANCE
-      </text>
-    </svg>
-  );
-}
-
 const IconUser = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -46,7 +15,11 @@ const IconLock = () => (
   </svg>
 );
 
-/** 登录页（/auth/login 公开接口；种子账号首次登录强制改密） */
+/**
+ * 登录页（/auth/login 公开接口；种子账号首次登录强制改密）。
+ * 视觉按《MSIA 风格登录页技术交底书》实现：本地背景图 + 深蓝蒙层 + 居中玻璃卡片。
+ * 认证逻辑、OIDC/本地双轨开关、注册/找回密码、错误处理均保持原实现不变。
+ */
 export default function LoginPage() {
   const { login } = useAuth();
   const [username, setUsername] = useState('');
@@ -87,121 +60,107 @@ export default function LoginPage() {
 
   return (
     <div className="login-wrap">
-      <div className="login-shell">
-        {/* 左：铭牌 / 能力概览 */}
-        <aside className="login-aside">
-          <div className="la-head">
-            <span className="brand-mark">IE</span>
-            <div className="la-word">
-              IE改善效率平台
-              <small>Industrial Engineering Platform</small>
-            </div>
+      <div className="login-glow" aria-hidden />
+
+      <form className="login-card login-card--auth" onSubmit={submit}>
+        <div className="login-brand-block">
+          <div className="login-logo">
+            <img src="/login-logo.png" alt="Inalfa Roof Systems" />
           </div>
-
-          <DialBadge />
-
-          <ul className="la-points">
-            <li><b>01</b><span>动作分解 · 19 类动素 VA / RNVA / NVA 三分法，视频帧级打点</span></li>
-            <li><b>02</b><span>浪费识别 · 规则引擎出数、LLM 出建议、人工复核（三层 AI）</span></li>
-            <li><b>03</b><span>改善闭环 · 建议 → 实施 → 验证 → 收益测算，全程留痕可追溯</span></li>
-          </ul>
-
-          <div className="la-foot">
-            v3.56 · RBAC + ACL 双层权限 · 行级数据可见范围
+          <div className="login-brand">
+            IE 改善效率平台
+            <small>Industrial Engineering Improvement Platform</small>
           </div>
-        </aside>
+          <div className="login-prompt">操作员登录 / Operator Sign-in</div>
+          <p className="login-subprompt">账号由管理员统一开通，登录后可查看授权范围内的工位分析</p>
+        </div>
 
-        {/* 右：作业单表单 */}
-        <form className="login-card" onSubmit={submit}>
-          <div>
-            <div className="login-eyebrow">操作员登录 / Operator Sign-in</div>
-            <div className="login-brand">
-              登录作业台
-              <small>账号由管理员统一开通，登录后可查看授权范围内的工位分析</small>
-            </div>
+        {/* 统一身份入口：仅在后端开关开启时展示；关闭时页面与改造前完全一致 */}
+        {ssoOn && (
+          <div className="sso-entry">
+            <button
+              type="button"
+              className="sso-btn"
+              onClick={() => { window.location.href = api.oidcLoginUrl(); }}
+            >
+              统一身份登录
+            </button>
+            <span className="sso-note">使用企业统一账号登录；本地账号与统一账号双轨并存</span>
           </div>
+        )}
 
-          {/* 统一身份入口：仅在后端开关开启时展示；关闭时页面与改造前完全一致 */}
-          {ssoOn && (
-            <div className="sso-entry">
-              <button
-                type="button"
-                className="btn sso-btn"
-                onClick={() => { window.location.href = api.oidcLoginUrl(); }}
-              >
-                <span className="sso-mark" aria-hidden>SSO</span>
-                统一身份登录
-              </button>
-              <span className="sso-note">使用企业统一账号登录；本地账号与统一账号双轨并存</span>
+        {ssoOn && localOn && <div className="sso-divider"><span>或使用本地账号</span></div>}
+
+        {localOn ? (
+          <>
+            <div className="field">
+              <label>用户名</label>
+              <span className="lf-wrap">
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="如：ie1"
+                  autoFocus
+                  autoComplete="username"
+                />
+                <IconUser />
+              </span>
             </div>
-          )}
 
-          {ssoOn && localOn && <div className="sso-divider"><span>或使用本地账号</span></div>}
-
-          {localOn ? (
-            <>
-              <div className="field">
-                <label>用户名</label>
-                <span className="lf-wrap">
-                  <input
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="如：ie1"
-                    autoFocus
-                    autoComplete="username"
-                  />
-                  <IconUser />
-                </span>
-              </div>
-
-              <div className="field">
-                <label>密码</label>
-                <span className="lf-wrap">
-                  <input
-                    type={showPwd ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="初始口令 123456"
-                    autoComplete="current-password"
-                  />
-                  <IconLock />
-                  <button type="button" className="login-peek" onClick={() => setShowPwd((v) => !v)}
-                    aria-label={showPwd ? '隐藏密码' : '显示密码'}>
-                    {showPwd ? '隐藏' : '显示'}
-                  </button>
-                </span>
-              </div>
-
-              {error && <div className="error-banner">{error}</div>}
-
-              <div className="login-actions">
-                <button className={`btn primary login-submit${busy ? ' login-busy' : ''}`} type="submit" disabled={busy}>
-                  {busy ? '校验中' : '登 录'}
+            <div className="field">
+              <label>密码</label>
+              <span className="lf-wrap">
+                <input
+                  type={showPwd ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="初始口令 123456"
+                  autoComplete="current-password"
+                />
+                <IconLock />
+                <button type="button" className="login-peek" onClick={() => setShowPwd((v) => !v)}
+                  aria-label={showPwd ? '隐藏密码' : '显示密码'}>
+                  {showPwd ? '隐藏' : '显示'}
                 </button>
-                {(cfg?.registrationEnabled || cfg?.passwordSelfServiceEnabled !== false) && (
-                  <div className="login-links">
-                    {cfg?.registrationEnabled && <a href="#/register">注册新账号</a>}
-                    {cfg?.registrationEnabled && cfg?.passwordSelfServiceEnabled !== false && <span className="sep">·</span>}
-                    {cfg?.passwordSelfServiceEnabled !== false && <a href="#/forgot-password">忘记密码</a>}
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="login-hint">本地账号登录已关闭，请使用上方「统一身份登录」。</div>
-          )}
+              </span>
+            </div>
 
+            {error && <div className="error-banner">{error}</div>}
+
+            <div className="login-actions">
+              <button
+                className={`btn login-submit ${ssoOn ? 'login-submit--secondary' : 'login-submit--primary'}${busy ? ' login-busy' : ''}`}
+                type="submit"
+                disabled={busy}
+              >
+                {busy ? '校验中' : '登 录'}
+              </button>
+              {(cfg?.registrationEnabled || cfg?.passwordSelfServiceEnabled !== false) && (
+                <div className="login-links">
+                  {cfg?.registrationEnabled && <a href="#/register">注册新账号</a>}
+                  {cfg?.registrationEnabled && cfg?.passwordSelfServiceEnabled !== false && <span className="sep">·</span>}
+                  {cfg?.passwordSelfServiceEnabled !== false && <a href="#/forgot-password">忘记密码</a>}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="login-hint">本地账号登录已关闭，请使用上方「统一身份登录」。</div>
+        )}
+
+        <details className="login-notice">
+          <summary>登录须知</summary>
           <ul className="login-rules">
             <li>本地账号连续输错 5 次将锁定 15 分钟；统一身份账号由 Keycloak 策略控制</li>
             <li>本地账号首次登录必须修改初始密码（至少 8 位，含字母和数字）；统一身份账号不强制本地改密</li>
             <li>数据可见范围由角色与行级授权共同决定，越权访问会被拦截并留痕</li>
           </ul>
+        </details>
 
-          <div className="login-hint">
-            遇到问题请联系本单位 IE 管理员或平台管理员。
-          </div>
-        </form>
-      </div>
+        <div className="login-hint login-contact">
+          遇到问题请联系本单位 IE 管理员或平台管理员。
+        </div>
+      </form>
     </div>
   );
 }

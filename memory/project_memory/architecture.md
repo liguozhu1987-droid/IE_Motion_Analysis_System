@@ -33,8 +33,10 @@
 - **`app/api/src/entities/improvement.entity.ts:14-29`** 已有 `waste_type/method(ECRS)/est_save_s/
   status(待实施|已完成|已验证)/before_ct/after_ct/source(rule|ai)/ai_suggestion_id`
   → **改善闭环骨架已存在**，缺的只是「浪费触发器→自动建项」「复测回填 after_ct」两条接线。
-- **`app/web/src/ai-segment/segmentation.ts:140,145`** 已算 `conf=median(confs)` 与 `bothRatio`，
-  但明确「候选不落库、不写 `start_ms`」（`motion.ts:17` 同律）→ 决定是否需 DDL 的分界点。
+- **`app/web/src/ai-segment/`（确定性规则，非 LLM）**：hand 检测器 `segmentation.ts:79,140` 用
+  `median(confs)` 定 conf；默认 motion 是 0.9 起规则扣分（**非 median**，`motion.ts:384-397`）。
+  候选层**有** `start_ms/end_ms`（`types.ts:16-17`），但落库时 `AiSegmentPage.tsx:661-672` 用 cursor
+  从 0 重排、`:693` 写死 `video_id='ai-segment'` → 丢源视频基准、审计链断（已列 P0，见 todo §七）。
 - **两套时间轴未对齐（风险）**：`ai-segment/landmark.ts:148` 用 `frameIndex*SAMPLE_MS` 单调计数器；
   `video/useVideoEngine.ts:70` 用 `round(currentTime*fps)`。任何「源帧回溯/逐帧打分」都建在这条链上，
   VFR 或非 all-intra 代理视频会静默指错帧（见 `risk_log.md` R11）。

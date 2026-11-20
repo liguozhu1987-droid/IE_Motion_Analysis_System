@@ -82,7 +82,7 @@ IE_Improvement_Platform/
 │   ├── config/rules/            # JSON 规则集（DB/文件双源中的"文件源"）
 │   │   ├── va_rules.json        # VA 归类规则（RV 版本号）
 │   │   ├── waste_triggers.json  # 浪费触发器（类型过滤器 DSL）
-│   │   ├── motion_standard.json # 公司动作标准库（MS 版本号，41 类词表）
+│   │   ├── motion_standard.json # 公司动作标准库（MS 版本号，MS1.4 = 14 一级 + 14 二级 = 28 类）
 │   │   ├── ecrsa_map.json       # ECRS 手法映射
 │   │   └── redline_keywords.json# 采纳红线关键词
 │   └── config/benefit_params.json # 收益参数（费率/日产量/落地率）
@@ -273,9 +273,9 @@ POST /rules/:code/publish      ← 发布即全效（content.rv 即版本号）�
 
 | code | 版本线 | 内容 |
 |---|---|---|
-| `va_rules` | RV3.x | VA 归类规则 41+ 条（VR01~VR42）：19 经典动素 ∪ 22 公司类型，判定表默认值 |
+| `va_rules` | RV3.x | VA 归类规则 **44 条**（19 经典动素 ∪ 25 公司类型），判定表默认值 |
 | `waste_triggers` | WT 系列 | 浪费触发器（类型过滤器 DSL，dsl.ts 解析；如 WT13「拿取 same_desc_count>=2」→重复取放） |
-| `motion_standard` | MS1.x | 公司动作标准库：41 类词表 + 定义/起止点/描述格式/影响因素/判定说明 |
+| `motion_standard` | MS1.x | 公司动作标准库（MS1.4 = 14 一级 + 14 二级 = 28 类）：定义/起止点/描述格式/影响因素/判定说明；`va_rules` RV3.64 为 44 类 |
 | `ecrsa_map` | — | ECRS 手法映射（浪费类别 → 取消/合并/重排/简化） |
 | `redline_keywords` | — | 建议采纳红线关键词（未确认 → 422 REDLINE_CONFIRM_REQUIRED） |
 
@@ -367,7 +367,7 @@ POST /rules/:code/publish      ← 发布即全效（content.rv 即版本号）�
 | [segmentation.ts](../app/web/src/ai-segment/segmentation.ts) | 手部检测器：掌质心速度 + 拇指食指开合度 →「运动→准静态」拐点=候选止点；四规则 R1-R4 降档 |
 | [hoi.ts](../app/web/src/ai-segment/hoi.ts) | HOI 状态机：ROI 功能子区驻留推断 → 自动填「对象/位置」（拿取/放置/区内作业四结局） |
 | [sop.ts](../app/web/src/ai-segment/sop.ts) | SOP 对齐：与工位配置步骤 LCS 保序匹配 → 漏步/重复/SOP 外动作；命中步骤自动命名（只覆盖机器生成态，手改永不被覆盖） |
-| [index.ts](../app/web/src/ai-segment/index.ts) / [AiBatchConfirm.tsx](../app/web/src/ai-segment/AiBatchConfirm.tsx) | 汇总出口 / 批量接受二次确认弹窗（portal + 默认焦点取消 + Esc） |
+| [index.ts](../app/web/src/ai-segment/index.ts) / [AiBatchConfirm.tsx](../app/web/src/ai-segment/AiBatchConfirm.tsx) | 汇总出口 / 批量接受二次确认弹窗（portal + 默认焦点取消 + Esc）；**AiBatchConfirm 当前仅导出、页面未接入** |
 
 **设计铁律**：候选绝不直接进草稿（submit 是整版重插）；候选以四重形状编码叠加进现有三轨（不加第 4 轨）；AI 写入走「封存→开新版→提交纯 AI」三步链（与手工数据按版本隔离）。
 
@@ -377,7 +377,7 @@ POST /rules/:code/publish      ← 发布即全效（content.rv 即版本号）�
 - [typeFreq.ts](../app/web/src/typeFreq.ts)：动素类型模糊检索（中文子串 + 拼音首字母 + 车间口语别名）+ 使用频次排序 + 手动录入自动归类（identifyVerb）；
 - [actionCarryover.ts](../app/web/src/actionCarryover.ts)：动作对象智能预填（「上一动作→本动作」三级判定 yes/conditional/no）；
 - [motionStandard.ts](../app/web/src/motionStandard.ts) / [motionStandardDefault.ts](../app/web/src/motionStandardDefault.ts)：标准库 format 模板解析与描述骨架生成（描述联想复用运行时 format）；
-- [constants.ts](../app/web/src/constants.ts)：THERBLIG_GROUPS 动素三分法分组、ELEMENT_TYPES 41 类词表、PX_PER_SEC 等常量。
+- [constants.ts](../app/web/src/constants.ts)：THERBLIG_GROUPS 动素三分法分组（18 动素 + 「其他」兜底；公司类型默认值在 TYPE_DEFAULTS）、PX_PER_SEC 等常量。
 
 ---
 
@@ -425,7 +425,7 @@ POST /rules/:code/publish      ← 发布即全效（content.rv 即版本号）�
 
 改代码前必须遵守（违反 = 返工）：
 
-1. **动素三分法（v3.14+）**：19 类 = 有效 9（VA）+ 辅助 5（RNVA）+ 无效 4（NVA）+ 其他兜底；v3.16 起并入公司标准 22 类型，词表共 **41 类**（motion_standard MS1.x）。
+1. **动素三分法（v3.14+）**：19 类 = 有效 9（VA）+ 辅助 5（RNVA）+ 无效 4（NVA）+ 其他兜底；v3.16 起并入公司标准；**MS1.4 实为 28 类**（41 为 MS1.0 历史值），`va_rules` RV3.64 为 44 类。AI 分解**分类不查词表**（6 类硬编码），但描述模板与 SOP 动词查 `motion_standard`（详见 `business_rules.md` B1）。
 2. **RNVA（不是 NNVA）**：必要非增值只能压缩不能直接删，全链路符号统一。
 3. **VA 归类单一来源** = `va_rules` 规则表（可配置 + rv 版本号）。改判必须写结构化标记 `[VA改判|原:x|新:y|理由:z|人:w|日期]`，无理由后端 V1 拦截；类型变更时前端剥离旧标记。
 4. **收益公式固定**：`节省秒数 × 日产量 × 365 × 费率 ÷ 3600 × 落地率`；费率/日产量**无默认值**，未配置即阻断（不猜）。
@@ -674,7 +674,7 @@ cd app/api && npm run test:security:isolated
 | docs/Spec-AI-动作切分-v1.0.md | AI 动作切分规格 |
 | docs/decisions/ADR-*.md | 架构决策记录（AI 切分 001/002、视频 VID-001、开放决策） |
 | deliverables/ | 各版本交付物（设计方案/评估报告/截图） |
-| deliverables/动作标准与填写说明.md | 41 类动素标准与结构化描述填写说明（页面零提示文字的兜底文档） |
+| deliverables/动作标准与填写说明.md | 28 类动素标准与结构化描述填写说明（页面零提示文字的兜底文档） |
 | .workbuddy/memory/ | 跨会话工作日志与 MEMORY.md |
 
 ---
