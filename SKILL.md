@@ -1,29 +1,33 @@
 ---
 name: project-memory-workflow
-description: IE Improvement Platform 的统一项目记忆与交接工作流：接手任务前按总入口确认业务口径、任务状态与风险；工作中坚持口径优先、代码证据与生产/非生产分类；收口时回写 memory/ 与进度文件。适用于新会话接手、开始编码/分析/调研任务、口径或验收标准变更、任务收口与跨 Agent 交接。
+description: IE Improvement Platform 的统一项目记忆与交接工作流：接手任务前按总入口确认业务口径、任务状态与风险；工作中坚持口径优先、代码证据与生产/非生产分类；收口时回写 handoff/明细/ 与进度文件。适用于新会话接手、开始编码/分析/调研任务、口径或验收标准变更、任务收口与跨 Agent 交接。
 ---
 
 # 统一项目记忆与交接工作流（IE Improvement Platform）
 
 本 skill 把本项目的 Agent 记忆体系与项目管理方式固化为可重复流程。
-**记忆的唯一事实来源是 `memory/`，不是会话日志、工具缓存或代码注释。**
+**记忆的唯一事实来源是 `handoff/明细/`，不是会话日志、工具缓存或代码注释。**
+交接入口与速查表是 `handoff/00`~`04`；数据库硬性规则以根目录 `CLAUDE.md` 为准。
 技术栈：NestJS 10 + TypeORM + SQL Server/SQLite；React 19 + Vite；Windows 本地开发/部署。
 
 ## 一、开工：按总入口读取（顺序不可颠倒）
 
-1. `memory/project_memory/README.md` —— 记忆库总入口与归口原则
-2. `memory/project_memory/overview.md` —— 项目背景、模块、边界
-3. `memory/project_memory/business_rules.md` —— 业务口径（**唯一准绳**）
-4. `memory/project_memory/risk_log.md` —— 风险与未决事项
-5. `memory/project_management/todo.md` —— 待办与优先级
-6. `memory/project_management/progress.md` —— 当前进度与验收证据
+0. `CLAUDE.md` —— 数据库边界与 30 表白名单（最高优先级硬性规则）
+1. `handoff/明细/project_memory/README.md` —— 记忆库总入口与归口原则
+2. `handoff/明细/project_memory/overview.md` —— 项目背景、模块、边界
+3. `handoff/明细/project_memory/business_rules.md` —— 业务口径（**唯一准绳**）
+4. `handoff/明细/project_memory/risk_log.md` —— 风险与未决事项
+5. `handoff/明细/project_management/todo.md` —— 待办与优先级
+6. `handoff/明细/project_management/progress.md` —— 当前进度与验收证据
 7. 按任务类型进入细化目录：
-   - 编码/修复/回归：`memory/agent_memory/coding/README.md`
-   - 口径分析/影响评估：`memory/agent_memory/analysis/README.md`
-   - 需求调研/PRD/方案比对：`memory/agent_memory/research/README.md`
+   - 编码/修复/回归：`handoff/明细/agent_memory/coding/README.md`
+   - 口径分析/影响评估：`handoff/明细/agent_memory/analysis/README.md`
+   - 需求调研/PRD/方案比对：`handoff/明细/agent_memory/research/README.md`
 
-若 `memory/` 不存在（新克隆仓库），先按 `memory/project_memory/` 与
-`memory/project_management/` 的结构创建最小骨架，再继续；**绝不要把长期项目记忆写进
+速查入口：`AGENT必读.md` → `handoff/00-交接区入口.md` → `handoff/01`~`04`。
+
+若 `handoff/明细/` 不存在（新克隆仓库），先按 `handoff/明细/project_memory/` 与
+`handoff/明细/project_management/` 的结构创建最小骨架，再继续；**绝不要把长期项目记忆写进
 `app/`、会话日志或工具缓存目录**。
 
 ## 二、开工前必须确认的四件事

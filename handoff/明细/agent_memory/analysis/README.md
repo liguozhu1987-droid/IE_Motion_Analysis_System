@@ -1,7 +1,7 @@
 # Agent 工作规矩 · 口径分析 / 影响评估（analysis）
 
 > 适用：功能评审、差距分析、影响评估、口径变更论证、行业对标。
-> 开工前先按 `memory/project_memory/README.md` §三 读完总入口，再进本目录。
+> 开工前先按 `handoff/明细/project_memory/README.md` §三 读完总入口，再进本目录。
 
 ## 一、证据原则（SKILL.md §3.2，本轮最大教训）
 

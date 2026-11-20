@@ -1,8 +1,8 @@
 # Agent 工作规矩 · 编码 / 修复 / 回归（coding）
 
 > 适用：功能实现、缺陷修复、重构、回归验证。
-> 开工前先按 `memory/project_memory/README.md` §三 读完总入口，再进本目录。
-> 完整工程纪律见 `AGENT必读.md` §4 与 `memory/project_memory/business_rules.md` §F。
+> 开工前先按 `handoff/明细/project_memory/README.md` §三 读完总入口，再进本目录。
+> 完整工程纪律见 `handoff/04-规则与纪律.md` 与 `handoff/明细/project_memory/business_rules.md` §F。
 
 ## 一、动手前四问（未确认不动代码）
 

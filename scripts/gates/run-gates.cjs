@@ -316,7 +316,7 @@ function main() {
   console.log(`阻断门: 执行 ${report.blocking.executed}/${report.blocking.total} ｜ 通过 ${report.blocking.passed} ｜ 失败 ${report.blocking.failed}`);
   if (report.advisory.failed) console.log(`advisory 失败: ${report.advisory.failedIds.join(', ')}（不改变退出码）`);
   if (report.skipped.length) console.log(`SKIPPED: ${report.skipped.map((s) => s.id).join(', ')}（不计为通过）`);
-  console.log('QA No-Go 不因本报告改变；解禁路径见 memory/project_management/todo.md §一。');
+  console.log('QA No-Go 不因本报告改变；解禁路径见 handoff/明细/project_management/todo.md §一。');
 
   if (opts.report) {
     fs.mkdirSync(opts.reportDir, { recursive: true });

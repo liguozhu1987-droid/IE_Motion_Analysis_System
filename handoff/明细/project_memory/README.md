@@ -5,22 +5,24 @@
 
 ## 一、为什么建这个目录
 
-`SKILL.md` §一 规定「若 `memory/` 不存在（新克隆仓库），先按 `memory/project_memory/` 与
-`memory/project_management/` 的结构创建最小骨架，再继续」。本仓库此前无 `memory/`，
+`SKILL.md` §一 规定「若 `handoff/明细/` 不存在（新克隆仓库），先按 `handoff/明细/project_memory/` 与
+`handoff/明细/project_management/` 的结构创建最小骨架，再继续」。本仓库此前无该目录，
 却有四套各自演化的记忆文件，导致同一事实多处表述、新旧冲突（详见 `risk_log.md` R01/R02）。
 本目录用于**收口**，不是替换现有文件。
+
+> **2026-11-20 目录迁移**：本目录原为仓库根的 `memory/`，合并另一台机的 `handoff/` 交接区后整体迁入 `handoff/明细/`（`git mv`，内容逐字保留）。交接入口与速查表在 `handoff/00`~`04`，本目录是明细库。
 
 ## 二、归口原则（唯一事实源 + 分层，不是四套并列）
 
 | 文件/目录 | 只写什么 | 地位 |
 |---|---|---|
-| `memory/project_memory/business_rules.md` | **业务口径、判定标准、例外处理** | **唯一准绳**，改口径先改这里 |
-| `memory/project_memory/overview.md` | 项目背景、模块、边界 | 长期事实 |
-| `memory/project_memory/architecture.md` | 技术架构、关键模块、接口 | 长期事实 |
-| `memory/project_memory/risk_log.md` | 风险、未决事项、已确认口径 | 滚动 |
-| `memory/project_management/todo.md` | 待办、优先级、backlog | 滚动 |
-| `memory/project_management/progress.md` | 进度、验收证据、交接确认 | 滚动 |
-| `memory/agent_memory/*/README.md` | 按 Agent 类型的细化工作规矩 | 长期规矩 |
+| `handoff/明细/project_memory/business_rules.md` | **业务口径、判定标准、例外处理** | **唯一准绳**，改口径先改这里 |
+| `handoff/明细/project_memory/overview.md` | 项目背景、模块、边界 | 长期事实 |
+| `handoff/明细/project_memory/architecture.md` | 技术架构、关键模块、接口 | 长期事实 |
+| `handoff/明细/project_memory/risk_log.md` | 风险、未决事项、已确认口径 | 滚动 |
+| `handoff/明细/project_management/todo.md` | 待办、优先级、backlog | 滚动 |
+| `handoff/明细/project_management/progress.md` | 进度、验收证据、交接确认 | 滚动 |
+| `handoff/明细/agent_memory/*/README.md` | 按 Agent 类型的细化工作规矩 | 长期规矩 |
 | `AGENT必读.md` | **第一入口**：API 契约速查 + 任务看板 + 工程纪律 | 工程执行索引（从上述口径派生，保留其历史详尽记录） |
 | `项目记忆.md` | 2026-10-24 共享快照 | **已冻结的历史参考**，不再更新 |
 | `docs/CODE-WIKI.md` | 完整代码导航 | 派生文档 |

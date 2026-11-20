@@ -1,7 +1,7 @@
 # Agent 工作规矩 · 需求调研 / PRD / 方案比对（research）
 
 > 适用：行业最佳实践调研、竞品对标、方案选型、机会验证、PRD 撰写。
-> 开工前先按 `memory/project_memory/README.md` §三 读完总入口，再进本目录。
+> 开工前先按 `handoff/明细/project_memory/README.md` §三 读完总入口，再进本目录。
 
 ## 一、调研纪律
 

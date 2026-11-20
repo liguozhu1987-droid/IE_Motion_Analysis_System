@@ -10,6 +10,7 @@
 3. 读 [handoff/01-项目记忆.md](handoff/01-项目记忆.md) —— 项目定位、技术栈、数据模型、领域口径。
 4. 读 [handoff/02-任务看板.md](handoff/02-任务看板.md) —— 认领任务，开工即改「进行中」并署名。
 5. 读 [handoff/04-规则与纪律.md](handoff/04-规则与纪律.md) —— 工程纪律与高频坑。
+6. 需要细节口径 / 风险台账 / 历史待办时，再进 [handoff/明细/](handoff/明细/)（业务口径唯一准绳 `project_memory/business_rules.md`）。
 
 ## 收工义务（强制）
 
