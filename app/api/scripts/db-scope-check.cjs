@@ -44,6 +44,37 @@ const FORBIDDEN_PATTERNS = [
 
 const WRITE_KEYWORD = /\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE|CREATE\s+TABLE)\b/i;
 
+/**
+ * 仅在 SQL 表名上下文提取标识符，避免把注释里的 t_ai_waste_*、SQL 别名
+ * t_user_auth_source_len 误判为表名。
+ */
+const TABLE_CONTEXT_RES = [
+  /\b(?:FROM|JOIN|INTO|UPDATE|TABLE|REFERENCES)\s+([A-Za-z0-9_.$\[\]"`]+)/gi,
+  /\bDELETE\s+(?:FROM\s+)?([A-Za-z0-9_.$\[\]"`]+)/gi,
+  /(?:OBJECT_ID|COL_LENGTH)\s*\(\s*'([A-Za-z0-9_.]+)'/gi,
+  /\bCREATE\s+(?:UNIQUE\s+)?(?:CLUSTERED\s+|NONCLUSTERED\s+)?INDEX\s+[A-Za-z0-9_$]+\s+ON\s+([A-Za-z0-9_.$\[\]"`]+)/gi,
+];
+
+function lineAt(text, index) {
+  return text.slice(0, index).split(/\r?\n/).length;
+}
+
+function checkTableNames(file, text) {
+  for (const re of TABLE_CONTEXT_RES) {
+    re.lastIndex = 0;
+    for (const m of text.matchAll(re)) {
+      const raw = m[1].replace(/[\[\]"'`]/g, '');
+      const parts = raw.split('.').filter(Boolean);
+      const table = (parts[parts.length - 1] ?? '').toLowerCase();
+      if (!/^t_[a-z0-9_]+$/.test(table)) continue;
+      if (!ALLOWED_TABLES.has(table)) {
+        fail(file, lineAt(text, m.index ?? 0),
+          `表 ${table} 不在 CLAUDE.md 白名单内（新增表必须先取得书面同意并更新 CLAUDE.md）`);
+      }
+    }
+  }
+}
+
 const problems = [];
 const notes = [];
 const filesChecked = [];
@@ -75,17 +106,11 @@ function checkFile(file) {
   const text = read(file);
   const lines = text.split(/\r?\n/);
 
+  checkTableNames(file, text);
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineNo = i + 1;
-
-    const tableRe = /\bt_[a-z0-9_]+/gi;
-    for (const m of line.matchAll(tableRe)) {
-      const name = m[0].toLowerCase();
-      if (!ALLOWED_TABLES.has(name)) {
-        fail(file, lineNo, `表 ${name} 不在 CLAUDE.md 白名单内（新增表必须先取得书面同意并更新 CLAUDE.md）`);
-      }
-    }
 
     for (const pat of FORBIDDEN_PATTERNS) {
       if (pat.re.test(line)) fail(file, lineNo, pat.msg);
