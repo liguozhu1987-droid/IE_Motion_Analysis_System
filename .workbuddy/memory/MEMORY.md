@@ -13,7 +13,9 @@
   **0b ✅**（基线提交 `0a72733` + tag，strict `TRACE_CHECKS=3/3`，tag 含 gates 5/5）；
   **0c ⛔**（真实候选 20 条已导出至 `deliverables/ai-segment/eval/candidates.json`，
   `ground-truth.json` 的 `segments` 为空 → `npm run test:eval` 明确 **SKIPPED(78)**，不得冒充 PASS；
-  缺口是**人工标注 ≥20 段**，非代码问题）。**QA No-Go 维持**；0c 后按 P0-0 → P0-4 推进。
+  缺口是**人工标注 ≥20 段**，非代码问题）。**标注器已就绪（2026-11-20）**：
+  `app/web/tools/label-ai-segment.html`（离线单文件、**不加载候选**、帧精确切分/6 类赋值/草稿恢复），
+  自检 `node app/web/test-labeler.cjs` = **21/0**；仍须人工标注，工具不代标。**QA No-Go 维持**；0c 后按 P0-0 → P0-4 推进。
 - **服务（本轮实际启动并验证）**：API `node app/api/dist/src/main.js` 起在 `127.0.0.1:3001/api`
   （`/api/health`=200 `{"status":"ok"}`、`/api/ready`=200 `ready/db:up/rules:up/ai:enabled:false`）；
   前端 vite `node app/node_modules/vite/bin/vite.js --port 5174 --strictPort --host 127.0.0.1`

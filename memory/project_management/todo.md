@@ -16,6 +16,9 @@
 > 0b＝基线提交 `0a72733` + tag `baseline-2026-11-19`、`git status` 为空、strict 3/3。
 > **当前唯一卡点是 0c 的人工真值标注**：`candidates.json` 20 条已导出，`ground-truth.json` 的
 > `segments` 为空 → `npm run test:eval` 返回 **SKIPPED(78)**，不得冒充 PASS；标注 ≥20 段后方可首次基线。
+> **2026-11-20 进展**：标注器就绪 `app/web/tools/label-ai-segment.html`（离线单文件、不加载候选、
+> 帧精确切分/6 类赋值/导出契约校验），自检 `node app/web/test-labeler.cjs` = **21/0**；
+> **卡点性质不变——仍须人工独立观看视频标注，工具不代标**。
 > 下列 ①…⑥ 中「补齐版本历史 / 门禁基线」已随 0b 完成，勿重复执行。
 >
 > **2026-11-18 状态**：**0a ✅ 已完成**——`npm run test:gate` 可跑，阻断门 7/7 通过
@@ -136,7 +139,7 @@
 
 | ID | 事项 | 状态 | 验收判据 | 前置 / 风险 |
 |---|---|---|---|---|
-| **AIS-P0-1** | 人工独立标注 ≥20 段真值 → `npm run test:eval` 首次基线 | 🔲 未开始 | 产出 `ground-truth.json` 非空 + 可对比上一版的查全/查准/边界误差；**SKIPPED(78) 不得冒充 PASS** | 唯一解禁卡点；真值不得参考候选反向生成 |
+| **AIS-P0-1** | 人工独立标注 ≥20 段真值 → `npm run test:eval` 首次基线 | 🚧 工具就绪（2026-11-20），待人工标注 | 产出 `ground-truth.json` 非空 + 可对比上一版的查全/查准/边界误差；**SKIPPED(78) 不得冒充 PASS** | 唯一解禁卡点；真值不得参考候选反向生成。标注器 `app/web/tools/label-ai-segment.html`（不加载候选）+ 自检 `app/web/test-labeler.cjs` 21/0 |
 | **AIS-P0-2** | 落库保留候选 `start_ms` + 真实 `video_id` | ⛔ 待决策 | 写入后要素可回指源帧；审计链可追溯 | **改前须定重叠处理策略**（触发 `validation.ts:116-131` V2，不得放宽校验）；R19 |
 | **AIS-P0-3** | motion 分类阈值配置化（读规则集） | 🔲 未开始 | 阈值来自 `motion_standard` 发布版；改 JSON 后必须 `POST /rules/motion_standard/publish` 才生效 | 单一来源纪律；失败回退文件兜底须可观测 |
 | **AIS-P0-4** | 机位漂移 / 光照突变护栏 | 🔲 未开始 | 异常段显式提示「疑似机位变动，建议重拍/重标」，不继续输出误导候选 | R08；补三类素材对照（换工位/光照/漂移） |

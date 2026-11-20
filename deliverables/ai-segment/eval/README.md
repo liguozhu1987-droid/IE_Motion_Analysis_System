@@ -10,11 +10,15 @@
 
 ## 人工标注步骤
 
-1. 用播放器（建议 0.5× 慢放）完整看一遍 `sample60.mp4`。
-2. 编辑 `ground-truth.json`：
-   - 把 `labeler` 改成实际标注人；
-   - 在 `segments` 中逐段填 `{ "start_ms": 毫秒, "end_ms": 毫秒, "type": "拿取/移物/目检/装配/等待/其他", "note": "可选" }`；
-   - 建议 ≥20 段，边界取动作开始/结束的静止点；
+1. 用 Chrome 打开标注器 `app/web/tools/label-ai-segment.html`（单文件、离线、零依赖）。
+   - 默认加载 `deliverables/ai-segment/real/sample60.mp4`；打不开时点「选择视频文件」。
+   - 空格播放/暂停，0.25×/0.5× 慢放，←/→ 逐帧，Shift+←/→ 跳 1 秒。
+   - 在动作切换处按 `N` 切分；把播放头放在某段内按 `1–6` 赋类型（等待/移物/目检/拿取/装配/其他）。
+   - 切点不准时按 `B` 把最近边界吸附到播放头；`Del` 与下一段合并；`Ctrl+Z` 撤销。
+   - 右上角填标注人实名，然后「导出 ground-truth.json」，移到本目录覆盖模板。
+   - 标注器**不加载 candidates.json**，从工具层面保证真值独立。
+2. 标注要求：
+   - `segments` 建议 ≥20 段，边界取动作开始/结束的静止点；
    - **不要**参考或复制 `candidates.json` 的切分来反向生成真值。
 3. 保存后运行：
 
@@ -24,6 +28,8 @@
 
 4. 首次报告会写入 `deliverables/gates/eval/ai-segment-YYYYMMDD-HHMMSS.json` 与 `latest.json`；
    报告含查全/查准、覆盖率、边界误差（中位/P90/±0.5/1/2s 命中率）、类型准确率与 `达标项 n/3`。
+
+标注器自身可用 `node app/web/test-labeler.cjs` 自检（无需起服务，真实 Chrome，21 项断言）。
 
 ## 判读与后续
 

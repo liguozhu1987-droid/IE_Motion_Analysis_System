@@ -91,6 +91,7 @@
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     color: var(--muted); font-size: 13px; text-align: center; padding: 20px; pointer-events: none;
   }
+  .video-empty[hidden] { display: none; }
   .timeline {
     position: relative; height: 30px; flex: 0 0 30px;
     display: flex; border-radius: 6px; overflow: hidden;
@@ -661,7 +662,7 @@
   }
 
   function seekFrame(frame) {
-    var maxFrame = Math.max(0, Math.floor((state.durationMs / 1000) * state.fps) - 1);
+    var maxFrame = Math.max(0, Math.ceil((state.durationMs / 1000) * state.fps) - 1);
     var f = Math.max(0, Math.min(maxFrame, frame));
     seekMs(frameStartMs(f));
     render();
@@ -669,13 +670,18 @@
 
   /* ---------- 导出 ---------- */
 
+  function localDate() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1, 2) + '-' + pad(d.getDate(), 2);
+  }
+
   function buildPayload() {
     return {
       _说明: '人工片段级真值（0c 首次评测基线）。独立观看视频标注，未参考 AI 候选。',
       station_id: state.stationId,
       video_name: state.videoName || 'unknown.mp4',
       labeler: state.labeler,
-      labeled_at: new Date().toISOString().slice(0, 10),
+      labeled_at: localDate(),
       segments: state.segments.map(function (s) {
         var o = { start_ms: s.start_ms, end_ms: s.end_ms, type: s.type };
         if (s.note) o.note = s.note;

@@ -10,8 +10,14 @@
 
 1. **导出候选**：AI 自动分解页 → 载入视频 → 开始分析 → 右上「导出候选JSON」
    （文件名形如 `ai-candidates-L01-ST01-2026-10-26.json`）
-2. **人工标注真值**：复制 `app/web/docs/ai-segment-ground-truth.template.json`，
-   填 `segments`（起止毫秒 + 6 类之一 + 备注）与 `labeler`（实际标注人）。
+2. **人工标注真值**：用标注器 `app/web/tools/label-ai-segment.html`（单文件、零依赖、离线）。
+   用 Chrome 直接打开该文件 → 载入视频（默认 `deliverables/ai-segment/real/sample60.mp4`，
+   打不开时点「选择视频文件」）→ 按 `N` 在动作切换处切分、按 `1–6` 给每段赋类型（等待/移物/
+   目检/拿取/装配/其他）→ 填右上角标注人实名 → 「导出 ground-truth.json」。
+   - 标注器**不加载任何 AI 候选**，从工具层面保证真值独立；
+   - 帧精确：逐帧（←/→）、0.25×/0.5× 慢放，切点吸附到帧起点；
+   - 草稿自动存本机 `localStorage`，误刷新可恢复；
+   - 也可手工编辑 `app/web/docs/ai-segment-ground-truth.template.json` 后另存。
    片段级标注即可，**不用逐帧精标**；标 30–60s 代表片段、≥20 段即可满足统计意义。
 3. **放置评测输入（门禁自动发现）**：
    ```
@@ -33,6 +39,16 @@
 5. 输出报告含：查全/查准、覆盖率、边界误差（中位/P90/±0.5s/±1s/±2s 命中率）、
    类型准确率（严格/宽松双口径）、三项验收对照、`达标项 n/3`。
    门禁留档在 `deliverables/gates/eval/ai-segment-YYYYMMDD-HHMMSS.json` 与 `latest.json`。
+
+## 标注器自检
+
+```bash
+node app/web/test-labeler.cjs
+```
+
+无需起 API / 前端服务（标注器用 `file://` 直接加载本地视频），真实 Chrome 运行。
+覆盖：视频加载、切分对齐帧、新段强制未标注、键盘赋值（N / 1–6）、导出契约、
+占位提示不遮挡画面、无 JS 错误。退出码 0 = 全部通过。
 
 ## 与统一门禁的关系
 

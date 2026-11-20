@@ -171,3 +171,41 @@
 - 上述 JSON 计数为唯一下达命令的实际输出；其余为静态读码复核。
 - **未提交**（按纪律不擅自 commit）。
 
+## 2026-11-20 · 0c 支撑：帧精确真值标注器（工具，不改生产代码）
+
+### 任务
+继续 P0。当前唯一卡点是 0c 需要人工独立标注 ≥20 段真值；手工编辑 JSON 难以逐帧对齐边界。
+本轮不代为标注（真值必须由人观看视频生成），交付**标注工具 + 自检**，把 0c 的人工成本降下来。
+
+### 改了什么
+- 新增 `app/web/tools/label-ai-segment.html`：单文件、零依赖、离线，`file://` 直接打开。
+  - 默认加载 `deliverables/ai-segment/real/sample60.mp4`，打不开可「选择视频文件」；
+    **不加载、不显示任何 AI 候选**（工具层面保证真值独立）。
+  - 帧精确：切点吸附帧起点（默认 30fps，可改）；←/→ 逐帧、Shift+←/→ ±1s、0.25×/0.5× 慢放。
+  - 边界编辑：N 在播放头切分（新段强制未标注，不继承类型）；B 吸附最近边界；
+    Del 与下一段合并（异类型合并后清空，强制重标）；Ctrl+Z 撤销。
+  - 类型：1–6 快捷键或点击；未标注段在时间轴（斜纹）与列表（琥珀色）高亮。
+  - 防坏真值：未填实名 / 存在未标注段 / 起止非法 → 拒绝导出；<20 段二次确认。
+  - 草稿按「视频名@工位」存 localStorage，误刷新可恢复。
+- 新增 `app/web/test-labeler.cjs`：真实 Chrome 烟测（无服务端依赖）。
+- 文档：`app/web/docs/AI-SEGMENT-EVAL.md` 步骤 2 改为标注器流程并补「标注器自检」；
+  `deliverables/ai-segment/eval/README.md` 同步。
+
+### 验证命令与实际输出
+| 命令 | 实际输出 |
+|---|---|
+| `node app/web/test-labeler.cjs` | **pass=21 fail=0**。视频 60067ms / readyState 4；N 切分 2 段、切点 5000ms 对齐帧、新段未标注；键盘 4/3 赋类型正确；未填标注人导出被拒；payload 契约 4 项通过；撤销/合并/异类清空/占位遮挡/时长时钟/无 JS 错误全过。截图 `deliverables/ai-segment/shots/labeler.png` |
+| 首轮探针（修复前） | 22/0，但截图暴露 `.video-empty { display:flex }` 覆盖 `[hidden]`，占位文字盖在画面上 → 修 CSS 并补断言 |
+
+### 未做 / 仍阻塞
+- **0c 仍未闭环**：标注必须由人完成，工具不代标；标注完成后跑 `npm run test:eval`。
+- **未提交**（按纪律不擅自 commit）。
+
+### 下一步（≤3 条）
+1. 人工用标注器标 `sample60.mp4` ≥20 段 → 导出覆盖 `deliverables/ai-segment/eval/ground-truth.json`
+   → `npm run test:eval` 产出首次基线。
+2. 0c 通过后按链条推进 P0-0 → P0-4；P0-1 修复仍须先写会红的测试。
+3. 可并行评估 AIS-P0-3（motion 阈值配置化）：阈值现硬编码在
+   `app/web/src/ai-segment/motion.ts:23-87`（STILL_* / LONG·MICRO_STILL_POINTS / MERGE / CLS），
+   需改为读 `motion_standard` 发布版并保留文件兜底可观测。
+

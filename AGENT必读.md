@@ -345,6 +345,8 @@ cd app/web && npm run build      # 产物 dist/
 
 | 113 | AI 自动分解模块修补清单合并与记忆收口（零代码改动） | ✅ 已完成 | 2026-11-19 | 合并两版评审：P0 真值/落库基准/阈值配置化/机位护栏；P1 证据帧/AiBatchConfirm/分片/Worker/拆页；P2 双手/匿名化/服务端推理。纠正「41 类→28 类」「AI 分类不查词表但描述模板与 SOP 查表」「conf 仅 hand=median」。清单见 §4.1 + `todo.md` §七；`overview/architecture/business_rules/risk_log/CODE-WIKI` 已同步；未改代码、未跑测试。 |
 
+| 114 | 0c 支撑：帧精确真值标注器 | ✅ 已完成 | 2026-11-20 | 交付 `app/web/tools/label-ai-segment.html`（离线单文件、**不加载候选**）：帧起点吸附、←/→ 逐帧、Shift ±1s、0.25×/0.5× 慢放；N 切分（新段强制未标注）、1–6 赋类型、B 吸附最近边界、Del 合并（异类清空）、Ctrl+Z；未填实名/存在未标注段拒绝导出；localStorage 草稿恢复。烟测 `node app/web/test-labeler.cjs` = **pass=21 fail=0**（真实 Chrome，file:// 直载 sample60.mp4 60067ms，含键盘路径；截图 `deliverables/ai-segment/shots/labeler.png`）。修复 `.video-empty{display:flex}` 覆盖 `[hidden]` 导致占位文字遮挡视频。文档同步 `AI-SEGMENT-EVAL.md` / `eval/README.md`。**0c 仍 ⛔：真值须人工独立标注，工具不代标；未提交**。 |
+
 **状态图例**：🔲 未开始 → 🚧 进行中 → ✅ 已完成（附日期）→ ⛔ 已阻塞（附原因）。
 
 ## 7. 看板更新规则（强制性）
