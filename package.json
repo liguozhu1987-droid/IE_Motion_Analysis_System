@@ -14,6 +14,7 @@
     "test:gate:full": "node scripts/gates/run-gates.cjs --profile full",
     "test:eval": "node scripts/gates/run-eval-gate.cjs",
     "ops:startup-check": "npm --prefix app/api run ops:startup-check",
+    "ops:db-scope-check": "node app/api/scripts/db-scope-check.cjs",
     "ops:audit-retention": "npm --prefix app/api run audit:retention",
     "ops:audit-retention:apply": "npm --prefix app/api run audit:retention:apply",
     "ops:backup": "powershell -ExecutionPolicy Bypass -File deploy/sql/backup.ps1"
