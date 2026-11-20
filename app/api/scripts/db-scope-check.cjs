@@ -4,7 +4,7 @@
  *   node app/api/scripts/db-scope-check.cjs        （或根目录 npm run ops:db-scope-check）
  *
  * 校验内容：
- *  1) 所有来源文件里出现的 t_* 表名必须命中 30 张白名单（= 不允许操作其他业务表）；
+ *  1) 所有来源文件里出现的 t_* 表名必须命中 33 张白名单（= 不允许操作其他业务表）；
  *  2) 禁止 CREATE/ALTER/DROP DATABASE、USE <库>、OPENROWSET/OPENQUERY、链接服务器、xp_cmdshell；
  *  3) 三段式引用 <X>.dbo.<表> 只允许 X = CN_AME；CMC.dbo.* 只允许出现在 SELECT 上下文；
  *  4) CN_AME_SSO_* 只允许读，出现写语句即失败；
@@ -19,7 +19,7 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..', '..', '..'); // 仓库根
 const API = path.join(ROOT, 'app', 'api');
 
-/** CLAUDE.md §1.2 白名单：30 张本系统表 */
+/** CLAUDE.md §1.2 白名单：33 张本系统表 */
 const ALLOWED_TABLES = new Set([
   't_tenant', 't_user', 't_role', 't_permission', 't_user_role', 't_role_permission',
   't_refresh_token', 't_password_reset', 't_rule_set', 't_project', 't_line', 't_station',
@@ -27,6 +27,7 @@ const ALLOWED_TABLES = new Set([
   't_video_derivative', 't_ai_task', 't_ai_suggestion_batch', 't_ai_suggestion',
   't_ai_custom_dict', 't_ai_setting', 't_ai_llm_profile', 't_ai_waste_batch',
   't_ai_waste_finding', 't_ai_waste_issue', 't_ai_waste_kb', 't_ai_usage_event', 't_audit_log',
+  't_decomposition_task', 't_task_station', 't_batch_export_record',
 ]);
 
 const ALLOWED_PREFIXES = ['CN_AME_SSO_']; // 只读例外，另行校验
@@ -231,5 +232,5 @@ function checkSecretSpread(env) {
     if (problems.length > 60) console.error(`  … 另有 ${problems.length - 60} 项`);
     process.exit(1);
   }
-  console.log('\n✓ 数据库边界校验通过：DDL/写入仅限 CN_AME 的 30 张白名单表，CMC 仅只读。');
+  console.log('\n✓ 数据库边界校验通过：DDL/写入仅限 CN_AME 的 33 张白名单表，CMC 仅只读。');
 })();

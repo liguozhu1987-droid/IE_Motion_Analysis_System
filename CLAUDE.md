@@ -20,7 +20,7 @@
 
 ### 1.2 写入/建表范围（DDL + DML）
 
-**只允许**在 `CN_AME` 数据库内、对下列 **30 张本系统表**执行建表、改表、写入、删除：
+**只允许**在 `CN_AME` 数据库内、对下列 **33 张本系统表**执行建表、改表、写入、删除：
 
 ```
 t_tenant                 t_user                    t_role
@@ -33,12 +33,15 @@ t_ai_task                t_ai_suggestion_batch     t_ai_suggestion
 t_ai_custom_dict         t_ai_setting              t_ai_llm_profile
 t_ai_waste_batch         t_ai_waste_finding        t_ai_waste_issue
 t_ai_waste_kb            t_ai_usage_event          t_audit_log
+t_decomposition_task     t_task_station            t_batch_export_record
 ```
+
+> 2026-11-20 经用户书面同意，由 30 张扩为 33 张：新增 `t_decomposition_task`（分解任务主表）、`t_task_station`（任务-工位关联）、`t_batch_export_record`（批量导出留档）。三者由 Phase 2/3 任务归属与批量导出功能引入（`migrate.ts:419/448/468`）。
 
 **禁止**：
 
 - 对任何**其他数据库**执行 `CREATE / ALTER / DROP / TRUNCATE / INSERT / UPDATE / DELETE / MERGE`。
-- 对 `CN_AME` 内**上述 30 张表以外**的任何表执行写入或 DDL（包括 `CN_AME_SSO_*`、CMC 表、任何第三方表）。
+- 对 `CN_AME` 内**上述 33 张表以外**的任何表执行写入或 DDL（包括 `CN_AME_SSO_*`、CMC 表、任何第三方表）。
 - `CREATE DATABASE`、`ALTER DATABASE`、`DROP DATABASE`、`USE <非 CN_AME 库>`。
 - 链接服务器、`OPENROWSET`、`OPENQUERY`、`xp_cmdshell`、`sp_addlinkedserver`。
 - 通过动态 SQL / 变量拼接绕过上述限制。
@@ -65,10 +68,10 @@ t_ai_waste_kb            t_ai_usage_event          t_audit_log
 
 ### 1.5 布署与升级的强制流程
 
-1. `npm run migrate:prod`（只创建/升级上述 30 张表，幂等）。
+1. `npm run migrate:prod`（只创建/升级上述 33 张表，幂等）。
 2. 手工执行 `deploy/sql/manual/2026-11-06-auth-sso.sql`（只改 `t_user` / `t_refresh_token`）。
 3. 手工执行 `deploy/sql/manual/2026-11-06-video-retention.sql`（只改 `t_video_asset`）。
-4. `npm run seed`（只写上述 30 张表）。
+4. `npm run seed`（只写上述 33 张表）。
 5. 任何新增 SQL 脚本必须放在 `deploy/sql/manual/` 并在本文件登记其目标表。
 
 ### 1.6 强制校验
@@ -81,7 +84,7 @@ npm run ops:db-scope-check
 
 该脚本会检查：
 
-- `migrate.ts` 与手工 SQL 中出现的建表/写表语句是否全部命中 30 张白名单；
+- `migrate.ts` 与手工 SQL 中出现的建表/写表语句是否全部命中 33 张白名单；
 - 是否存在跨库写、`CREATE/ALTER/DROP DATABASE`、`USE` 其他库、链接服务器/`OPENROWSET` 等；
 - `app/api/.env` 在生产模式下是否确实指向 `CN_AME@IRSCNYTFINEREPORT.ap.inalfa.local`、账号 `publicUser`。
 
