@@ -2109,6 +2109,20 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                 onLoadedMetadata={(e) => {
                   const v = e.currentTarget;
                   if (v.videoWidth > 0 && v.videoHeight > 0) setVideoAr(v.videoWidth / v.videoHeight);
+                  // HEVC 静默黑屏补丁：真实设备 HEVC 文件在无解码能力的浏览器里
+                  // 音轨正常、readyState 达标，却不触发 MediaError（videoWidth 恒 0）
+                  // → onError 回退永远不启动 → 黑屏有声静默失败。
+                  // 以「元数据已就绪但无视频尺寸」判定视频轨解码失败，走同一后端转码
+                  // 回退；500ms 复核防元数据异步补齐，serverTriedRef 防循环。
+                  if (v.videoWidth === 0 && v.videoHeight === 0 && pendingFileRef.current && !serverTriedRef.current) {
+                    const vv = v;
+                    window.setTimeout(() => {
+                      if (vv.videoWidth === 0 && vv.videoHeight === 0 && pendingFileRef.current && !serverTriedRef.current) {
+                        serverTriedRef.current = true;
+                        void convertOnServer(pendingFileRef.current);
+                      }
+                    }, 500);
+                  }
                 }}
                 onClick={togglePlay}
               />

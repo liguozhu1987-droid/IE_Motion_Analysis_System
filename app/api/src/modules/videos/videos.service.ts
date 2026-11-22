@@ -8,6 +8,7 @@ import { AuthUser } from '../../auth/auth-user.interface';
 import { StationsService } from '../stations/stations.service';
 import { DerivativeService } from './derivative.service';
 import { loadCapacityConfig } from './derivative-capacity';
+import { resolveEncoder, encoderOrderFrom, invalidateEncoderCache, EncoderKind } from './derivative-ffmpeg';
 
 /** 上传/转码结果 */
 export interface VideoHandle {
@@ -304,16 +305,42 @@ export class VideosService {
   }
 
   /** 转码为浏览器友好的 MP4：H.264 + yuv420p + AAC + faststart；宽度封顶 MAX_OUT_WIDTH */
-  private async transcode(ffmpeg: string, input: string, output: string, probe: VideoProbe): Promise<void> {
-    const args = ['-y', '-hide_banner', '-i', input, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p'];
-    if (probe.width > MAX_OUT_WIDTH) args.push('-vf', `scale=${MAX_OUT_WIDTH}:-2`);
-    args.push('-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-f', 'mp4', output);
-    const t0 = Date.now();
-    await this.run(ffmpeg, args);
-    if (!fs.existsSync(output) || fs.statSync(output).size === 0) {
-      throw new ServiceUnavailableException('视频转换失败：输出文件为空（源文件可能损坏）');
+  /** 上传转码的 H.264 8bit 规范化输出参数（普通 GOP，区别于派生代理的 all-intra -g 1） */
+  private encoderArgs(enc: EncoderKind): string[] {
+    switch (enc) {
+      case 'h264_qsv':  return ['-c:v', 'h264_qsv', '-preset', 'veryfast', '-global_quality', '23', '-pix_fmt', 'yuv420p'];
+      case 'h264_nvenc': return ['-c:v', 'h264_nvenc', '-preset', 'p4', '-cq', '23', '-pix_fmt', 'yuv420p'];
+      default:          return ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p'];
     }
-    this.log.log(`转码完成: ${path.basename(input)} → ${path.basename(output)} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+  }
+
+  private async transcode(ffmpeg: string, input: string, output: string, probe: VideoProbe): Promise<void> {
+    const base = ['-y', '-hide_banner', '-i', input];
+    if (probe.width > MAX_OUT_WIDTH) base.push('-vf', `scale=${MAX_OUT_WIDTH}:-2`);
+    base.push('-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-f', 'mp4', output);
+
+    // 硬件编码优先（QSV→NVENC→libx264），与派生路径同一探测机制；
+    // 探测通过≠全片稳定（本机 QSV 曾有探测过、全片翻车的历史），失败回退下一候选。
+    const resolved = await resolveEncoder(ffmpeg, input);
+    const order: EncoderKind[] = resolved ? encoderOrderFrom(resolved) : ['libx264'];
+    let lastErr: unknown = null;
+    for (const enc of order) {
+      const t0 = Date.now();
+      try {
+        await this.run(ffmpeg, [...base, ...this.encoderArgs(enc)]);
+        if (!fs.existsSync(output) || fs.statSync(output).size === 0) {
+          throw new Error('转码输出为空');
+        }
+        this.log.log(`转码完成(${enc}): ${path.basename(input)} → ${path.basename(output)} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+        return;
+      } catch (e) {
+        lastErr = e;
+        this.log.warn(`编码器 ${enc} 转码失败，回退下一候选: ${(e as Error).message?.slice(0, 200)}`);
+        invalidateEncoderCache();
+        try { fs.unlinkSync(output); } catch { /* 半截输出不存在 */ }
+      }
+    }
+    throw new ServiceUnavailableException(`视频转换失败：${(lastErr as Error)?.message?.slice(-300) ?? '未知错误'}`);
   }
 
   /** 文件名安全解析：仅接受 <uuid>.mp4，杜绝路径穿越 */
