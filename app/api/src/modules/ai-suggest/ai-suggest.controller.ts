@@ -97,9 +97,10 @@ export class AiSuggestionController {
     @CurrentUser() user: AuthUser,
   ) {
     await this.assertSuggestionWritable(id, user);
-    return this.svc.reject(id, user.username, body.reason);
+    return this.svc.reject(id, user.username, body.reason, body.reason_code);
   }
 }
+
 
 /** AI 治理（配额 + 自定义类型 + config 只读） */
 @Controller('ai-custom-dict')

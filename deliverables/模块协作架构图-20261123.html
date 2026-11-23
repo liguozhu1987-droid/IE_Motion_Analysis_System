@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IE Motion Analysis System · 模块协作架构</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      padding: 2rem;
+      color: white;
+    }
+
+    .container { max-width: 1240px; margin: 0 auto; }
+
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+
+    .pulse-dot {
+      width: 12px; height: 12px; background: #22d3ee; border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    h2.section-title {
+      font-size: 0.8rem; font-weight: 600; color: #64748b;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      margin: 1.75rem 0 0.75rem 0.25rem;
+    }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+
+    .diagram-container {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 1rem;
+      border: 1px solid #1e293b;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .card {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 0.75rem;
+      border: 1px solid #1e293b;
+      padding: 1.25rem;
+    }
+
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; line-height: 1.5; }
+    .card li { margin-bottom: 0.5rem; }
+    .card li b { color: #e2e8f0; font-weight: 600; }
+
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+
+    .toolbar { display: flex; gap: 0.5rem; margin-left: auto; flex-shrink: 0; align-items: center; }
+    .toolbar-toggle {
+      background: transparent; border: none; color: #475569; cursor: pointer;
+      font-size: 1.25rem; line-height: 1; padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem; transition: color 0.2s, background 0.2s;
+    }
+    .toolbar-toggle:hover { color: #94a3b8; background: rgba(30, 41, 59, 0.5); }
+    .toolbar-actions { display: none; gap: 0.5rem; }
+    .toolbar.expanded .toolbar-actions { display: flex; }
+    .toolbar-actions button {
+      background: rgba(30, 41, 59, 0.8); border: 1px solid #334155; color: #94a3b8;
+      padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-family: inherit;
+      font-size: 0.75rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .toolbar-actions button:hover {
+      background: rgba(51, 65, 85, 0.8); color: white; border-color: #475569;
+    }
+
+    @media print {
+      body { background: #020617; padding: 1rem; }
+      .toolbar { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="report-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>IE Motion Analysis · 模块协作架构</h1>
+        <div class="toolbar">
+          <div class="toolbar-actions">
+            <button onclick="copyAsImage(this)">📋 Copy</button>
+            <button onclick="downloadPNG(this)">🖼️ PNG</button>
+            <button onclick="downloadPDF(this)">📄 PDF</button>
+          </div>
+          <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="Export options" aria-label="Export options">⋯</button>
+        </div>
+      </div>
+      <p class="subtitle">五模块现状依赖（含 4 个 P0 断点）→ 目标单向数据流 · 2026-11-23 · 只读架构梳理</p>
+    </div>
+
+    <!-- ============================ 现状 ============================ -->
+    <h2 class="section-title">01 · 现状依赖图（As-Is）</h2>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1180 520">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrowhead-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- Column headers -->
+        <text x="105" y="40" fill="#64748b" font-size="9" text-anchor="middle">前端</text>
+        <text x="305" y="40" fill="#64748b" font-size="9" text-anchor="middle">事实层</text>
+        <text x="505" y="40" fill="#64748b" font-size="9" text-anchor="middle">计算 / AI 洞察</text>
+        <text x="725" y="40" fill="#64748b" font-size="9" text-anchor="middle">机会生产</text>
+        <text x="955" y="40" fill="#64748b" font-size="9" text-anchor="middle">决策存储</text>
+        <text x="1100" y="40" fill="#64748b" font-size="9" text-anchor="middle">验证</text>
+
+        <!-- ===== Arrows first (behind boxes) ===== -->
+        <line x1="180" y1="113" x2="226" y2="145" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="196" y="118" fill="#64748b" font-size="7">manual</text>
+        <line x1="180" y1="223" x2="226" y2="190" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="182" y="214" fill="#64748b" font-size="7">ai_assisted</text>
+
+        <line x1="380" y1="160" x2="426" y2="150" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <line x1="380" y1="296" x2="426" y2="286" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowhead)" opacity="0.55"/>
+
+        <!-- engine -> ai-insight -->
+        <line x1="505" y1="194" x2="505" y2="246" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+        <!-- engine -> three producers -->
+        <line x1="580" y1="152" x2="624" y2="123" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <line x1="580" y1="165" x2="624" y2="219" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <line x1="580" y1="176" x2="624" y2="315" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <text x="592" y="145" fill="#64748b" font-size="7">AnalysisResult</text>
+
+        <!-- producers -> improvement (three writers) -->
+        <line x1="822" y1="123" x2="876" y2="180" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead-rose)"/>
+        <line x1="822" y1="219" x2="876" y2="200" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead-rose)"/>
+        <line x1="822" y1="315" x2="876" y2="220" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowhead-rose)"/>
+        <text x="846" y="252" fill="#fb7185" font-size="7" text-anchor="middle">各自写</text>
+
+        <!-- compare flow -->
+        <line x1="1030" y1="190" x2="1036" y2="156" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <line x1="1100" y1="180" x2="1100" y2="226" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <line x1="1038" y1="263" x2="1032" y2="240" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowhead-rose)"/>
+        <text x="1012" y="268" fill="#fb7185" font-size="7">after_ct</text>
+
+        <!-- ===== Frontend ===== -->
+        <rect x="30" y="80" width="150" height="66" rx="6" fill="#0f172a"/>
+        <rect x="30" y="80" width="150" height="66" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="105" y="105" fill="white" font-size="11" font-weight="600" text-anchor="middle">手工分解工作台</text>
+        <text x="105" y="123" fill="#94a3b8" font-size="8" text-anchor="middle">WorkbenchPage</text>
+        <text x="105" y="137" fill="#22d3ee" font-size="7" text-anchor="middle">source = manual</text>
+
+        <rect x="30" y="190" width="150" height="66" rx="6" fill="#0f172a"/>
+        <rect x="30" y="190" width="150" height="66" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="105" y="215" fill="white" font-size="11" font-weight="600" text-anchor="middle">AI 自动分解</text>
+        <text x="105" y="233" fill="#94a3b8" font-size="8" text-anchor="middle">AiSegmentPage</text>
+        <text x="105" y="247" fill="#22d3ee" font-size="7" text-anchor="middle">source = ai_assisted</text>
+
+        <rect x="30" y="300" width="150" height="60" rx="6" fill="#0f172a"/>
+        <rect x="30" y="300" width="150" height="60" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="105" y="324" fill="white" font-size="11" font-weight="600" text-anchor="middle">视频 / 规则集</text>
+        <text x="105" y="341" fill="#94a3b8" font-size="8" text-anchor="middle">videos · rules/*.json</text>
+
+        <!-- ===== Facts ===== -->
+        <rect x="230" y="110" width="150" height="100" rx="6" fill="#0f172a"/>
+        <rect x="230" y="110" width="150" height="100" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="305" y="134" fill="white" font-size="11" font-weight="600" text-anchor="middle">t_element</text>
+        <text x="305" y="153" fill="#94a3b8" font-size="8" text-anchor="middle">要素快照 · seq/ST/VA</text>
+        <text x="305" y="169" fill="#94a3b8" font-size="8" text-anchor="middle">station · task · version</text>
+        <text x="305" y="185" fill="#a78bfa" font-size="7" text-anchor="middle">source = manual | ai_assisted</text>
+        <text x="305" y="199" fill="#64748b" font-size="7" text-anchor="middle">唯一事实源</text>
+
+        <rect x="230" y="260" width="150" height="66" rx="6" fill="#0f172a"/>
+        <rect x="230" y="260" width="150" height="66" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="305" y="284" fill="white" font-size="10" font-weight="600" text-anchor="middle">t_station / t_task</text>
+        <text x="305" y="301" fill="#94a3b8" font-size="8" text-anchor="middle">version 单游标 · CT 回写</text>
+        <text x="305" y="315" fill="#94a3b8" font-size="8" text-anchor="middle">task 上下文</text>
+
+        <!-- ===== Kernel ===== -->
+        <rect x="430" y="110" width="150" height="84" rx="6" fill="#0f172a"/>
+        <rect x="430" y="110" width="150" height="84" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="505" y="133" fill="white" font-size="11" font-weight="600" text-anchor="middle">Analysis Kernel</text>
+        <text x="505" y="151" fill="#94a3b8" font-size="8" text-anchor="middle">analysis/engine</text>
+        <text x="505" y="167" fill="#94a3b8" font-size="8" text-anchor="middle">metrics / wastes / hands</text>
+        <text x="505" y="182" fill="#34d399" font-size="7" text-anchor="middle">唯一计算内核 · 纯函数</text>
+
+        <rect x="430" y="250" width="150" height="66" rx="6" fill="#0f172a"/>
+        <rect x="430" y="250" width="150" height="66" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="505" y="274" fill="white" font-size="11" font-weight="600" text-anchor="middle">ai-insight</text>
+        <text x="505" y="292" fill="#94a3b8" font-size="8" text-anchor="middle">diagnose / interpret</text>
+        <text x="505" y="306" fill="#fbbf24" font-size="7" text-anchor="middle">借用 analysis / compare 前缀</text>
+
+        <!-- ===== Producers ===== -->
+        <rect x="610" y="60" width="230" height="340" rx="12" fill="rgba(251, 191, 36, 0.04)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="620" y="78" fill="#fbbf24" font-size="9" font-weight="600">三条并行建议产线</text>
+
+        <rect x="628" y="92" width="194" height="62" rx="6" fill="#0f172a"/>
+        <rect x="628" y="92" width="194" height="62" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="725" y="114" fill="white" font-size="11" font-weight="600" text-anchor="middle">规则建议</text>
+        <text x="725" y="131" fill="#94a3b8" font-size="8" text-anchor="middle">suggestions/engine</text>
+        <text x="725" y="145" fill="#94a3b8" font-size="8" text-anchor="middle">ECRSA 候选 · 不落库</text>
+
+        <rect x="628" y="188" width="194" height="62" rx="6" fill="#0f172a"/>
+        <rect x="628" y="188" width="194" height="62" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="725" y="210" fill="white" font-size="11" font-weight="600" text-anchor="middle">AI 建议</text>
+        <text x="725" y="227" fill="#94a3b8" font-size="8" text-anchor="middle">ai-suggest · PV1</text>
+        <text x="725" y="241" fill="#94a3b8" font-size="8" text-anchor="middle">LLM → R1-R3 校验</text>
+
+        <rect x="628" y="284" width="194" height="62" rx="6" fill="#0f172a"/>
+        <rect x="628" y="284" width="194" height="62" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="725" y="306" fill="white" font-size="11" font-weight="600" text-anchor="middle">浪费识别</text>
+        <text x="725" y="323" fill="#94a3b8" font-size="8" text-anchor="middle">ai-waste · WV2</text>
+        <text x="725" y="337" fill="#94a3b8" font-size="8" text-anchor="middle">LLM → W1-W3 校验</text>
+
+        <!-- ===== Improvement store ===== -->
+        <rect x="880" y="150" width="150" height="100" rx="6" fill="#0f172a"/>
+        <rect x="880" y="150" width="150" height="100" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="955" y="174" fill="white" font-size="11" font-weight="600" text-anchor="middle">t_improvement</text>
+        <text x="955" y="192" fill="#94a3b8" font-size="8" text-anchor="middle">三个写入口</text>
+        <text x="955" y="207" fill="#94a3b8" font-size="8" text-anchor="middle">source 口径不一</text>
+        <text x="955" y="222" fill="#94a3b8" font-size="8" text-anchor="middle">priority 语义不一</text>
+        <text x="955" y="238" fill="#64748b" font-size="7" text-anchor="middle">决策/执行收敛点</text>
+
+        <!-- ===== Verify ===== -->
+        <rect x="1040" y="110" width="120" height="70" rx="6" fill="#0f172a"/>
+        <rect x="1040" y="110" width="120" height="70" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="1100" y="135" fill="white" font-size="11" font-weight="600" text-anchor="middle">compare</text>
+        <text x="1100" y="153" fill="#94a3b8" font-size="8" text-anchor="middle">ΔCT + 三层配对</text>
+        <text x="1100" y="167" fill="#94a3b8" font-size="8" text-anchor="middle">收益估算</text>
+
+        <rect x="1040" y="230" width="120" height="66" rx="6" fill="#0f172a"/>
+        <rect x="1040" y="230" width="120" height="66" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="1100" y="254" fill="white" font-size="10" font-weight="600" text-anchor="middle">状态机 / 建议书</text>
+        <text x="1100" y="271" fill="#94a3b8" font-size="8" text-anchor="middle">待实施→已验证</text>
+        <text x="1100" y="285" fill="#94a3b8" font-size="8" text-anchor="middle">回填 after_ct</text>
+
+        <rect x="1040" y="330" width="120" height="54" rx="6" fill="#0f172a"/>
+        <rect x="1040" y="330" width="120" height="54" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="1100" y="353" fill="white" font-size="10" font-weight="600" text-anchor="middle">Dashboard</text>
+        <text x="1100" y="369" fill="#94a3b8" font-size="8" text-anchor="middle">聚合只读</text>
+
+        <!-- ===== Problem markers ===== -->
+        <circle cx="388" cy="272" r="9" fill="#fb7185"/>
+        <text x="388" y="275.5" fill="#020617" font-size="9" font-weight="700" text-anchor="middle">1</text>
+
+        <circle cx="600" cy="95" r="9" fill="#fb7185"/>
+        <text x="600" y="98.5" fill="#020617" font-size="9" font-weight="700" text-anchor="middle">2</text>
+
+        <circle cx="858" cy="285" r="9" fill="#fb7185"/>
+        <text x="858" y="288.5" fill="#020617" font-size="9" font-weight="700" text-anchor="middle">3</text>
+
+        <circle cx="592" cy="252" r="9" fill="#fb7185"/>
+        <text x="592" y="255.5" fill="#020617" font-size="9" font-weight="700" text-anchor="middle">4</text>
+
+        <!-- ===== Legend (outside all boundaries) ===== -->
+        <text x="30" y="448" fill="white" font-size="9" font-weight="600">Legend</text>
+
+        <rect x="30" y="460" width="16" height="10" rx="2" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="52" y="468" fill="#94a3b8" font-size="8">前端</text>
+
+        <rect x="110" y="460" width="16" height="10" rx="2" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1"/>
+        <text x="132" y="468" fill="#94a3b8" font-size="8">后端模块</text>
+
+        <rect x="210" y="460" width="16" height="10" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="232" y="468" fill="#94a3b8" font-size="8">数据表</text>
+
+        <rect x="300" y="460" width="16" height="10" rx="2" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="322" y="468" fill="#94a3b8" font-size="8">AI / 规则</text>
+
+        <circle cx="400" cy="465" r="6" fill="#fb7185"/>
+        <text x="412" y="468" fill="#94a3b8" font-size="8">P0 断点（编号见下方卡片）</text>
+
+        <line x1="570" y1="465" x2="590" y2="465" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="598" y="468" fill="#94a3b8" font-size="8">反向 / 回写</text>
+
+        <text x="30" y="492" fill="#475569" font-size="8">读法：实线=主数据流，玫瑰虚线=下游回写；三条产线共用同一张 t_improvement，但各自计算、各自写入。</text>
+      </svg>
+    </div>
+
+    <!-- ============================ 目标 ============================ -->
+    <h2 class="section-title">02 · 目标架构（To-Be · 单向数据流）</h2>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1180 430">
+        <defs>
+          <marker id="arrowhead2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrowhead2-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24" />
+          </marker>
+          <pattern id="grid2" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid2)" />
+
+        <!-- Stage headers -->
+        <text x="105" y="34" fill="#64748b" font-size="9" text-anchor="middle">1 · 输入</text>
+        <text x="300" y="34" fill="#64748b" font-size="9" text-anchor="middle">2 · 事实</text>
+        <text x="495" y="34" fill="#64748b" font-size="9" text-anchor="middle">3 · 计算</text>
+        <text x="710" y="34" fill="#64748b" font-size="9" text-anchor="middle">4 · 机会生产</text>
+        <text x="935" y="34" fill="#64748b" font-size="9" text-anchor="middle">5 · 决策执行</text>
+        <text x="1100" y="34" fill="#64748b" font-size="9" text-anchor="middle">6 · 验证 / 反馈</text>
+
+        <!-- Arrows first -->
+        <line x1="180" y1="130" x2="216" y2="130" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead2)"/>
+        <line x1="380" y1="130" x2="416" y2="130" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead2)"/>
+        <text x="398" y="122" fill="#64748b" font-size="7" text-anchor="middle">snapshot</text>
+
+        <line x1="570" y1="130" x2="611" y2="105" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead2)"/>
+        <line x1="570" y1="132" x2="611" y2="170" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead2)"/>
+        <line x1="570" y1="136" x2="611" y2="235" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrowhead2)"/>
+        <text x="578" y="120" fill="#64748b" font-size="7">AnalysisResult</text>
+
+        <line x1="820" y1="130" x2="856" y2="130" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead2)"/>
+        <text x="838" y="122" fill="#64748b" font-size="7" text-anchor="middle">adopt</text>
+
+        <line x1="1010" y1="130" x2="1046" y2="116" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead2)"/>
+        <line x1="1100" y1="140" x2="1100" y2="176" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowhead2)"/>
+
+        <!-- feedback loop -->
+        <path d="M 1100 240 L 1100 375 L 710 375 L 710 352" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrowhead2-amber)"/>
+        <text x="900" y="368" fill="#fbbf24" font-size="8" text-anchor="middle">经验回流：知识库 / 否决模式 / 规则建议</text>
+
+        <!-- 1 Input -->
+        <rect x="30" y="90" width="150" height="80" rx="6" fill="#0f172a"/>
+        <rect x="30" y="90" width="150" height="80" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="105" y="116" fill="white" font-size="11" font-weight="600" text-anchor="middle">输入层</text>
+        <text x="105" y="135" fill="#94a3b8" font-size="8" text-anchor="middle">手工 / AI 分解</text>
+        <text x="105" y="151" fill="#22d3ee" font-size="7" text-anchor="middle">显式 task_id · source</text>
+
+        <!-- 2 Facts -->
+        <rect x="220" y="90" width="160" height="80" rx="6" fill="#0f172a"/>
+        <rect x="220" y="90" width="160" height="80" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="300" y="116" fill="white" font-size="11" font-weight="600" text-anchor="middle">事实层</text>
+        <text x="300" y="135" fill="#94a3b8" font-size="8" text-anchor="middle">Element Store</text>
+        <text x="300" y="151" fill="#a78bfa" font-size="7" text-anchor="middle">+ SnapshotService</text>
+
+        <!-- 3 Kernel -->
+        <rect x="420" y="90" width="150" height="80" rx="6" fill="#0f172a"/>
+        <rect x="420" y="90" width="150" height="80" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="495" y="116" fill="white" font-size="11" font-weight="600" text-anchor="middle">计算内核</text>
+        <text x="495" y="135" fill="#94a3b8" font-size="8" text-anchor="middle">Analysis Kernel</text>
+        <text x="495" y="151" fill="#34d399" font-size="7" text-anchor="middle">唯一规则消费者 · 纯函数</text>
+
+        <!-- 4 Producers -->
+        <rect x="600" y="50" width="220" height="300" rx="12" fill="rgba(251, 191, 36, 0.04)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="610" y="70" fill="#fbbf24" font-size="9" font-weight="600">机会生产层（同一契约）</text>
+
+        <rect x="615" y="80" width="190" height="50" rx="6" fill="#0f172a"/>
+        <rect x="615" y="80" width="190" height="50" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="710" y="101" fill="white" font-size="10" font-weight="600" text-anchor="middle">规则机会</text>
+        <text x="710" y="117" fill="#94a3b8" font-size="8" text-anchor="middle">ECRSA 候选 · 即时计算</text>
+
+        <rect x="615" y="145" width="190" height="50" rx="6" fill="#0f172a"/>
+        <rect x="615" y="145" width="190" height="50" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="710" y="166" fill="white" font-size="10" font-weight="600" text-anchor="middle">AI 建议</text>
+        <text x="710" y="182" fill="#94a3b8" font-size="8" text-anchor="middle">LLM · 数字服务端算</text>
+
+        <rect x="615" y="210" width="190" height="50" rx="6" fill="#0f172a"/>
+        <rect x="615" y="210" width="190" height="50" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="710" y="231" fill="white" font-size="10" font-weight="600" text-anchor="middle">浪费识别</text>
+        <text x="710" y="247" fill="#94a3b8" font-size="8" text-anchor="middle">LLM · 白名单由规则集生成</text>
+
+        <rect x="615" y="275" width="190" height="50" rx="6" fill="#0f172a"/>
+        <rect x="615" y="275" width="190" height="50" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="710" y="296" fill="white" font-size="10" font-weight="600" text-anchor="middle">ScoringService</text>
+        <text x="710" y="312" fill="#94a3b8" font-size="8" text-anchor="middle">est_save_s · priority_model</text>
+
+        <!-- 5 Decision -->
+        <rect x="860" y="90" width="150" height="80" rx="6" fill="#0f172a"/>
+        <rect x="860" y="90" width="150" height="80" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="935" y="116" fill="white" font-size="11" font-weight="600" text-anchor="middle">决策执行</text>
+        <text x="935" y="135" fill="#94a3b8" font-size="8" text-anchor="middle">ImprovementWriter</text>
+        <text x="935" y="151" fill="#34d399" font-size="7" text-anchor="middle">唯一写入口 · 红线/状态机</text>
+
+        <!-- 6 Verify -->
+        <rect x="1040" y="50" width="120" height="300" rx="12" fill="rgba(251, 191, 36, 0.04)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="1050" y="68" fill="#fbbf24" font-size="9" font-weight="600">验证 / 反馈</text>
+
+        <rect x="1050" y="80" width="100" height="60" rx="6" fill="#0f172a"/>
+        <rect x="1050" y="80" width="100" height="60" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="1100" y="104" fill="white" font-size="10" font-weight="600" text-anchor="middle">Compare</text>
+        <text x="1100" y="121" fill="#94a3b8" font-size="7" text-anchor="middle">compare_token</text>
+
+        <rect x="1050" y="180" width="100" height="60" rx="6" fill="#0f172a"/>
+        <rect x="1050" y="180" width="100" height="60" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="1100" y="204" fill="white" font-size="10" font-weight="600" text-anchor="middle">Feedback</text>
+        <text x="1100" y="221" fill="#94a3b8" font-size="7" text-anchor="middle">KB · 否决模式</text>
+
+        <!-- Caption -->
+        <text x="30" y="408" fill="#475569" font-size="8">单向数据流：事实 → 计算 → 机会 → 决策 → 验证 → 反馈。下游不回写事实；三条产线共用 Opportunity 契约、ScoringService 与 ImprovementWriter。</text>
+      </svg>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot rose"></div>
+          <h3>现状 4 个 P0 断点</h3>
+        </div>
+        <ul>
+          <li><b>① 版本游标当来源线开关</b><br>AI 分解强制开新版本 → 手工要素被封存 → 手工线浪费识别 400。</li>
+          <li><b>② 4 套浪费/优先级口径</b><br>规则引擎、AI 建议、浪费识别、规则候选各算一套；同一工位可出现三份不同清单。</li>
+          <li><b>③ 3 个 t_improvement 写入口</b><br>浪费识别确认丢 element_ids；before_ct 用全工位 CT 而非来源子集 CT。</li>
+          <li><b>④ AI 解读上下文不一致</b><br>interpret/diagnose 不带 task_id、v1/v2；与页面展示的对比对象可能不是同一对。</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot amber"></div>
+          <h3>目标架构四条硬规则</h3>
+        </div>
+        <ul>
+          <li><b>单一事实源</b>：t_element 是唯一事实，AnalysisResult 是唯一派生事实。</li>
+          <li><b>单一计算内核</b>：analysis/engine 是唯一规则消费者；其余模块只读，不重算 CT/VA/浪费。</li>
+          <li><b>单一写入口</b>：t_improvement 只能由 ImprovementWriter 写，三条产线只是生产者。</li>
+          <li><b>单一评分模型</b>：est_save_s / priority / annual_yuan 统一由 ScoringService 计算，并记录 priority_model。</li>
+          <li><b>上下文显式</b>：task_id · version · source 全链路可见；自动继承只作兜底且必须回带 task_scope。</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>实施顺序（不新增表）</h3>
+        </div>
+        <ul>
+          <li><b>P0 · 1–2 天</b><br>提示词分类名由白名单生成；浪费识别确认补要素引用与子集 CT；interpret/diagnose 统一 task 上下文；AI 配置抽公共 service。</li>
+          <li><b>P1 · 3–5 天</b><br>抽 ScoringService 与 ImprovementWriter；拆 waste:generate 权限；AI 洞察迁出 analysis/compare 前缀。</li>
+          <li><b>P2 · 需评估</b><br>SnapshotService 显式 (task, version, source)；统一 /opportunities 读模型；可选可审计快照（新表须书面同意）。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <p class="footer">
+      IE Motion Analysis System · 现状 = main 工作区（含未提交改动） · 目标 = 建议方案，尚未实施 · 详见 deliverables/模块协作架构梳理-20261123.md
+    </p>
+  </div>
+
+  <script>
+    async function copyAsImage(btn) {
+      const orig = btn.textContent;
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPNG(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const link = document.createElement('a');
+        link.download = 'diagram.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPDF(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save('diagram.pdf');
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  </script>
+</body>
+</html>

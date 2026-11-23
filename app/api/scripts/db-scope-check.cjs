@@ -19,7 +19,7 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..', '..', '..'); // 仓库根
 const API = path.join(ROOT, 'app', 'api');
 
-/** CLAUDE.md §1.2 白名单：33 张本系统表 */
+/** CLAUDE.md §1.2 白名单：34 张本系统表（v3.66 P3 新增 t_ai_feedback_pattern） */
 const ALLOWED_TABLES = new Set([
   't_tenant', 't_user', 't_role', 't_permission', 't_user_role', 't_role_permission',
   't_refresh_token', 't_password_reset', 't_rule_set', 't_project', 't_line', 't_station',
@@ -27,7 +27,7 @@ const ALLOWED_TABLES = new Set([
   't_video_derivative', 't_ai_task', 't_ai_suggestion_batch', 't_ai_suggestion',
   't_ai_custom_dict', 't_ai_setting', 't_ai_llm_profile', 't_ai_waste_batch',
   't_ai_waste_finding', 't_ai_waste_issue', 't_ai_waste_kb', 't_ai_usage_event', 't_audit_log',
-  't_decomposition_task', 't_task_station', 't_batch_export_record',
+  't_decomposition_task', 't_task_station', 't_batch_export_record', 't_ai_feedback_pattern',
 ]);
 
 const ALLOWED_PREFIXES = ['CN_AME_SSO_']; // 只读例外，另行校验
@@ -142,6 +142,22 @@ function checkFile(file) {
       fail(file, lineNo, '禁止对 CMC 库执行写/DDL');
     }
   }
+
+  // v3.66：整文件扫描——中文 DEFAULT 未带 N 前缀。必须全文扫描（不能逐行判断反引号开头），
+  // 因为被破坏的字面量都在多行模板字面量的缩进正文行上。行号由字符偏移反推。
+  if (/\.(ts|cjs|sql)$/i.test(file)) {
+    for (const m of text.matchAll(/DEFAULT\s+'(?:[^'\\]|\\.)*[㐀-鿿][^']*'/g)) {
+      const lineNo = text.slice(0, m.index).split(/\r?\n/).length;
+      fail(file, lineNo, `中文 DEFAULT 未加 N 前缀（应为 DEFAULT N'...'）：${m[0].slice(0, 40)}`);
+    }
+  }
+  // .sql 文件：任意非 N 前缀的中文单引号字面量都视为风险
+  if (/\.sql$/i.test(file)) {
+    for (const m of text.matchAll(/(?<![Nn])'[^'\r\n]*[㐀-鿿][^'\r\n]*'/g)) {
+      const lineNo = text.slice(0, m.index).split(/\r?\n/).length;
+      fail(file, lineNo, `SQL 中文面量未加 N 前缀：${m[0].slice(0, 40)}`);
+    }
+  }
 }
 
 /** 6) .env 生产配置指向校验 */
@@ -232,5 +248,5 @@ function checkSecretSpread(env) {
     if (problems.length > 60) console.error(`  … 另有 ${problems.length - 60} 项`);
     process.exit(1);
   }
-  console.log('\n✓ 数据库边界校验通过：DDL/写入仅限 CN_AME 的 33 张白名单表，CMC 仅只读。');
+  console.log('\n✓ 数据库边界校验通过：DDL/写入仅限 CN_AME 的 34 张白名单表，CMC 仅只读。');
 })();

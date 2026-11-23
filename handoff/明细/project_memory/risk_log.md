@@ -29,7 +29,7 @@
   strict 复核 `TRACE_CHECKS=3/3`（tag 含 `scripts/gates` 5/5）。
   **这不等于 QA 解禁**：0c（人工真值评测基线）仍未闭环，No-Go 维持。
 - **AI 自动分解口径已合并（2026-11-19）**：两版独立评审结论合并，硬事实无冲突；清单见
-  `AGENT必读.md` §4.1、`todo.md` §七。纠正：`motion_standard` MS1.4 = **28 类**（41 是 MS1.0 历史值）、
+  `AGENT必读.md` §4.1、`todo.md` §七。纠正：`motion_standard` 当前 MS1.6（MS1.4 为上一版）= **28 类**（41 是 MS1.0 历史值）、
   `va_rules` RV3.64 = **44 类**；**分类不查词表，但描述模板与 SOP 动词查 `motion_standard`**。
 
 ## 二、活跃风险

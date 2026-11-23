@@ -1,0 +1,109 @@
+:root {
+  --ink: #111827;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --copper: #b45309;
+  --ok: #047857;
+  --warn: #b45309;
+  --bad: #b91c1c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  width: 300px;
+  margin: 0;
+  padding: 12px;
+  font: 12px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: var(--ink);
+  background: #fff;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.head b { font-size: 13px; }
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--copper);
+}
+
+.status {
+  margin: 0 0 10px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--muted);
+  min-height: 32px;
+}
+
+.status.ok { color: var(--ok); border-color: #a7f3d0; background: #ecfdf5; }
+.status.warn { color: var(--warn); border-color: #fde68a; background: #fffbeb; }
+.status.bad { color: var(--bad); border-color: #fecaca; background: #fef2f2; }
+
+.row { display: flex; gap: 6px; margin-bottom: 10px; }
+
+button {
+  font: inherit;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+button:hover { background: #f3f6fa; border-color: #b8c2cf; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+.row button { flex: 1; }
+
+.keys {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 10px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.keys div { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.keys span { font-size: 11px; }
+
+kbd {
+  font: 10px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 2px 4px;
+  color: #475569;
+  min-width: 44px;
+  text-align: center;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+button.link {
+  border: none;
+  background: none;
+  color: var(--copper);
+  padding: 0;
+  text-decoration: underline;
+}
+
+.ver { color: #9ca3af; font-size: 10px; }

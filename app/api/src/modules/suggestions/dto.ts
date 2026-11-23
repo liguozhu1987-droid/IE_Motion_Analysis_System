@@ -45,9 +45,17 @@ export class AdoptCandidatesDto {
   confirmations?: AdoptConfirmationsDto;
 }
 
-/** 三态流转：待实施→已完成→已验证 */
+/** 三态流转：待实施→进行中→已完成→已验证（v3.66 P2 扩展为四态） */
 export class UpdateStatusDto {
   @IsString() status!: string;
+}
+
+/** 改善任务编辑（v3.66 P2）：责任人/截止/实际措施/实际完成/状态流转 */
+export class UpdateImprovementDto {
+  @IsOptional() @IsString() owner?: string;
+  @IsOptional() @IsString() due?: string;
+  @IsOptional() @IsString() actual_measure?: string;
+  @IsOptional() @IsString() status?: string;
 }
 
 /** 建议清单查询过滤（MVP listImprovements(ctx.query) 平移 + v3.3 维度扩展）。

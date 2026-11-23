@@ -155,7 +155,7 @@
 - 「AI 不查词表」过宽 → 修正为：**分类不查词表**（motion 6 类硬编码、hand 恒「其他」）；
   **描述模板与 SOP 动词查 `motion_standard`**（`AiSegmentPage.tsx:192-204,1172-1174`；
   后端 `stations.service.ts:526-528` 强校验）。
-- `motion_standard` 41 类 → **MS1.4 = 14 一级 + 14 二级 = 28 类**；`va_rules` RV3.64 = 44 类。
+- `motion_standard` 41 类 → **MS1.6 = 14 一级 + 14 二级 = 28 类**（MS1.6 补齐 移动/检查/机器自动 描述格式）；`va_rules` RV3.64 = 44 类。
 - 物理验证命令：`node -e` 读取两份 JSON，输出 `level1 14 / subs 14 / total 28`、`va types 44`（本轮实际执行）。
 
 ### 产出（文件）

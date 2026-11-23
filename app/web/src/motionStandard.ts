@@ -67,27 +67,48 @@ export interface MotionField {
 const PREPS = ['于', '至', '到', '自', '向'];
 
 /** 行程语义化选项集（用户反馈 v3.18：视频场景用部位/角度/步数/程度标识行程，不必逐条量距离）：
- *  - 部位档对应动作等级（IE 手册）：手指1×/手腕2×/前臂3×（黄金作业域）/上臂4×/肩·躯干5×；
+ *  - 手臂档对应 MTM 动作等级 M1–M5：手指1×/手腕2×/前臂3×（黄金作业域）/大臂4×/肩5×；
  *    正常作业域=前臂半径 35~40cm，最大作业域=全臂约 60cm，超出即起身/弯腰/走步=布局问题
+ *  - v3.65（用户反馈）：追加 躯干（超肩伸展）、眼/头（目视检查）、腿/脚（脚踏/踢踩）；
+ *    「小臂」统一改名「前臂」（MTM 中文术语），历史描述里的「小臂」仍可被反向解析识别
  *  - 转身/弯腰/走动 对应 MODAPTS 身体动作 R2 / B17 / W5，行程单位分别是角度/程度/步数 */
-export const BODY_REACH = ['手指', '手腕', '小臂', '大臂', '肩'];
+export const BODY_REACH = ['手指', '手腕', '前臂', '大臂', '肩', '躯干', '眼', '头', '腿', '脚'];
+/** 目视类检查（目检/点检/检测）的部位档：观察范围以眼/头为主，不套手臂档 */
+export const EYE_REACH = ['眼', '头', '躯干'];
+/** 历史术语兼容：旧描述中的「小臂」=「前臂」，仅用于反解析，不再作为按钮 */
+export const REACH_LEGACY = ['小臂'];
+/** 反解析接受的全集：现行部位 + 历史别名（小臂） */
+const ALL_REACH = [...BODY_REACH, ...REACH_LEGACY];
+const REACH_SUFFIX_RE = new RegExp(`[,，]\\s*(${ALL_REACH.join('|')})\\s*$`);
+/** 旧称归一：结构化编辑器里把「小臂」显示为「前臂」（入库描述不改，用户再次编辑时自然写成前臂） */
+const normalizeReach = (part: string) => (part === '小臂' ? '前臂' : part);
 export const TURN_ANGLES = ['90°', '180°', '360°', '多圈'];
 export const WALK_STEPS = ['1步', '2步', '3步以上'];
 export const BEND_DEPTHS = ['浅弯', '深弯', '蹲起'];
 
 /** 显示「动作行程（部位）」行的类型：手伸向对象执行的动作（拿取/放置/装配/操作系/检查系/清洁/扫描/翻转/拆 +
- *  经典动素里的伸手/握取/移物/定位/装配/拆卸/使用/放手/检查）。转身/弯腰/走动/移物/等待/机器自动 不用部位（各有自己的行程单位）。
+ *  经典动素里的伸手/握取/移物/定位/装配/拆卸/使用/放手/检查）。转身/弯腰/走动/等待/机器自动 不用部位（各有自己的行程单位）。
+ *  目检/点检/检测 走 EYE_REACH_TYPES（眼/头/躯干），不再套手臂档（v3.65）。
  *  v3.49 一级要素可选后补 操作/检查（与其二级 按~拔/目检~检测 行为一致）；移动=走动语义不加 */
 export const BODY_REACH_TYPES = new Set<string>([
   '拿取', '放置', '装配', '粘贴', '涂', '按', '压', '抬', '推', '拉', '插', '拔',
-  '目检', '点检', '检测', '清洁', '扫描', '翻转', '拆', '操作', '检查',
-  '伸手', '握取', '移物', '定位', '装配', '拆卸', '使用', '放手', '检查',
+  '清洁', '扫描', '翻转', '拆', '操作', '检查',
+  '伸手', '握取', '移物', '定位', '拆卸', '使用', '放手',
 ]);
+/** 目视类检查：部位档用 眼/头/躯干（MODAPTS E2 眼动 + 头部转动） */
+export const EYE_REACH_TYPES = new Set<string>(['目检', '点检', '检测']);
 
-/** 字段语义推断：距离→（走动/移物=步数，其余=mm 选填）；角度→转身；程度→弯腰 */
+/** 按类型返回部位档选项；null=不显示行程行（转身/弯腰/走动/等待/机器自动 等有各自单位） */
+export function reachOptionsFor(type: string): string[] | null {
+  if (EYE_REACH_TYPES.has(type)) return EYE_REACH;
+  if (BODY_REACH_TYPES.has(type)) return BODY_REACH;
+  return null;
+}
+
+/** 字段语义推断：距离→（走动/移物/一级移动=步数，其余=mm 选填）；角度→转身；程度→弯腰 */
 function inferKind(name: string, type: string): { kind: FieldKind; options?: string[] } {
   if (name === '距离') {
-    return type === '走动' || type === '移物' ? { kind: 'steps', options: WALK_STEPS } : { kind: 'distance' };
+    return type === '走动' || type === '移物' || type === '移动' ? { kind: 'steps', options: WALK_STEPS } : { kind: 'distance' };
   }
   if (name === '角度') return { kind: 'angle', options: TURN_ANGLES };
   if (name === '程度') return { kind: 'depth', options: BEND_DEPTHS };
@@ -153,7 +174,7 @@ export function buildPreview(verb: string, fields: MotionField[], values: Record
 /** 反向解析：把已落库的 desc 拆回结构化字段值 + 行程部位（buildPreview 的逆运算，唯一解析来源）。
  *  用于「切换选中要素时把存储描述完整回填到结构化编辑器」，如实反映数据。
  *  解析规则（按 2026-10-30 ST010 真实语料归纳）：
- *   1. 剥 [VA改判|…] 标记；剥末位行程：全/半角括号「（大臂）」或逗号缀「，小臂」（须命中 BODY_REACH）；
+ *   1. 剥 [VA改判|…] 标记；剥末位行程：全/半角括号「（大臂）」或逗号缀「，前臂」（须命中部位词表；旧称「小臂」兼容）；
  *   2. 剥句首动词；整句无空格且非「动词开头连写」时不猜字段（返回空）；
  *   3. 文本字段后随介词字段 → 在剩余 token 中找边界：独立介词 token（于/至/到/自/向 任意）→
  *      其前全部 token 归本字段（多词对象 "Dual lock" 完整保留）；无独立介词 → token 内找介词
@@ -170,14 +191,14 @@ export function parseDescToFields(format: string | null, type: string, desc: str
   let reach = '';
   if (!desc) return { values, reach };
   let s = desc.replace(/\s*\[VA改判[^\]]*\]\s*$/g, '').trim();
-  // 末位行程部位：全/半角括号（大臂），或逗号缀，小臂（须命中 BODY_REACH，避免吞字段值里的括号）
+  // 末位行程部位：全/半角括号（大臂），或逗号缀，前臂（须命中部位词表；旧称「小臂」兼容，避免吞字段值里的括号）
   const pm = /[（(]([^（）()]{1,4})[)）]\s*$/.exec(s);
-  if (pm && BODY_REACH.includes(pm[1])) {
-    reach = pm[1];
+  if (pm && ALL_REACH.includes(pm[1])) {
+    reach = normalizeReach(pm[1]);
     s = s.slice(0, pm.index).trim();
   } else {
-    const cm = /[,，]\s*(手指|手腕|小臂|大臂|肩)\s*$/.exec(s);
-    if (cm) { reach = cm[1]; s = s.slice(0, cm.index).trim(); }
+    const cm = REACH_SUFFIX_RE.exec(s);
+    if (cm) { reach = normalizeReach(cm[1]); s = s.slice(0, cm.index).trim(); }
   }
   if (type && s.startsWith(type)) s = s.slice(type.length).trim();
   else {

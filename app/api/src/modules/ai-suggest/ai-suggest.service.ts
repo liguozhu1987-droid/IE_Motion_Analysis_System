@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, HttpException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { createHash, randomUUID } from 'node:crypto';
 import { APP_CONFIG } from '../../core/config/configuration';
 import { AppConfig } from '../../core/config/configuration';
@@ -11,6 +11,7 @@ import { AiSuggestion } from './entities/ai-suggestion.entity';
 import { AiCustomDict } from './entities/ai-custom-dict.entity';
 import { AiSetting } from './entities/ai-setting.entity';
 import { AiLlmProfile } from './entities/ai-llm-profile.entity';
+import { AiFeedbackPattern } from './entities/ai-feedback-pattern.entity';
 import { Improvement } from '../../entities/improvement.entity';
 import { AnalysisService } from '../analysis/analysis.service';
 import { StationRepository } from '../stations/stations.service';
@@ -34,6 +35,9 @@ class AiBatchRepository extends BaseRepository<AiSuggestionBatch> {
 }
 class AiDictRepository extends BaseRepository<AiCustomDict> {
   protected entityTarget() { return AiCustomDict; }
+}
+class FeedbackPatternRepository extends BaseRepository<AiFeedbackPattern> {
+  protected entityTarget() { return AiFeedbackPattern; }
 }
 
 /** 进程内 single-flight（并发安全③：同槽位并发请求合并为一次执行） */
@@ -89,6 +93,7 @@ export class AiSuggestService {
   private readonly suggRepo: AiSuggestionRepository;
   private readonly batchRepo: AiBatchRepository;
   private readonly dictRepo: AiDictRepository;
+  private readonly feedbackRepo: FeedbackPatternRepository;
 
   constructor(
     @InjectDataSource() private readonly ds: DataSource,
@@ -103,6 +108,7 @@ export class AiSuggestService {
     this.suggRepo = new AiSuggestionRepository(ds);
     this.batchRepo = new AiBatchRepository(ds);
     this.dictRepo = new AiDictRepository(ds);
+    this.feedbackRepo = new FeedbackPatternRepository(ds);
   }
 
   /**
@@ -914,8 +920,13 @@ export class AiSuggestService {
       process_type: '装配', elements: compact, wastes,
       waste_whitelist: whitelist, factor_levels: factors,
     });
+    // v3.66 P3：注入已否决的高权重模式作为负样本，减少同类低质建议
+    const negatives = await this.topNegativeExamples(station.tenant_id);
+    const negSuffix = negatives.length > 0
+      ? `\n\n【历史被拒模式——请避免输出同类建议】以下关键词已被反复否决，请不要输出含这些表述的建议：\n${negatives.join('、')}`
+      : '';
     const messages = [
-      { role: 'system' as const, content: SUGGEST_SYSTEM_PROMPT },
+      { role: 'system' as const, content: SUGGEST_SYSTEM_PROMPT + negSuffix },
       { role: 'user' as const, content: userPrompt },
     ];
     const effLlm = await this.effectiveAi();
@@ -1183,18 +1194,68 @@ export class AiSuggestService {
     return s.station_id;
   }
 
-  /** 否决：status='已否决'+reviewed_by/at */
-  async reject(suggestionId: string, operator: string, reason?: string) {
+  /** 否决：status='已否决'+reviewed_by/at；原因码（R1–R8）写入 reject_reason 前缀，供后续结构化汇总 */
+  async reject(suggestionId: string, operator: string, reason?: string, reasonCode?: string) {
     await this.assertEnabled();
     const s = await this.suggRepo.findOne({ suggestion_id: suggestionId } as any);
     if (!s) throw new NotFoundException(`AI 建议 ${suggestionId} 不存在`);
     if (s.status !== '待审') throw new ConflictException(`建议状态为「${s.status}」，只有待审建议可否决`);
+    const code = reasonCode && /^R[1-8]$/.test(String(reasonCode)) ? String(reasonCode) : null;
+    const text = String(reason ?? '').trim().slice(0, 240);
+    const stored = (code ? `[${code}]${text ? ` ${text}` : ''}` : text).slice(0, 256) || null;
     await this.suggRepo.update({ suggestion_id: s.suggestion_id } as any, {
       status: '已否决', reviewed_by: operator, reviewed_at: new Date(),
-      ...(reason ? { raw_json: (s.raw_json ?? '').slice(0, 10000) } : {}),
+      reject_reason: stored,
+      ...(stored ? { raw_json: (s.raw_json ?? '').slice(0, 10000) } : {}),
     } as any);
+    // v3.66 P3：聚合否决反馈模式（异步，不阻塞否决响应）
+    if (stored) {
+      void this.aggregateFeedback(s.tenant_id, stored).catch((e) => {
+        // 反馈聚合属旁路统计，失败不影响否决结果
+        console.warn(`否决反馈聚合失败：${(e as Error).message}`);
+      });
+    }
     const updated = await this.suggRepo.findOne({ suggestion_id: s.suggestion_id } as any);
     return this.suggestionVo(updated!);
+  }
+
+  /** v3.66 P3：从否决原因中提取关键词并 upsert 到反馈模式表。简单分词 + 停用词过滤。
+   *  v3.66 simplify：pattern_key 只存关键词本身（读侧 topNegativeExamples 直接取用），
+   *  一次批量读取已有行，避免逐词 findOne。 */
+  private readonly STOP = new Set(['这个','导致','进行','可以','需要','应该','目前','由于','因此','建议','改善','问题','工位','非','不','太','很','的','了','在','是','有','和','就','都','也','还','但','与','或','被','把','让','从','到','对','向','为','以','要','能','会','可','将','已经','没有','不能','不会','不可','可能','不是','如','等','更','而','及','此','其','之']);
+  private async aggregateFeedback(tenantId: string, reason: string) {
+    const words = reason.replace(/[，。！？、；：""（）\s]+/g, ' ').trim()
+      .split(/\s+/).filter(w => w.length >= 2 && !this.STOP.has(w)).slice(0, 5);
+    if (words.length === 0) return;
+    const existing = await this.feedbackRepo.find({
+      tenant_id: tenantId, pattern_type: 'waste_type', pattern_key: In(words),
+    } as any);
+    const byKey = new Map(existing.map((r) => [r.pattern_key, r]));
+    for (const w of words) {
+      const row = byKey.get(w);
+      if (row) {
+        await this.feedbackRepo.update({ pattern_id: row.pattern_id } as any, {
+          reject_count: (row.reject_count ?? 1) + 1,
+          last_reject_at: new Date(),
+          weight: Math.min(5, (row.weight ?? 1) + 0.5),
+        } as any);
+      } else {
+        await this.feedbackRepo.create({
+          pattern_id: `fb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          tenant_id: tenantId, pattern_type: 'waste_type', pattern_key: w,
+          reject_count: 1, last_reject_at: new Date(), weight: 1,
+        } as any);
+      }
+    }
+  }
+
+  /** v3.66 P3：查询 TOP 5 高权重被拒模式作为负样本注入生成提示词 */
+  async topNegativeExamples(tenantId: string): Promise<string[]> {
+    const rows = await this.feedbackRepo.find(
+      { tenant_id: tenantId, pattern_type: 'waste_type' },
+      { order: { weight: 'DESC' }, take: 5 },
+    );
+    return rows.map((r) => r.pattern_key).filter(Boolean);
   }
 
   // ───────────────────────── 自定义字典 ─────────────────────────

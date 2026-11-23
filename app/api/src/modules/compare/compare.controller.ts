@@ -20,15 +20,15 @@ export class CompareController {
 
   @Get()
   @RequirePermission('compare:read')
-  async compareVersions(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('v1') v1?: string, @Query('v2') v2?: string, @Query('task_id') taskId?: string) {
+  async compareVersions(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('v1') v1?: string, @Query('v2') v2?: string, @Query('task_id') taskId?: string, @Query('source') source?: string) {
     await this.stations.assertReadable(id, user.userId, user.roles, user.dataScope);
-    return this.compare.compareVersions(id, { v1, v2, task_id: taskId });
+    return this.compare.compareVersions(id, { v1, v2, task_id: taskId, source });
   }
 
   @Get('report')
   @RequirePermission('compare:export')
-  async report(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('v1') v1?: string, @Query('v2') v2?: string, @Query('task_id') taskId?: string) {
+  async report(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('v1') v1?: string, @Query('v2') v2?: string, @Query('task_id') taskId?: string, @Query('source') source?: string) {
     await this.stations.assertReadable(id, user.userId, user.roles, user.dataScope);
-    return this.compare.buildCompareReport(id, { v1, v2, task_id: taskId });
+    return this.compare.buildCompareReport(id, { v1, v2, task_id: taskId, source });
   }
 }

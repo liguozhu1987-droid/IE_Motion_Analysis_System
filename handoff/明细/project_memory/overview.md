@@ -33,7 +33,7 @@
   `ai-segment/` 为独立 AI 自动分解子系统（motion / landmark / segmentation / hoi / sop），浏览器端推理、视频不上传；
   实为**确定性规则算法**（帧差运动能量默认 / MediaPipe 手部可选），**只产候选、不自动落库**，非 LLM 视觉模型。
 - **规则集 `app/config/rules/`**：`va_rules.json`(RV3.x) / `waste_triggers.json`(RV1.4，18 条触发器，
-  6 类基础浪费 + 第 7 类动作浪费 WT15–WT18) / `motion_standard.json`(MS1.4，14 一级 + 14 二级 = **28 类** + time_bucket；`va_rules.json` RV3.64 为 **44 类**) /
+  6 类基础浪费 + 第 7 类动作浪费 WT15–WT18) / `motion_standard.json`(MS1.6，14 一级 + 14 二级 = **28 类** + time_bucket；`va_rules.json` RV3.64 为 **44 类**) /
   `ecrsa_map.json`(RV1.1) / `redline_keywords.json`。**DB 优先、文件兜底，改 JSON 必须 publish 才生效**。
 - **数据层**：SQL Server 17 生产库 `CN_AME`（`synchronize=false`）+ sqlite 开发库；同实例 CMC 产能库只读
   （SELECT-only，零同步）。`app/api/scripts/migrate.ts`（808 行）是**表结构唯一事实来源**。

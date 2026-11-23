@@ -6,6 +6,8 @@ import {
 import { useAuth } from '../auth';
 import { METHOD_LABEL, today } from '../constants';
 import AiCallBanner from '../components/AiCallBanner';
+import SelectMenu from '../components/SelectMenu';
+import { getCurrentTaskId } from '../taskContext';
 /** 批次状态徽标与文案 */
 const BATCH_META: Record<AiBatch['status'], { label: string; cls: string }> = {
   pending: { label: '排队中', cls: 't-gray' },
@@ -86,8 +88,10 @@ export default function AiSuggestionsPage({ stationId, initialSource }: { statio
   const { can, user } = useAuth();
   const canGenerate = can('suggestion:generate');
 
-  /** v3.46 当前来源线页签（缺省 mixed=legacy 全量口径） */
+  /** v3.46 当前来源线页签（缺省按当前版本自动选择；mixed=legacy 全量只读） */
   const [source, setSource] = useState<AiSuggestElementSource>(initialSource ?? 'mixed');
+  /** 来源线判定完成前不请求，避免先按 mixed 拉一次再切线的双请求 */
+  const [sourceReady, setSourceReady] = useState(Boolean(initialSource));
   const [data, setData] = useState<AiSuggestionsResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +102,10 @@ export default function AiSuggestionsPage({ stationId, initialSource }: { statio
   /** 红线确认框（422 → 填确认人重试）；type: quality|ergonomics（后端两类型都检查） */
   const [redline, setRedline] = useState<{ suggestion: AiSuggestion; messages: string[]; type: 'quality' | 'ergonomics' } | null>(null);
   const [confirmName, setConfirmName] = useState(user?.displayName || user?.username || '');
+  /** v3.67 否决框：结构化原因码 + 必填说明，供后续汇总反哺 */
+  const [rejectTarget, setRejectTarget] = useState<AiSuggestion | null>(null);
+  const [rejectCode, setRejectCode] = useState('R2');
+  const [rejectText, setRejectText] = useState('');
   /** 展开校验轨迹的建议 id */
   const [traceOpen, setTraceOpen] = useState<Record<string, boolean>>({});
 
@@ -105,6 +113,7 @@ export default function AiSuggestionsPage({ stationId, initialSource }: { statio
      v3.46：始终显式传 source（mixed 也传——后端按 'mixed' 过滤恰好等价 legacy 全量） */
   const load = useCallback(async (opts?: { keepError?: boolean }) => {
     if (!canGenerate) { setLoading(false); return; } // 纪律 #10：无权限不请求
+    if (!sourceReady) { setLoading(false); return; }
     try {
       const res = await api.ai.list(stationId, undefined, source);
       setData(res);
@@ -119,7 +128,27 @@ export default function AiSuggestionsPage({ stationId, initialSource }: { statio
     } finally {
       setLoading(false);
     }
-  }, [stationId, canGenerate, source]);
+  }, [stationId, canGenerate, source, sourceReady]);
+
+  /* v3.67：默认按当前版本的实际来源线选择；只有 legacy 混合版本才落到 mixed（只读总览） */
+  useEffect(() => {
+    if (initialSource) { setSourceReady(true); return; }
+    let alive = true;
+    api.elements(stationId, undefined, getCurrentTaskId() || undefined)
+      .then((res) => {
+        if (!alive) return;
+        const hasAi = res.elements.some((e) => e.source === 'ai_assisted');
+        const hasManual = res.elements.some((e) => e.source !== 'ai_assisted');
+        setSource(hasAi && hasManual ? 'mixed' : hasAi ? 'ai_assisted' : 'manual');
+        setSourceReady(true);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setSource('mixed');
+        setSourceReady(true);
+      });
+    return () => { alive = false; };
+  }, [stationId, initialSource]);
 
   useEffect(() => { void load(); }, [load, canGenerate]);
 
@@ -202,15 +231,22 @@ export default function AiSuggestionsPage({ stationId, initialSource }: { statio
     await adopt(redline.suggestion, redline.type === 'ergonomics' ? { ergonomics: confirmation } : { quality: confirmation });
   };
 
-  /* 否决：confirm（可选理由）后提交 */
-  const reject = async (s: AiSuggestion) => {
-    const reason = window.prompt(`否决该建议？\n\n${s.measure.slice(0, 60)}\n\n否决后状态置为「已否决」，不可恢复。\n可填写否决理由（留空跳过，≤256 字）：`) ?? null;
-    if (reason === null) return; // 取消
-    if (reason.trim().length > 256) { setError('否决理由不超过 256 字'); return; }
-    setDecidingId(s.suggestion_id); setError(null); setMsg(null);
+  /* 否决：打开结构化原因框（原因码 + 必填说明）；提交后进入反馈汇总 */
+  const reject = (s: AiSuggestion) => {
+    setRejectTarget(s);
+    setRejectCode('R2');
+    setRejectText('');
+    setError(null);
+  };
+
+  const confirmReject = async () => {
+    if (!rejectTarget) return;
+    if (!rejectText.trim()) { setError('请填写拒绝说明：为什么不可行/不采纳'); return; }
+    setDecidingId(rejectTarget.suggestion_id); setError(null); setMsg(null);
     try {
-      await api.ai.reject(s.suggestion_id, reason.trim() || undefined);
-      setMsg('已否决');
+      await api.ai.reject(rejectTarget.suggestion_id, rejectText.trim(), rejectCode);
+      setMsg('已否决：原因已进入反馈汇总');
+      setRejectTarget(null);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -246,7 +282,12 @@ export default function AiSuggestionsPage({ stationId, initialSource }: { statio
               ? '只分析 AI 自动分解写入的要素；AI 生成的建议永远「待审」，采纳后才进入改善任务'
               : '只分析手工分解写入的要素；AI 生成的建议永远「待审」，采纳后才进入改善任务'} ·
           待审 {reviewing} · 已决策 {decided}
-          {' · '}规则引擎候选（操作级、批量勾选）见「分析结果」页
+          {' · '}规则候选（ECRSA，不调用 LLM）在「分析结果」页生成
+          {source === 'mixed' && (
+            <em style={{ color: 'var(--amber)', fontStyle: 'normal', marginLeft: 8 }}>
+              全量线含 AI+手工，仅只读总览；采纳措施请切换单一来源线
+            </em>
+          )}
         </span>
         <div className="spacer" />
         <button className="btn primary sm" disabled={busy || batchStatus === 'pending' || batchStatus === 'running'}
@@ -256,22 +297,25 @@ export default function AiSuggestionsPage({ stationId, initialSource }: { statio
       </div>
 
       {/* ---------- v3.46 来源线页签（三线批次/幂等/建议相互隔离） ---------- */}
-      <div className="row" style={{ gap: 8, marginBottom: 12 }}>
-        <button type="button" className={`btn sm${source === 'mixed' ? ' primary' : ''}`}
-          onClick={() => switchSource('mixed')}
-          title="全量线（AI+手工）：分析当前版本全部 active 要素（legacy 口径）">
-          全量线（AI+手工）
-        </button>
-        <button type="button" className={`btn sm${source === 'ai_assisted' ? ' primary' : ''}`}
-          onClick={() => switchSource('ai_assisted')}
-          title="AI 分解线：只分析 source=ai_assisted 的要素（AI 自动分解写入）">
-          AI 分解线
-        </button>
-        <button type="button" className={`btn sm${source === 'manual' ? ' primary' : ''}`}
-          onClick={() => switchSource('manual')}
-          title="手工分解线：只分析 source=manual 的要素（分解工作台提交的手工分解）">
-          手工分解线
-        </button>
+      <div className="filter-bar no-print">
+        <div className="filter-item">
+          <span>分析要素线</span>
+          <button type="button" className={`btn sm${source === 'mixed' ? ' primary' : ''}`}
+            onClick={() => switchSource('mixed')}
+            title="全量线（AI+手工）：分析当前版本全部 active 要素（legacy 口径）">
+            全量线（AI+手工）
+          </button>
+          <button type="button" className={`btn sm${source === 'ai_assisted' ? ' primary' : ''}`}
+            onClick={() => switchSource('ai_assisted')}
+            title="AI 分解线：只分析 source=ai_assisted 的要素（AI 自动分解写入）">
+            AI 分解线
+          </button>
+          <button type="button" className={`btn sm${source === 'manual' ? ' primary' : ''}`}
+            onClick={() => switchSource('manual')}
+            title="手工分解线：只分析 source=manual 的要素（分解工作台提交的手工分解）">
+            手工分解线
+          </button>
+        </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
@@ -440,6 +484,44 @@ export default function AiSuggestionsPage({ stationId, initialSource }: { statio
               <button className="btn primary sm" disabled={decidingId === redline.suggestion.suggestion_id}
                 onClick={() => void confirmRedline()}>
                 确认并采纳
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    {/* 否决原因框（结构化原因码 + 必填说明） */}
+      {rejectTarget && (
+        <div className="ai-modal-mask" role="dialog" aria-modal="true">
+          <div className="card ai-modal" style={{ maxWidth: 480 }}>
+            <h3>否决建议</h3>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+              {rejectTarget.measure.length > 100 ? `${rejectTarget.measure.slice(0, 100)}…` : rejectTarget.measure}
+            </div>
+            <label className="filter-item" style={{ display: 'block' }}>
+              <span>拒绝原因码</span>
+              <SelectMenu ariaLabel="拒绝原因码" value={rejectCode} onChange={setRejectCode}
+                options={[
+                  { value: 'R1', label: 'R1 证据不足' },
+                  { value: 'R2', label: 'R2 措施不可行' },
+                  { value: 'R3', label: 'R3 成本过高' },
+                  { value: 'R4', label: 'R4 影响品质' },
+                  { value: 'R5', label: 'R5 违反工艺/安全' },
+                  { value: 'R6', label: 'R6 已有措施' },
+                  { value: 'R7', label: 'R7 收益不实' },
+                  { value: 'R8', label: 'R8 其他' },
+                ]} />
+            </label>
+            <label className="filter-item" style={{ display: 'block', marginTop: 8 }}>
+              <span>说明（必填，≤256 字）</span>
+              <textarea value={rejectText} onChange={(e) => setRejectText(e.target.value)}
+                rows={3} maxLength={256} style={{ width: '100%' }}
+                placeholder="为什么不可行/不采纳？越具体越能改进推荐。" />
+            </label>
+            <div className="row" style={{ marginTop: 12, justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn sm" onClick={() => setRejectTarget(null)}>取消</button>
+              <button className="btn sm danger" disabled={decidingId === rejectTarget.suggestion_id}
+                onClick={() => void confirmReject()}>
+                确认否决
               </button>
             </div>
           </div>

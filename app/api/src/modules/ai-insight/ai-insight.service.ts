@@ -20,8 +20,12 @@ export class AiInsightService {
   ) {}
 
   /** 工位诊断（T1）：基于分析结果生成根因诊断 + 3 条改善方向（纯文案） */
-  async diagnose(stationId: string): Promise<{ report: string; status: string; generated_by: string; model: string }> {
-    const analysis = await this.analysis.analyzeStation(stationId);
+  async diagnose(
+    stationId: string,
+    taskId?: string | null,
+    source?: 'manual' | 'ai_assisted',
+  ): Promise<{ report: string; status: string; generated_by: string; model: string }> {
+    const analysis = await this.analysis.analyzeStation(stationId, taskId, source);
     const ctx = this.buildDiagnoseContext(analysis);
     let report: string;
     let generatedBy = 'ai';
@@ -48,8 +52,10 @@ export class AiInsightService {
     stationId: string,
     v1?: string,
     v2?: string,
+    taskId?: string | null,
+    source?: 'manual' | 'ai_assisted',
   ): Promise<{ interpretation: string; regressionWarnings: string[]; status: string; generated_by: string; model: string }> {
-    const cmp = await this.compare.compareVersions(stationId, { v1, v2 } as any);
+    const cmp = await this.compare.compareVersions(stationId, { v1, v2, task_id: taskId ?? undefined, source } as any);
     const regressionWarnings = this.buildRegressionWarnings(cmp);
     const ctx = this.buildInterpretContext(cmp);
     let interpretation: string;

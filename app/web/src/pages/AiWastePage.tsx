@@ -9,6 +9,7 @@ import { METHOD_LABEL } from '../constants';
 import AiCallBanner from '../components/AiCallBanner';
 import AiWasteManualDialog from '../components/AiWasteManualDialog';
 import AiWasteKbPanel from '../components/AiWasteKbPanel';
+import { getCurrentTaskId } from '../taskContext';
 
 /**
  * P3-9 浪费识别 + 改善问题清单（#/ai-waste/:stationId · 工位工作区第六页签）。
@@ -77,8 +78,10 @@ export default function AiWastePage(
   const { can } = useAuth();
   const canGenerate = can('suggestion:generate');
 
-  /** 当前来源线页签（缺省 ai_assisted——既有默认路径不变） */
+  /** 当前来源线页签（缺省按当前版本自动选择；显式 ?source= 优先） */
   const [source, setSource] = useState<AiWasteElementSource>(initialSource ?? 'ai_assisted');
+  /** 来源线判定完成前不请求，避免先按默认线拉一次再切线的双请求 */
+  const [sourceReady, setSourceReady] = useState(Boolean(initialSource));
   const [data, setData] = useState<AiWasteLatestResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +113,7 @@ export default function AiWastePage(
   /* 数据加载（受保护：无权限不请求，纪律 #10；按当前页签 source 隔离） */
   const load = useCallback(async (opts?: { keepError?: boolean }) => {
     if (!canGenerate) { setLoading(false); return; }
+    if (!sourceReady) { setLoading(false); return; }
     setLoading(true);
     try {
       const res = await api.aiWaste.latest(stationId, source);
@@ -135,7 +139,31 @@ export default function AiWastePage(
     } catch {
       setItemsData(null);
     }
-  }, [stationId, canGenerate, source, scopeAll]);
+  }, [stationId, canGenerate, source, scopeAll, sourceReady]);
+
+  /* v3.67：默认按当前版本的实际来源线选择，避免在纯手工工位默认落到 AI 线空态 */
+  useEffect(() => {
+    if (initialSource) { setSourceReady(true); return; }
+    let alive = true;
+    api.elements(stationId, undefined, getCurrentTaskId() || undefined)
+      .then((res) => {
+        if (!alive) return;
+        const ai = res.elements.filter((e) => e.source === 'ai_assisted').length;
+        const manual = res.elements.length - ai;
+        let next: AiWasteElementSource;
+        if (ai === 0 && manual === 0) next = 'ai_assisted';
+        else if (ai > 0 && manual > 0) next = res.version_line === 'ai' ? 'ai_assisted' : 'manual';
+        else next = ai > 0 ? 'ai_assisted' : 'manual';
+        setSource(next);
+        setSourceReady(true);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setSource('ai_assisted');
+        setSourceReady(true);
+      });
+    return () => { alive = false; };
+  }, [stationId, initialSource]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -280,19 +308,22 @@ export default function AiWastePage(
           待处理 {pending} · 已确认 {confirmed} · 已忽略 {ignored}
         </span>
         <div className="spacer" />
-        {/* v3.51：人工录入与知识库（与 AI 生成并存——AI 出不来清单时可人工兜底，人工经验反哺 AI） */}
-        <button type="button" className="btn sm" onClick={() => setForm({ kind: 'finding', editing: null })}>
-          + 人工浪费点
+        <span className="muted" style={{ fontSize: 12 }}>人工补充</span>
+        <button type="button" className="btn sm ghost" title="手工新增一条浪费点（数字由服务端计算）"
+          onClick={() => setForm({ kind: 'finding', editing: null })}>
+          ＋浪费点
         </button>
-        <button type="button" className="btn sm" onClick={() => setForm({ kind: 'issue', editing: null })}>
-          + 人工措施
+        <button type="button" className="btn sm ghost" title="手工新增一条改善措施"
+          onClick={() => setForm({ kind: 'issue', editing: null })}>
+          ＋措施
         </button>
-        <button type="button" className="btn sm" onClick={() => setKbOpen((v) => !v)}>
+        <button type="button" className="btn sm ghost" onClick={() => setKbOpen((v) => !v)}>
           {kbOpen ? '收起知识库' : '知识库'}
         </button>
         <button className="btn primary sm" disabled={busy || batchStatus === 'running'}
           onClick={() => void generate()}>
-          {busy ? '识别中…' : batchStatus === 'running' ? '识别进行中…' : findings.length + issues.length > 0 ? '重新识别' : '开始识别'}
+          {busy ? '识别中…' : batchStatus === 'running' ? '识别进行中…'
+            : `${findings.length + issues.length > 0 ? '重新识别' : '开始识别'}（${source === 'manual' ? '手工线' : 'AI 线'}）`}
         </button>
       </div>
 
@@ -311,31 +342,32 @@ export default function AiWastePage(
       {/* ---------- v3.51 知识库面板 ---------- */}
       {kbOpen && <AiWasteKbPanel stationId={stationId} />}
 
-      {/* ---------- 来源筛选（AI 识别 / 人工录入）与范围 ---------- */}
-      <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span className="muted" style={{ fontSize: 12 }}>清单来源</span>
-        {([['all', `全部（${aiCount + manualCount}）`], ['ai', `AI 识别（${aiCount}）`], ['manual', `人工录入（${manualCount}）`]] as const).map(([k, label]) => (
-          <button key={k} type="button" className={`btn sm${originFilter === k ? ' primary' : ''}`}
-            onClick={() => setOriginFilter(k)}>{label}</button>
-        ))}
-        <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 12, marginLeft: 8 }}>
+      {/* ---------- 筛选条：先选「分析哪条要素线」，再筛「显示哪些条目」与范围 ---------- */}
+      <div className="filter-bar no-print">
+        <div className="filter-item">
+          <span>分析要素线</span>
+          <button type="button" className={`btn sm${source === 'ai_assisted' ? ' primary' : ''}`}
+            onClick={() => switchSource('ai_assisted')}
+            title="AI 分解线：只识别 source=ai_assisted 的要素（AI 自动分解写入）">
+            AI 分解线
+          </button>
+          <button type="button" className={`btn sm${source === 'manual' ? ' primary' : ''}`}
+            onClick={() => switchSource('manual')}
+            title="手工分解线：只识别 source=manual 的要素（分解工作台提交的手工分解）">
+            手工分解线
+          </button>
+        </div>
+        <div className="filter-item">
+          <span>显示条目</span>
+          {([['all', `全部（${aiCount + manualCount}）`], ['ai', `AI 识别（${aiCount}）`], ['manual', `人工录入（${manualCount}）`]] as const).map(([k, label]) => (
+            <button key={k} type="button" className={`btn sm${originFilter === k ? ' primary' : ''}`}
+              onClick={() => setOriginFilter(k)}>{label}</button>
+          ))}
+        </div>
+        <label className="filter-item" style={{ cursor: 'pointer' }}>
           <input type="checkbox" checked={scopeAll} onChange={(e) => setScopeAll(e.target.checked)} />
           含全部历史批次
         </label>
-      </div>
-
-      {/* ---------- 来源线页签（v3.45：默认 AI 线，工作台链接直达手工线） ---------- */}
-      <div className="row" style={{ gap: 8, marginBottom: 12 }}>
-        <button type="button" className={`btn sm${source === 'ai_assisted' ? ' primary' : ''}`}
-          onClick={() => switchSource('ai_assisted')}
-          title="AI 分解线：只识别 source=ai_assisted 的要素（AI 自动分解写入）">
-          AI 分解线
-        </button>
-        <button type="button" className={`btn sm${source === 'manual' ? ' primary' : ''}`}
-          onClick={() => switchSource('manual')}
-          title="手工分解线：只识别 source=manual 的要素（分解工作台提交的手工分解）">
-          手工分解线
-        </button>
       </div>
 
       {error && <div className="error-banner">{error}</div>}

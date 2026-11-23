@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>IE 打点辅助</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="head">
+    <span class="dot"></span>
+    <b>IE 工作台打点辅助</b>
+  </header>
+
+  <p id="status" class="status">正在检测当前页面…</p>
+
+  <div class="row">
+    <button id="toggle" type="button" disabled>显示 / 隐藏浮层</button>
+    <button id="inject" type="button" hidden>尝试注入</button>
+  </div>
+
+  <section class="keys" aria-label="快捷键">
+    <div><kbd>Alt+M</kbd><span>打点</span></div>
+    <div><kbd>Alt+[</kbd><span>循环起</span></div>
+    <div><kbd>Alt+]</kbd><span>循环止</span></div>
+    <div><kbd>Alt+Z</kbd><span>撤销</span></div>
+    <div><kbd>Alt+E</kbd><span>导出 CSV</span></div>
+    <div><kbd>Alt+H</kbd><span>显示 / 隐藏</span></div>
+  </section>
+
+  <footer class="foot">
+    <button id="options" type="button" class="link">站点与设置</button>
+    <span class="ver">v0.1.0 · 仅本地使用</span>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -134,9 +134,18 @@ export default function DiffPage({ stationId, vA, vB }: { stationId: string; vA:
     ...tasks.map((t) => ({ value: t.task_id, label: `${t.task_no} ${t.name}` })),
   ];
 
+  /* v3.67：AI 分解与手工分解是两条独立分解线，不做跨线 Diff */
+  const lineOf = (list: StationVersion[], v: number) => list.find((x) => x.version === v)?.line;
+  const lineA = lineOf(versionsA, vA);
+  const lineB = lineOf(versionsB, vB);
+  const crossLine = Boolean(lineA && lineB && lineA !== lineB);
+  const lineLabel = (line?: 'manual' | 'ai') => (line === 'ai' ? 'AI 自动分解' : line === 'manual' ? '手工分解' : '来源未知');
+
   const diff: DiffResult | null = useMemo(
-    () => (elsA && elsB ? computeDiff(elsA as unknown as Parameters<typeof computeDiff>[0], elsB as unknown as Parameters<typeof computeDiff>[1]) : null),
-    [elsA, elsB],
+    () => (!crossLine && elsA && elsB
+      ? computeDiff(elsA as unknown as Parameters<typeof computeDiff>[0], elsB as unknown as Parameters<typeof computeDiff>[1])
+      : null),
+    [elsA, elsB, crossLine],
   );
 
   /* A/B 切换即改 hash（路由驱动，与全站一致） */
@@ -217,6 +226,23 @@ export default function DiffPage({ stationId, vA, vB }: { stationId: string; vA:
 
   if (error) {
     return <div className="container"><div className="card empty">加载失败：{error}<br /><a href={`#/workbench/${stationId}`}>← 返回分解工作台</a></div></div>;
+  }
+  if (crossLine) {
+    return (
+      <div className="container">
+        <div className="card empty">
+          <h3 style={{ marginBottom: 8 }}>无法 Diff：选中的是两条不同的分解线</h3>
+          <p>
+            左侧 v{vA}（{lineLabel(lineA)}）与右侧 v{vB}（{lineLabel(lineB)}）来源不同。
+            AI 自动分解与手工分解是两条并行的分解线，不能作为前后版本比较。
+          </p>
+          <p className="muted">请在同一条来源线内选择两个版本，或回到工作台查看版本线（M-xx / A-xx）。</p>
+          <div style={{ marginTop: 12 }}>
+            <a className="btn" href={`#/workbench/${stationId}`}>← 返回分解工作台</a>
+          </div>
+        </div>
+      </div>
+    );
   }
   if (!station || !diff) {
     return <div className="container"><div className="card empty">加载中…</div></div>;

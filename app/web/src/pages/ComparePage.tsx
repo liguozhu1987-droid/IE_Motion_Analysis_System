@@ -25,6 +25,11 @@ export default function ComparePage({ stationId }: { stationId: string }) {
   /* #107：本工位可参与的任务 + 当前对比任务（'' = 默认兼容模式） */
   const [tasks, setTasks] = useState<DecompositionTask[]>([]);
   const [taskId, setTaskId] = useState('');
+  /** v3.67：对比来源线（'' = 自动选同一来源线内最近两版） */
+  const [source, setSource] = useState<'manual' | 'ai_assisted' | ''>('');
+  const [availableLines, setAvailableLines] = useState<NonNullable<CompareResult['available_lines']>>([]);
+  /** 跨线/混合版本/无复测等来源线阻断：单独展示，不落到“只有 v1”空态 */
+  const [blocked, setBlocked] = useState<{ code?: string; message: string } | null>(null);
 
   const canSaveParams = can('settings:benefit-write');
 
@@ -38,26 +43,47 @@ export default function ComparePage({ stationId }: { stationId: string }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await api.compare(stationId, undefined, undefined, taskId || undefined);
+      const res = await api.compare(stationId, undefined, undefined, taskId || undefined, source || undefined);
       setData(res);
       setLineId(res.station.line_id);
       setNeedsRetest(false);
+      setBlocked(null);
+      setAvailableLines(res.available_lines ?? []);
       const p = await api.benefitParams();
       const entry = p.lines.find((l) => l.line_id === res.station.line_id) ?? null;
       setConfigured(entry);
       if (entry) setForm({ rate: entry.rate_yuan_per_hour, output: entry.daily_output, realization: entry.land_rate });
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) { setNeedsRetest(true); setError(null); return; }
+      if (err instanceof ApiError && err.status === 409) {
+        const code = err.code;
+        if (code === 'CROSS_SOURCE_COMPARE' || code === 'MIXED_SOURCE_VERSION'
+          || code === 'SOURCE_MISMATCH' || code === 'SOURCE_NO_RETEST' || code === 'SAME_VERSION') {
+          const lines = (err.payload?.available_lines ?? []) as NonNullable<CompareResult['available_lines']>;
+          if (Array.isArray(lines) && lines.length > 0) setAvailableLines(lines);
+          setBlocked({ code, message: err.message });
+          setData(null);
+          setNeedsRetest(false);
+          setError(null);
+          return;
+        }
+        setNeedsRetest(true);
+        setError(null);
+        return;
+      }
       setError((err as Error).message);
     }
-  }, [stationId, taskId]);
+  }, [stationId, taskId, source]);
 
   useEffect(() => { load().catch((err) => setError(err.message)); }, [load]);
 
   const runInterpret = async () => {
     setInterpBusy(true); setError(null);
     try {
-      setInterp(await api.interpret(stationId));
+      // 与页面展示严格同一对版本/任务/来源线，避免解读对象错位
+      setInterp(await api.interpret(
+        stationId, data?.prev.version, data?.curr.version,
+        taskId || undefined, source || undefined,
+      ));
       setMsg('AI 差异解读完成：结果见下方「AI 差异解读」卡片（待审状态）');
     } catch (err) {
       setMsg(null);
@@ -108,22 +134,68 @@ export default function ComparePage({ stationId }: { stationId: string }) {
     );
   }
 
+  if (blocked) {
+    return (
+      <div>
+        <div className="page-head"><h1>改善前后对比</h1><div className="spacer" /><a className="btn" href="#/stations">← 工位清单</a></div>
+        <div className="card empty">
+          <p style={{ marginBottom: 8 }}><b>无法对比：</b>{blocked.message}</p>
+          <p className="muted">AI 自动分解与手工分解是两条并行的分解线，不能作为改善前后版本。对比只在同一来源线内、改善前后两个版本之间进行。</p>
+          {availableLines.length > 0 && (
+            <div className="row" style={{ justifyContent: 'center', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+              {availableLines.map((l) => (
+                <button key={l.line} type="button" className={`btn sm${source === l.source ? ' primary' : ''}`}
+                  disabled={l.count < 2}
+                  title={l.count < 2 ? `${l.label}只有 ${l.count} 个版本，无法对比` : l.versions.map((v) => `v${v}`).join(' / ')}
+                  onClick={() => setSource(l.source)}>
+                  {l.label}（{l.count} 版）
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="row" style={{ justifyContent: 'center', marginTop: 14 }}>
+            <a className="btn primary" href={`#/workbench/${stationId}`}>去分解工作台</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!data) return <div className="card empty">{error ?? '加载中…'}</div>;
 
   const delta = data.delta_ct;
   const deltaPct = data.prev.ct > 0 ? Math.round((delta / data.prev.ct) * 1000) / 10 : 0;
+  const activeLine = data.source_line ?? (source === 'ai_assisted' ? 'ai' : source === 'manual' ? 'manual' : '');
+  const lineLabel = activeLine === 'ai' ? 'AI 自动分解' : activeLine === 'manual' ? '手工分解' : '混合来源';
 
   return (
     <div>
       <div className="page-head">
         <h1>{data.station.name} · 改善前后对比</h1>
-        <span className="sub mono">{data.station.station_id} · v{data.prev.version} → v{data.curr.version} · {data.station.line_id}</span>
+        <span className="sub mono">{data.station.station_id} · v{data.prev.version} → v{data.curr.version} · {data.station.line_id} · {lineLabel}</span>
         <div className="spacer" />
-        <a className="btn" href={`#/workbench/${stationId}`}>去分解</a>
-        <a className="btn" href={`#/analysis/${stationId}`}>分析结果</a>
         <button className="btn" onClick={() => window.print()}>打印 / 导出PDF</button>
-        {can('compare:read') && <button className="btn" disabled={busy || interpBusy} onClick={runInterpret}>{interpBusy ? '解读中…' : 'AI 解读差异'}</button>}
+        {can('compare:read') && <button className="btn primary" disabled={busy || interpBusy} onClick={runInterpret}>{interpBusy ? '解读中…' : 'AI 解读差异'}</button>}
       </div>
+
+      {/* v3.67：来源线选择（AI 与手工分开对比；默认自动选同线最近两版） */}
+      {availableLines.length > 0 && (
+        <div className="filter-bar no-print">
+          <div className="filter-item">
+            <span>对比来源线</span>
+            {availableLines.map((l) => (
+              <button key={l.line} type="button"
+                className={`btn sm${activeLine === l.line ? ' primary' : ''}`}
+                disabled={l.count < 2}
+                title={l.count < 2 ? `${l.label}只有 ${l.count} 个版本，无法对比` : l.versions.map((v) => `v${v}`).join(' / ')}
+                onClick={() => setSource(l.source)}>
+                {l.label}（{l.count} 版）
+              </button>
+            ))}
+          </div>
+          <span className="muted" style={{ fontSize: 12 }}>AI 与手工为两条独立分解线，不做跨线对比</span>
+        </div>
+      )}
 
       {error && <div className="error-banner">{error}</div>}
       {msg && <div className="success-banner">{msg}</div>}

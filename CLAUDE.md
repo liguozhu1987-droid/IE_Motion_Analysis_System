@@ -34,9 +34,11 @@ t_ai_custom_dict         t_ai_setting              t_ai_llm_profile
 t_ai_waste_batch         t_ai_waste_finding        t_ai_waste_issue
 t_ai_waste_kb            t_ai_usage_event          t_audit_log
 t_decomposition_task     t_task_station            t_batch_export_record
+t_ai_feedback_pattern
 ```
 
 > 2026-11-20 经用户书面同意，由 30 张扩为 33 张：新增 `t_decomposition_task`（分解任务主表）、`t_task_station`（任务-工位关联）、`t_batch_export_record`（批量导出留档）。三者由 Phase 2/3 任务归属与批量导出功能引入（`migrate.ts:419/448/468`）。
+> 2026-11-23 经用户书面同意，由 33 张扩为 **34 张**：新增 `t_ai_feedback_pattern`（AI 否决反馈模式聚合）。
 
 **禁止**：
 

@@ -419,6 +419,7 @@ export class StationsService {
       line_id: line.code,
       name: line.name,
       process_type: processCn,
+      product_type: line.product_type ?? '待补充',
       product_project: input.program_number ?? '-',
       cmc_line_id: line.id,
       factory_code: line.factory_code,

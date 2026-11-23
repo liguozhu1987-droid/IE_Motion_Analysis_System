@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SuggestionsController, ImprovementsController } from './suggestions.controller';
 import { SuggestionsService } from './suggestions.service';
+import { OverdueAlertService } from './overdue-alert.service';
 import { ImprovementRepository } from '../compare/improvement.repository';
 import { AnalysisModule } from '../analysis/analysis.module';
 import { StationsModule } from '../stations/stations.module';
@@ -16,7 +17,7 @@ import { StationsModule } from '../stations/stations.module';
 @Module({
   imports: [AnalysisModule, StationsModule],
   controllers: [SuggestionsController, ImprovementsController],
-  providers: [SuggestionsService, ImprovementRepository],
+  providers: [SuggestionsService, ImprovementRepository, OverdueAlertService],
   exports: [SuggestionsService],
 })
 export class SuggestionsModule {}

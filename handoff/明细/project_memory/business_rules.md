@@ -18,7 +18,7 @@
 
 | # | 口径 | 代码证据 |
 |---|---|---|
-| B1 | 动素 19 类 = VA8 + RNVA6 + NVA4；**「词表 41 类」是 MS1.0 历史口径（19+22），2026-11-19 实码纠正**：`motion_standard.json` MS1.4 实为 **14 一级+14 二级=28 类**、`va_rules.json` RV3.64 与后端 `util.ts:13-28` 实为 **44 类**（19+25）。**AI 分类不查词表**：motion 只输出 6 类硬编码字面量（`motion.ts:495-518`）、hand 恒「其他」（`segmentation.ts:213`）；**但描述模板与 SOP 动词候选查 `motion_standard`**（`AiSegmentPage.tsx:192-204,1172-1174`），后端强校验 SOP 动词在词表内（`stations.service.ts:526-528`） | `app/config/rules/motion_standard.json`；`app/config/rules/va_rules.json`；`app/api/src/core/shared/util.ts:13-28`；`deliverables/AI自动分解模块深度理解_20261119.md` §4 |
+| B1 | 动素 19 类 = VA8 + RNVA6 + NVA4；**「词表 41 类」是 MS1.0 历史口径（19+22），2026-11-19 实码纠正**：`motion_standard.json` 当前 MS1.6（MS1.4 起 **14 一级+14 二级=28 类**；MS1.6 补齐 移动/检查/机器自动 描述格式）、`va_rules.json` RV3.64 与后端 `util.ts:13-28` 实为 **44 类**（19+25）。**AI 分类不查词表**：motion 只输出 6 类硬编码字面量（`motion.ts:495-518`）、hand 恒「其他」（`segmentation.ts:213`）；**但描述模板与 SOP 动词候选查 `motion_standard`**（`AiSegmentPage.tsx:192-204,1172-1174`），后端强校验 SOP 动词在词表内（`stations.service.ts:526-528`） | `app/config/rules/motion_standard.json`；`app/config/rules/va_rules.json`；`app/api/src/core/shared/util.ts:13-28`；`deliverables/AI自动分解模块深度理解_20261119.md` §4 |
 | B2 | **RNVA（不是 NNVA）**：必要非增值只能压缩不能直接删，全链路符号统一 | `AGENT必读.md` 看板 #50；`va_rules.json` RV1.1 |
 | B3 | 检查 = RNVA（客户/规范要求），无依据返检 = NVA；VA 非绝对：操作族默认 RNVA，对象为装入产品的物料/零部件→VA | `business_rules` 历史裁决；`app/api/src/modules/analysis/engine.ts:43-64` |
 | B4 | **VA 归类单一来源** = `va_rules` 规则表（可配置 + rv）。改判必须写结构化标记 `[VA改判\|原:x\|新:y\|理由:z\|人:w\|日期]`，无理由后端 V1 拦截；类型变更时前端剥离旧标记 | `app/api/src/modules/elements/validation.ts`；`app/web/src/diff.ts` |

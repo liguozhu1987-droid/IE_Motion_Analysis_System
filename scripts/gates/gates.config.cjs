@@ -38,6 +38,8 @@ module.exports = {
       'web:typecheck',
       'web:css-classes',
       'web:desc-hints',
+      'web:ms15',
+      'web:ms16',
       'web:no-native-select',
       'api:batch-export-contract',
       'api:smoke-isolated',
@@ -49,6 +51,8 @@ module.exports = {
       'web:typecheck',
       'web:css-classes',
       'web:desc-hints',
+      'web:ms15',
+      'web:ms16',
       'web:no-native-select',
       'api:batch-export-contract',
       'api:smoke-isolated',
@@ -97,6 +101,28 @@ module.exports = {
       id: 'web:desc-hints',
       title: '描述联想（公司标准骨架）离线回归',
       command: { kind: 'npm', script: 'test:desc-hints', cwd: 'app/web' },
+      blocking: true,
+      timeoutMs: 120000,
+      parse: (out) => {
+        const r = lastMatch(out, /(\d+)\s*通过\s*\/\s*\d+\s*失败/, /通过\s*\/\s*(\d+)\s*失败/);
+        return r ? { ...r, unit: '用例' } : null;
+      },
+    },
+    {
+      id: 'web:ms15',
+      title: '动作标准 MS1.5 + 部位词表离线回归',
+      command: { kind: 'npm', script: 'test:ms15', cwd: 'app/web' },
+      blocking: true,
+      timeoutMs: 120000,
+      parse: (out) => {
+        const r = lastMatch(out, /(\d+)\s*通过\s*\/\s*\d+\s*失败/, /通过\s*\/\s*(\d+)\s*失败/);
+        return r ? { ...r, unit: '用例' } : null;
+      },
+    },
+    {
+      id: 'web:ms16',
+      title: '动作标准 MS1.6 离线回归',
+      command: { kind: 'npm', script: 'test:ms16', cwd: 'app/web' },
       blocking: true,
       timeoutMs: 120000,
       parse: (out) => {

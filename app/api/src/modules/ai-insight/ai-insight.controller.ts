@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Param, Post, Query } from '@nestjs/common';
 import { RequirePermission } from '../../rbac/require-permission.decorator';
 import { CurrentUser } from '../../rbac/current-user.decorator';
 import { AuthUser } from '../../auth/auth-user.interface';
@@ -22,15 +22,25 @@ export class AiInsightController {
 
   @Post('analysis/diagnose')
   @RequirePermission('analysis:read')
-  async diagnose(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+  async diagnose(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Query('task_id') taskId?: string,
+    @Query('source') source?: string,
+  ) {
     await this.stations.assertReadable(id, user.userId, user.roles, user.dataScope);
-    return this.insight.diagnose(id);
+    return this.insight.diagnose(id, taskId, source === 'manual' || source === 'ai_assisted' ? source : undefined);
   }
 
   @Post('compare/interpret')
   @RequirePermission('compare:read')
-  async interpret(@Param('id') id: string, @Body() body: { v1?: string; v2?: string }, @CurrentUser() user: AuthUser) {
+  async interpret(
+    @Param('id') id: string,
+    @Body() body: { v1?: string; v2?: string; task_id?: string; source?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
     await this.stations.assertReadable(id, user.userId, user.roles, user.dataScope);
-    return this.insight.interpretDiff(id, body?.v1, body?.v2);
+    const source = body?.source === 'manual' || body?.source === 'ai_assisted' ? body.source : undefined;
+    return this.insight.interpretDiff(id, body?.v1, body?.v2, body?.task_id, source);
   }
 }

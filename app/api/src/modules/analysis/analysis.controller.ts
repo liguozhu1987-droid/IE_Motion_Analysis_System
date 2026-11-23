@@ -1,5 +1,5 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
-import { AnalysisService } from './analysis.service';
+import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
+import { AnalysisService, AnalysisSource } from './analysis.service';
 import { StationsService } from '../stations/stations.service';
 import { RequirePermission } from '../../rbac/require-permission.decorator';
 import { CurrentUser } from '../../rbac/current-user.decorator';
@@ -21,9 +21,14 @@ export class StationAnalysisController {
 
   @Get()
   @RequirePermission('analysis:read')
-  async analyze(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
+  async analyze(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Query('task_id') taskId?: string,
+    @Query('source') source?: string,
+  ) {
     await this.stations.assertReadable(id, user.userId, user.roles, user.dataScope);
-    return this.analysis.analyzeStation(id, taskId);
+    return this.analysis.analyzeStation(id, taskId, parseSource(source));
   }
 }
 
@@ -41,8 +46,20 @@ export class LineAnalysisController {
    */
   @Get()
   @RequirePermission('analysis:read')
-  async analyzeLine(@Param('lineId') lineId: string, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
+  async analyzeLine(
+    @Param('lineId') lineId: string,
+    @CurrentUser() user: AuthUser,
+    @Query('task_id') taskId?: string,
+    @Query('source') source?: string,
+  ) {
     const visibleIds = await this.stations.visibleStationIds(user.userId, user.roles, user.tenantId, user.dataScope);
-    return this.analysis.analyzeLine(lineId, visibleIds, taskId);
+    return this.analysis.analyzeLine(lineId, visibleIds, taskId, parseSource(source));
   }
+}
+
+/** 来源线参数：缺省 = 不过滤（legacy 全量，只读）；非法值 400 */
+function parseSource(value?: string): AnalysisSource | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (value === 'manual' || value === 'ai_assisted') return value;
+  throw new BadRequestException('source 仅支持 manual / ai_assisted');
 }

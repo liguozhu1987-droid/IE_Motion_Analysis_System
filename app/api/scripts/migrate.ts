@@ -26,7 +26,7 @@ const DDL: string[] = [
     tenant_id NVARCHAR(32) NOT NULL PRIMARY KEY,
     code NVARCHAR(32) NOT NULL,
     name NVARCHAR(64) NOT NULL,
-    region NVARCHAR(32) NOT NULL DEFAULT '总部',
+    region NVARCHAR(32) NOT NULL DEFAULT N'总部',
     status NVARCHAR(16) NOT NULL DEFAULT 'active',
     created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME())`,
   // —— 用户（登录锁定：failed_count>=LOGIN_MAX_FAIL → locked_until=now+LOGIN_LOCK_MIN）——
@@ -175,7 +175,7 @@ const DDL: string[] = [
     project_id NVARCHAR(32) NOT NULL,
     name NVARCHAR(64) NOT NULL,
     customer NVARCHAR(64) NOT NULL DEFAULT '',
-    stage NVARCHAR(16) NOT NULL DEFAULT '量产',
+    stage NVARCHAR(16) NOT NULL DEFAULT N'量产',
     status NVARCHAR(16) NOT NULL DEFAULT 'active',
     created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT PK_t_project PRIMARY KEY (tenant_id, project_id),
@@ -184,8 +184,8 @@ const DDL: string[] = [
     tenant_id NVARCHAR(32) NOT NULL DEFAULT 'DEFAULT',
     line_id NVARCHAR(32) NOT NULL,
     name NVARCHAR(64) NOT NULL,
-    process_type NVARCHAR(32) NOT NULL DEFAULT '装配',
-    product_type NVARCHAR(64) NOT NULL DEFAULT '待补充',
+    process_type NVARCHAR(32) NOT NULL DEFAULT N'装配',
+    product_type NVARCHAR(64) NOT NULL DEFAULT N'待补充',
     product_project NVARCHAR(64) NOT NULL DEFAULT '-',
     created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT PK_t_line PRIMARY KEY (tenant_id, line_id),
@@ -243,8 +243,8 @@ const DDL: string[] = [
     measure NVARCHAR(256) NOT NULL,
     est_save_s DECIMAL(10,2) NOT NULL,
     priority INT NOT NULL,
-    status NVARCHAR(16) NOT NULL DEFAULT '待实施',
-    project_type NVARCHAR(32) NOT NULL DEFAULT '量产改善',
+    status NVARCHAR(16) NOT NULL DEFAULT N'待实施',
+    project_type NVARCHAR(32) NOT NULL DEFAULT N'量产改善',
     owner NVARCHAR(32) NULL,
     due DATETIME2 NULL,
     before_ct DECIMAL(10,2) NULL,
@@ -303,7 +303,7 @@ const DDL: string[] = [
     difficulty INT NOT NULL,
     verif INT NOT NULL DEFAULT 2,
     risk_flags NVARCHAR(128) NULL,
-    status NVARCHAR(16) NOT NULL DEFAULT '待审',
+    status NVARCHAR(16) NOT NULL DEFAULT N'待审',
     validation_trace NVARCHAR(MAX) NULL,
     raw_json NVARCHAR(MAX) NULL,
     reviewed_by NVARCHAR(32) NULL,
@@ -407,7 +407,7 @@ const DDL: string[] = [
     est_save_s DECIMAL(10,2) NOT NULL,
     priority INT NOT NULL,
     tier NVARCHAR(4) NOT NULL,
-    status NVARCHAR(16) NOT NULL DEFAULT '待处理',
+    status NVARCHAR(16) NOT NULL DEFAULT N'待处理',
     validation_trace NVARCHAR(MAX) NULL,
     imp_id NVARCHAR(64) NULL,
     reviewed_by NVARCHAR(32) NULL,
@@ -501,6 +501,19 @@ const DDL: string[] = [
     cached_tokens INT NULL,
     usage_status NVARCHAR(16) NOT NULL,
     created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME())`,
+
+  // v3.66 P3（2026-11-23 用户确认）：AI 否决反馈模式聚合表
+  `IF OBJECT_ID('t_ai_feedback_pattern','U') IS NULL CREATE TABLE t_ai_feedback_pattern (
+    pattern_id NVARCHAR(36) NOT NULL PRIMARY KEY,
+    tenant_id NVARCHAR(32) NOT NULL DEFAULT 'DEFAULT',
+    pattern_type NVARCHAR(16) NOT NULL,
+    pattern_key NVARCHAR(256) NOT NULL,
+    reject_count INT NOT NULL DEFAULT 1,
+    last_reject_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    weight DECIMAL(5,2) NOT NULL DEFAULT 1.0,
+    created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    INDEX idx_fbp_tenant_type (tenant_id, pattern_type, reject_count DESC),
+    INDEX idx_fbp_weight (tenant_id, weight DESC))`,
 ];
 
 /** 存量库幂等升级（DDL 仅对新建库生效；老库需下列 ALTER 补齐增量） */
@@ -512,15 +525,15 @@ const MIGRATIONS: string[] = [
   `IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE name = 'UQ_user_username' AND parent_object_id = OBJECT_ID('t_user'))
    ALTER TABLE t_user ADD CONSTRAINT UQ_user_username UNIQUE (username)`,
   // v3.3：t_tenant 增加 region 列（区域维度挂公司；按区域汇总 = GROUP BY tenant.region）
-  `IF COL_LENGTH('t_tenant','region') IS NULL ALTER TABLE t_tenant ADD region NVARCHAR(32) NOT NULL DEFAULT '总部'`,
+  `IF COL_LENGTH('t_tenant','region') IS NULL ALTER TABLE t_tenant ADD region NVARCHAR(32) NOT NULL DEFAULT N'总部'`,
   // v3.3：t_improvement 增加 project_type 列（项目类型维度：NPI导入|量产改善|自动化改造|布局优化|质量改善）
-  `IF COL_LENGTH('t_improvement','project_type') IS NULL ALTER TABLE t_improvement ADD project_type NVARCHAR(32) NOT NULL DEFAULT '量产改善'`,
+  `IF COL_LENGTH('t_improvement','project_type') IS NULL ALTER TABLE t_improvement ADD project_type NVARCHAR(32) NOT NULL DEFAULT N'量产改善'`,
   // v3.3：project_type 索引（须在 ALTER 之后建，故放 MIGRATIONS 而非 INDEXES）
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_imp_project_type') CREATE INDEX idx_imp_project_type ON t_improvement (tenant_id, project_type, status)`,
   // v3.3：t_line 存量回填（工位反推；DISTINCT + NOT EXISTS 保证幂等，不覆盖已有记录）
   `IF OBJECT_ID('t_line','U') IS NOT NULL
    INSERT INTO t_line (tenant_id, line_id, name, process_type, product_type, product_project, created_at)
-   SELECT DISTINCT s.tenant_id, s.line_id, s.line_id, '装配', '待补充', '-', SYSUTCDATETIME()
+   SELECT DISTINCT s.tenant_id, s.line_id, s.line_id, N'装配', N'待补充', N'-', SYSUTCDATETIME()
    FROM t_station s
    WHERE NOT EXISTS (SELECT 1 FROM t_line l WHERE l.tenant_id = s.tenant_id AND l.line_id = s.line_id)`,
   // v3.21：CMC 产能系统集成——工位/产线记录 CMC 来源（基础信息以 CMC 为准，本地只存快照+关联键）
@@ -750,6 +763,23 @@ const MIGRATIONS: string[] = [
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_ai_waste_batch_task') CREATE INDEX idx_ai_waste_batch_task ON t_ai_waste_batch (tenant_id, task_id, station_id, created_at)`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_imp_task') CREATE INDEX idx_imp_task ON t_improvement (tenant_id, task_id, status)`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_audit_task') CREATE INDEX idx_audit_task ON t_audit_log (tenant_id, task_id, created_at)`,
+  // v3.66（2026-11-23）：修复此前中文 DEFAULT 字面量未加 N 前缀导致的编码损坏。DROP 旧约束 -> 重建 N'...'。
+  `DECLARE @cn NVARCHAR(200);
+   SELECT @cn=dc.name FROM sys.default_constraints dc JOIN sys.columns c ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id WHERE dc.parent_object_id=OBJECT_ID('t_tenant') AND c.name='region'; IF @cn IS NOT NULL BEGIN EXEC('ALTER TABLE t_tenant DROP CONSTRAINT '+@cn) END; ALTER TABLE t_tenant ADD CONSTRAINT DF_tenant_region DEFAULT N'总部' FOR region;
+   SELECT @cn=dc.name FROM sys.default_constraints dc JOIN sys.columns c ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id WHERE dc.parent_object_id=OBJECT_ID('t_project') AND c.name='stage'; IF @cn IS NOT NULL BEGIN EXEC('ALTER TABLE t_project DROP CONSTRAINT '+@cn) END; ALTER TABLE t_project ADD CONSTRAINT DF_project_stage DEFAULT N'量产' FOR stage;
+   SELECT @cn=dc.name FROM sys.default_constraints dc JOIN sys.columns c ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id WHERE dc.parent_object_id=OBJECT_ID('t_line') AND c.name='process_type'; IF @cn IS NOT NULL BEGIN EXEC('ALTER TABLE t_line DROP CONSTRAINT '+@cn) END; ALTER TABLE t_line ADD CONSTRAINT DF_line_process DEFAULT N'装配' FOR process_type;
+   SELECT @cn=dc.name FROM sys.default_constraints dc JOIN sys.columns c ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id WHERE dc.parent_object_id=OBJECT_ID('t_line') AND c.name='product_type'; IF @cn IS NOT NULL BEGIN EXEC('ALTER TABLE t_line DROP CONSTRAINT '+@cn) END; ALTER TABLE t_line ADD CONSTRAINT DF_line_product DEFAULT N'待补充' FOR product_type;
+   SELECT @cn=dc.name FROM sys.default_constraints dc JOIN sys.columns c ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id WHERE dc.parent_object_id=OBJECT_ID('t_improvement') AND c.name='status'; IF @cn IS NOT NULL BEGIN EXEC('ALTER TABLE t_improvement DROP CONSTRAINT '+@cn) END; ALTER TABLE t_improvement ADD CONSTRAINT DF_imp_status DEFAULT N'待实施' FOR status;
+   SELECT @cn=dc.name FROM sys.default_constraints dc JOIN sys.columns c ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id WHERE dc.parent_object_id=OBJECT_ID('t_improvement') AND c.name='project_type'; IF @cn IS NOT NULL BEGIN EXEC('ALTER TABLE t_improvement DROP CONSTRAINT '+@cn) END; ALTER TABLE t_improvement ADD CONSTRAINT DF_imp_project DEFAULT N'量产改善' FOR project_type;
+   SELECT @cn=dc.name FROM sys.default_constraints dc JOIN sys.columns c ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id WHERE dc.parent_object_id=OBJECT_ID('t_ai_suggestion') AND c.name='status'; IF @cn IS NOT NULL BEGIN EXEC('ALTER TABLE t_ai_suggestion DROP CONSTRAINT '+@cn) END; ALTER TABLE t_ai_suggestion ADD CONSTRAINT DF_sugg_status DEFAULT N'待审' FOR status;
+   SELECT @cn=dc.name FROM sys.default_constraints dc JOIN sys.columns c ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id WHERE dc.parent_object_id=OBJECT_ID('t_ai_waste_issue') AND c.name='status'; IF @cn IS NOT NULL BEGIN EXEC('ALTER TABLE t_ai_waste_issue DROP CONSTRAINT '+@cn) END; ALTER TABLE t_ai_waste_issue ADD CONSTRAINT DF_waste_status DEFAULT N'待处理' FOR status;`,
+  // v3.66 P2（2026-11-23 用户确认）：改善闭环管理——actual_measure / actual_completed_at / status_changed_at / overdue_notified_at
+  `IF COL_LENGTH('t_improvement','actual_measure') IS NULL ALTER TABLE t_improvement ADD actual_measure NVARCHAR(256) NULL`,
+  `IF COL_LENGTH('t_improvement','actual_completed_at') IS NULL ALTER TABLE t_improvement ADD actual_completed_at DATETIME2 NULL`,
+  `IF COL_LENGTH('t_improvement','status_changed_at') IS NULL ALTER TABLE t_improvement ADD status_changed_at DATETIME2 NULL`,
+  `IF COL_LENGTH('t_improvement','overdue_notified_at') IS NULL ALTER TABLE t_improvement ADD overdue_notified_at DATETIME2 NULL`,
+  // v3.66 P3（2026-11-23 用户确认）：AI 改善自优化——否决原因回写
+  `IF COL_LENGTH('t_ai_suggestion','reject_reason') IS NULL ALTER TABLE t_ai_suggestion ADD reject_reason NVARCHAR(256) NULL`,
 ];
 
 const INDEXES: string[] = [
@@ -782,6 +812,7 @@ const INDEXES: string[] = [
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_task_tenant_line') CREATE INDEX idx_task_tenant_line ON t_decomposition_task (tenant_id, line_id, created_at)`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_task_tenant_no') CREATE UNIQUE INDEX UQ_task_tenant_no ON t_decomposition_task (tenant_id, task_no)`,
   `IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_task_station_tenant_station') CREATE INDEX idx_task_station_tenant_station ON t_task_station (tenant_id, station_id)`,
+
 ];
 
 async function main() {

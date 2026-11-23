@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "IE 工作台打点辅助",
+  "version": "0.1.0",
+  "description": "在 IE Motion Analysis 工作台视频上快速打点、标记循环，并导出可导入的 CSV。",
+  "permissions": ["storage", "scripting"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "IE 打点辅助",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["http://localhost/*", "http://127.0.0.1/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

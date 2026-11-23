@@ -5,7 +5,7 @@ import { uploadVideo } from '../video/chunkedUpload';
 import { useVideoEngine } from '../video/useVideoEngine';
 import { useAuth } from '../auth';
 import { HAND_LABEL, PX_PER_SEC, THERBLIG_GROUPS, TYPE_DEFAULTS, VA_CLASS_LABEL, stdTime, today } from '../constants';
-import { BODY_REACH, BODY_REACH_TYPES, buildPreview, motionFormatHint, parseDescToFields, parseFormat, useMotionStandard, type MotionEntry } from '../motionStandard';
+import { buildPreview, motionFormatHint, parseDescToFields, parseFormat, reachOptionsFor, useMotionStandard, type MotionEntry } from '../motionStandard';
 import { carryLevel, extractObject, isNewCycleBreak, objectFieldName } from '../actionCarryover';
 import TypeSelect from '../components/TypeSelect';
 import AutoBanner from '../components/AutoBanner';
@@ -66,6 +66,10 @@ const durToGrid = (s: number) => Math.round(s * 100) / 100;
 /** 要素止点（ms）= 后端 V2 校验同公式：start_ms + round(量化后 dur_s × 1000)，恒为整数 */
 const elEndMs = (d: { start_ms: number; dur_s: number }) =>
   Math.round(d.start_ms + durToGrid(d.dur_s) * 1000);
+/** 按起点排序并把 seq 重排为 1..n（v3.66：新增插入 / 撤销删除共用，保证 #编号=时间顺序） */
+function reindexByStart<T extends { start_ms: number; seq: number }>(list: T[]): T[] {
+  return [...list].sort((a, b) => a.start_ms - b.start_ms).map((d, i) => ({ ...d, seq: i + 1 }));
+}
 
 /**
  * 本地草稿（2026-11-22）：未提交的手工分解在刷新/切页/崩溃后不丢。
@@ -344,7 +348,8 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   /** 结构化描述草稿（跨要素保留：流水线重复动作只改差异字段）。
    *  字段集合由所选类型的「描述格式」动态决定（动作标准 MS：拿取=对象/于/位置/距离；目检=对象/属性…） */
   const [sdValues, setSdValues] = useState<Record<string, string>>({});
-  /** 动作行程（部位档：手指/手腕/小臂/大臂/肩，对应动作等级 1~5——视频场景的主力行程标识） */
+  /** 动作行程（部位档：手指/手腕/前臂/大臂/肩/躯干/眼/头/腿/脚——视频场景的主力行程标识；
+   *  手臂档对应 MTM 动作等级 1~5，目视类走眼/头/躯干，脚操作走腿/脚） */
   const [sdReach, setSdReach] = useState('');
   /**
    * 对象继承「请确认」标注（v3.26，IE 专家团三级预填策略第 2 级）：
@@ -383,6 +388,10 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   const [showBatch, setShowBatch] = useState(false);
   const [batchRating, setBatchRating] = useState(1.0);
   const [batchAllowance, setBatchAllowance] = useState(0.15);
+  /** 自定义档的输入文本（v3.64 用户反馈：档位固定→柔性不足）。用文本态承接逐字输入，
+   *  避免受控 number 在输入「1.」「0.」中途被夹紧/取整导致小数打不进去；失焦与「应用」时再夹到合法区间。 */
+  const [batchRatingText, setBatchRatingText] = useState('1.00');
+  const [batchAllowanceText, setBatchAllowanceText] = useState('15');
   /** 应用范围：unrated=只填没动过的（默认，零风险）；all=全部要素 */
   const [batchScope, setBatchScope] = useState<'unrated' | 'all'>('unrated');
   /** 西屋法四因子简化五档（代数和+1.0）；宽放四档（生理+疲劳+事务合并） */
@@ -399,6 +408,13 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
     { v: 0.20, label: '重', hint: '常搬 5~15kg，或站姿为主、间歇用力' },
     { v: 0.25, label: '特重', hint: '大件重搬、高温噪音环境，需本厂抽样复核' },
   ];
+  const clampRating = (v: number) => Math.min(1.25, Math.max(0.7, v));
+  const clampAllowance = (v: number) => Math.min(0.3, Math.max(0.05, v));
+  const pickRating = (v: number) => { setBatchRating(v); setBatchRatingText(v.toFixed(2)); };
+  const pickAllowance = (v: number) => { setBatchAllowance(v); setBatchAllowanceText(String(Math.round(v * 100))); };
+  /** 失焦/应用时把文本落到合法数值（空/非法回默认），保证提交校验不因输入中间态失败 */
+  const commitRatingText = () => { const n = Number(batchRatingText); pickRating(Number.isFinite(n) && n > 0 ? clampRating(n) : 1); };
+  const commitAllowanceText = () => { const n = Number(batchAllowanceText); pickAllowance(Number.isFinite(n) && n > 0 ? clampAllowance(n / 100) : 0.15); };
   const unratedCount = draft.filter((d) => !d.rated).length;
   const batchCount = draft.filter((d) => d.rated === 'batch').length;
   const handRatedCount = draft.filter((d) => d.rated === 'hand').length;
@@ -407,10 +423,14 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   const applyBatch = () => {
     const cover = batchScope === 'all' ? draft : draft.filter((d) => !d.rated);
     if (cover.length === 0) { setFlash('没有可应用的要素'); setTimeout(() => setFlash(null), 2000); return; }
+    // 文本输入可能停在中间态（如「1.」「2」）：应用前统一夹到合法区间，再写回面板
+    const rating = clampRating(Number(batchRatingText) || 1);
+    const allowance = clampAllowance((Number(batchAllowanceText) || 15) / 100);
+    pickRating(rating); pickAllowance(allowance);
     const covered = new Set(cover.map((d) => d.key));
     setSubmitted(false); // v3.45 草稿脏检查（P1-1）：批量评定改变 ST 口径，复位 submitted
-    setDraft((prev) => prev.map((d) => (covered.has(d.key) ? { ...d, rating: batchRating, allowance: batchAllowance, rated: 'batch' as const } : d)));
-    setFlash(`已批量评定 ${covered.size} 个要素：${batchRating.toFixed(2)} / ${Math.round(batchAllowance * 100)}%`);
+    setDraft((prev) => prev.map((d) => (covered.has(d.key) ? { ...d, rating, allowance, rated: 'batch' as const } : d)));
+    setFlash(`已批量评定 ${covered.size} 个要素：${rating.toFixed(2)} / ${Math.round(allowance * 100)}%`);
     setTimeout(() => setFlash(null), 2500);
     setShowBatch(false);
   };
@@ -673,8 +693,9 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   const motionStd = useMotionStandard();
   const sdEntry: MotionEntry | null = selectedElement ? (motionStd.byType[selectedElement.type] ?? null) : null;
   const sdFields = sdEntry?.format ? parseFormat(sdEntry.format, selectedElement?.type ?? '') : [];
-  /** 动作行程（部位档）：手伸向对象执行的动作才显示（转身/弯腰/走动/等待 等各有自己的行程单位，见字段 kind） */
-  const needsBodyReach = Boolean(selectedElement && BODY_REACH_TYPES.has(selectedElement.type));
+  /** 动作行程（部位档）：手伸向对象执行的动作显示手臂/上身档；目检/点检/检测显示眼/头/躯干档；
+   *  转身/弯腰/走动/等待 等各有自己的行程单位（角度/程度/步数），返回 null 不显示本行。 */
+  const reachOpts = selectedElement ? reachOptionsFor(selectedElement.type) : null;
   /** 类型 → 默认 VA：标准（DB 发布版）优先，内置 TYPE_DEFAULTS 兜底 */
   const typeDefaultOf = (type: string): string => motionStd.byType[type]?.va ?? TYPE_DEFAULTS[type] ?? 'RNVA';
 
@@ -1275,23 +1296,43 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
 
   /** 新增要素：dupFrom 传入时复制其属性（“同上”快速记录：流水线动作类型重复率高）。
       手别默认"双手"并跨要素延续（用户反馈：选过 L/R 后续要素沿用，省去逐要素点选）。
-      v3.26 连续生成（用户反馈）：编号=当前最大编号+1（删条后不再跳号/重号）；
-      时间起点=前一动作要素的止点（首条例外：落播放头）——各片段拼接为连续时间轴，不留空缺；
-      默认时长取交付参数区「新片段」设定（同上新增沿用来源要素时长）。 */
+      v3.26 连续生成（用户反馈）：时间起点=前一动作要素的止点（首条例外：落播放头）——各片段拼接为连续时间轴，不留空缺；
+      默认时长取交付参数区「新片段」设定（同上新增沿用来源要素时长）。
+      v3.65（用户反馈）：选中中间要素后点「新增」，新要素插到**该要素之后**，不再永远追加到视频末尾；
+      未选中 /「同上新增」仍追加到全部要素最大止点之后（保持原语义）。
+      插入时若后面紧跟要素，时长取「默认时长」与「到下一要素起点的间隙」较小值，避免重叠；
+      插入后按时间轴重排 seq——显示编号与时间顺序一致（提交时本就按时间重排）。 */
   const addElement = (dupFrom?: Draft): Draft => {
     const key = `new-${Date.now()}`;
     setSubmitted(false); // v3.45 草稿脏检查（P1-1）：新增要素复位 submitted（addSameAsLast/commitAndNext 同走此函数）
-    /* 连续起点=全部要素的最大止点（止点按 elEndMs=后端 V2 同公式计算，链接起点与落库止点逐毫秒一致；
-       不取"最后起始要素"的止点——拖拽交叉时后者会回退重叠） */
+    /* 追加起点=全部要素的最大止点（止点按 elEndMs=后端 V2 同公式计算，链接起点与落库止点逐毫秒一致；
+       不取"最后起始要素"的止点——拖拽交叉时后者会回退重叠）。插入起点=选中要素止点。 */
+    const sorted = [...draft].sort((a, b) => a.start_ms - b.start_ms);
+    const anchorIdx = !dupFrom && selected ? sorted.findIndex((d) => d.key === selected) : -1;
+    const anchor = anchorIdx >= 0 ? sorted[anchorIdx] : null;
     const prevEnd = draft.reduce((m, d) => Math.max(m, elEndMs(d)), 0);
-    const maxSeq = draft.reduce((m, d) => Math.max(m, d.seq), 0);
+    const startMs = anchor
+      ? Math.round(elEndMs(anchor))
+      : (draft.length > 0 ? Math.round(prevEnd) : Math.max(0, Math.round(playhead)));
+    let durS = durToGrid(dupFrom ? dupFrom.dur_s : newDurS);
+    let gapWarn = false;
+    let next: Draft | null = null;
+    if (anchor) {
+      next = sorted[anchorIdx + 1] ?? null;
+      if (next) {
+        // 间隙不足一帧（10ms 网格量化后可能归零）按 1 帧生成并提示，避免静默重叠
+        const gapS = durToGrid((Math.round(next.start_ms) - startMs) / 1000);
+        const minS = durToGrid(frameMs / 1000);
+        if (gapS < minS) { durS = minS; gapWarn = true; }
+        else if (gapS < durS) durS = gapS;
+      }
+    }
     const base: Draft = {
       key,
-      seq: maxSeq + 1,
-      /* 首条例外：落播放头（v3.29：取整到整数毫秒，与 start_ms 的 INT 列一致） */
-      start_ms: draft.length > 0 ? Math.round(prevEnd) : Math.max(0, Math.round(playhead)),
+      seq: 0, // 插入后按时间轴统一重排（见下方 setDraft）
+      start_ms: startMs,
       /* v3.29：默认时长量化到 10ms 网格（与 DECIMAL(10,2) 存储一致，杜绝链接/落库舍入错位） */
-      dur_s: durToGrid(dupFrom ? dupFrom.dur_s : newDurS),
+      dur_s: durS,
       hand: dupFrom ? dupFrom.hand : handMemo,
       type: '拿取',
       desc: '新要素',
@@ -1313,14 +1354,33 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
       });
     }
     setHandMemo(base.hand);
-    setDraft((prev) => [...prev, base]);
+    setDraft((prev) => {
+      // 普通新增且命中锚点：按时间序插到锚点之后；其余情况追加到末尾。
+      // 两种路径都按时间轴重排 seq，保证「#编号」= 时间顺序（删除留出的空号随之收敛）。
+      const ordered = [...prev].sort((a, b) => a.start_ms - b.start_ms);
+      if (anchor) {
+        const ai = ordered.findIndex((d) => d.key === anchor.key);
+        ordered.splice(ai >= 0 ? ai + 1 : ordered.length, 0, base);
+      } else {
+        ordered.push(base);
+      }
+      return reindexByStart(ordered);
+    });
     setSelected(key);
+    // 只在「插到中间」时提示；追加到末尾（含 完成·下一个 的连续新建）不抢「已记录 #N」的提示
+    const insertedMid = Boolean(anchor && next);
+    if (insertedMid && anchor) {
+      setFlash(gapWarn
+        ? `#${anchor.seq} 后面没有可用间隙，已生成 1 帧片段，请调整边界`
+        : `已在 #${anchor.seq} 后插入新要素`);
+      setTimeout(() => setFlash(null), gapWarn ? 3000 : 2000);
+    }
     /* v3.26 对象继承预填：不整体复制上一要素——结构化字段草稿按「上一动作→拿取（默认型）」判定重建
        （yes/conditional 才带对象值进来，其余字段一律空，由用户按新动作填）；真正的预填发生在
-       用户选定下一动作类型的 onChange（彼时才知道下一动作是什么）。 */
-    const prevEl = draft.length > 0
+       用户选定下一动作类型的 onChange（彼时才知道下一动作是什么）。插入时以锚点为上一动作。 */
+    const prevEl = anchor ?? (draft.length > 0
       ? draft.reduce((best, d) => (elEndMs(d) > elEndMs(best) ? d : best))
-      : null;
+      : null);
     const { vals, hint } = carrySdFor(prevEl, base.type);
     setSdValues(vals);
     setSdReach('');
@@ -1433,16 +1493,12 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
 
   const undoDelete = () => {
     if (!lastDeleted) return;
-    const { item, index } = lastDeleted;
+    const { item } = lastDeleted;
     setSubmitted(false); // v3.45 草稿脏检查（P1-1）：撤销删除同样是草稿变更
-    setDraft((prev) => {
-      const next = [...prev];
-      next.splice(Math.min(index, next.length), 0, item);
-      return next;
-    });
+    setDraft((prev) => reindexByStart([...prev, item]));
     setSelected(item.key);
     setLastDeleted(null);
-    setFlash(`已恢复 #${item.seq} ${item.desc}`);
+    setFlash(`已恢复「${item.desc}」`);
     setTimeout(() => setFlash(null), 2000);
   };
 
@@ -2150,7 +2206,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   const toolActions: ToolAction[] = [
     // —— 录入加速（高频）——
     { id: 'commit', group: '录入加速', label: '完成·下一个', hint: '记录本条并跳到下一要素', kbd: 'Ctrl+↵', run: commitAndNext, disabled: !canWrite },
-    { id: 'add', group: '录入加速', label: '新增要素', hint: '紧接前一要素止点生成连续片段（编号=最大+1）', kbd: 'N', run: () => addElement(), disabled: !canWrite },
+    { id: 'add', group: '录入加速', label: '新增要素', hint: '选中要素后插入到其后；未选中追加到末尾（时长按「新片段」设定）', kbd: 'N', run: () => addElement(), disabled: !canWrite },
     { id: 'add-same', group: '录入加速', label: '同上新增', hint: '沿用末条属性（重复动作免重设），片段仍拼接连续', kbd: 'D', run: addSameAsLast, disabled: !canWrite },
     { id: 'sd-clear', group: '录入加速', label: '清空结构化字段草稿', hint: '清掉跨要素延续的描述/行程草稿', run: () => { setSdValues({}); setSdReach(''); } },
     { id: 'hand-l', group: '录入加速', label: '手别：左手', hint: '选定后新要素沿用', kbd: '1', run: () => setHandOfSelected('L'), disabled: !selected || !canWrite },
@@ -2265,8 +2321,8 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                 ? '分解有未提交修改：先「提交分解」后再识别（AI 基于已提交要素）'
                 : !hasCommitted
                   ? '当前版本还没有已提交要素：先在监看区记录动作并提交分解'
-                  : 'AI 自动识别浪费：基于已提交的手工分解要素生成待审问题清单'}>
-              {wasteBusy ? '分析中…' : 'AI自动识别浪费'}
+                  : '基于已提交的手工分解要素识别浪费，生成待审问题清单（手工线；AI 线在「浪费识别」页）'}>
+              {wasteBusy ? '分析中…' : '识别浪费（手工线）'}
             </button>
           )}
           <label className="wb-top-btn" title="选择本地视频文件（MP4/MOV/WebM 浏览器直接播放；AVI/MKV/FLV 等自动转码）">
@@ -2485,7 +2541,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
               <div className="wb-rec">
                 {/* v3.23 重要性排序：＋新增（最高频入口 N）→ I/O 精修起止点 → 分割 → 同上（便利复制）；
                     此前 ＋新增 排第 4，窄舞台被 overflow 裁切到几乎不可见 */}
-                <button className="wb-rec-btn" onClick={() => addElement()} title="新增要素：紧接前一要素止点生成连续片段，编号=最大编号+1（快捷键 N）">＋<span className="lbl">新增</span></button>
+                <button className="wb-rec-btn" onClick={() => addElement()} title="新增要素：选中要素时插入到该要素之后，未选中时追加到末尾（快捷键 N）">＋<span className="lbl">新增</span></button>
                 {/* 起止点快捷标记（剪辑软件 I/O 惯例）：逐帧对准播放头后一键落边界，修正误标不拖块 */}
                 <button className="wb-rec-btn io" onClick={setStartAtPlayhead}
                   title="设起点：把选中要素的起点移到播放头（快捷键 I）——先用 ←→ 逐帧对准，再按 I 即修正；也可用 , / . 按帧拧">
@@ -2536,26 +2592,47 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                     <div className="wb-batch-tiers">
                       {RATING_TIERS.map((t) => (
                         <button key={t.v} type="button" className={`wb-tier${batchRating === t.v ? ' on' : ''}`}
-                          onClick={() => setBatchRating(t.v)} title={t.hint}>
+                          onClick={() => pickRating(t.v)} title={t.hint}>
                           <b>{t.v.toFixed(2)}</b><span>{t.label}</span>
                         </button>
                       ))}
                     </div>
                     <label className="wb-batch-custom" title="限 0.70~1.25；超 1.10 先查方法/治具是否不同——那是改善点，不是系数">
                       <span>自定义</span>
-                      <input type="number" step="0.01" min={0.7} max={1.25} value={batchRating}
-                        onChange={(e) => setBatchRating(Math.min(1.25, Math.max(0.7, Number(e.target.value) || 1)))} />
-                      {batchRating > 1.10 && <em className="warn">超 1.10 先查方法/治具是否不同</em>}
+                      <input type="number" step="0.01" min={0.7} max={1.25} value={batchRatingText}
+                        onChange={(e) => {
+                          setBatchRatingText(e.target.value);
+                          const n = Number(e.target.value);
+                          if (Number.isFinite(n) && n >= 0.7 && n <= 1.25) setBatchRating(n);
+                        }}
+                        onBlur={commitRatingText}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitRatingText(); } }} />
+                      {Number(batchRatingText) > 1.10 && <em className="warn">超 1.10 先查方法/治具是否不同</em>}
                     </label>
                     <div className="wb-batch-t">宽放率（生理+疲劳+事务合并四档）</div>
                     <div className="wb-batch-tiers">
                       {ALLOWANCE_TIERS.map((t) => (
                         <button key={t.v} type="button" className={`wb-tier${batchAllowance === t.v ? ' on' : ''}`}
-                          onClick={() => setBatchAllowance(t.v)} title={t.hint}>
+                          onClick={() => pickAllowance(t.v)} title={t.hint}>
                           <b>{Math.round(t.v * 100)}%</b><span>{t.label}</span>
                         </button>
                       ))}
                     </div>
+                    <label className="wb-batch-custom" title="限 5%~30%（与提交校验一致）；按现场实测宽放构成填写，超出常见档位请在备注说明依据">
+                      <span>自定义</span>
+                      <input type="number" step="1" min={5} max={30} value={batchAllowanceText}
+                        onChange={(e) => {
+                          setBatchAllowanceText(e.target.value);
+                          const n = Number(e.target.value);
+                          if (Number.isFinite(n) && n >= 5 && n <= 30) setBatchAllowance(n / 100);
+                        }}
+                        onBlur={commitAllowanceText}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitAllowanceText(); } }} />
+                      <span>%</span>
+                      {batchAllowanceText !== '' && Number(batchAllowanceText) > 30 && <em className="warn">超 30% 不可提交</em>}
+                      {batchAllowanceText !== '' && Number(batchAllowanceText) > 25 && Number(batchAllowanceText) <= 30 && <em className="warn">超 25% 请补宽放依据</em>}
+                      {batchAllowanceText !== '' && Number(batchAllowanceText) < 5 && <em className="warn">低于 5% 不可提交</em>}
+                    </label>
                     <div className="wb-batch-t">应用范围</div>
                     <div className="wb-batch-scope">
                       <label><input type="radio" checked={batchScope === 'unrated'} onChange={() => setBatchScope('unrated')} />
@@ -2696,18 +2773,28 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                     );
                   })}
                 </div>
-                {sdFields.length === 0 && (
-                  <div className="wb-sd-empty">该类型无标准描述格式，请直接在上方描述框手写</div>
-                )}
-                {/* 动作行程（部位档，v3.18）：视频场景不逐条量距离——部位即分档距离，
-                    对应动作等级 手指1×/手腕2×/小臂3×（黄金作业域）/大臂4×/肩5×；
+                {sdFields.length === 0 && (() => {
+                  // 一级分组入口若自身 format 为空（如尚未发布 MS1.5 的旧规则集），明确告诉用户
+                  // 选二级可自动生成字段，避免"选了检查却没有检查内容输入框"的困惑（v3.64 用户反馈）。
+                  const grp = motionStd.groups.find((g) => g.level1 === selectedElement.type);
+                  return grp && grp.subs.length > 0 ? (
+                    <div className="wb-sd-empty">
+                      该一级为分组入口，选二级可自动生成描述字段：{grp.subs.map((s) => s.level2).join(' / ')}；也可直接在上方描述框手写
+                    </div>
+                  ) : (
+                    <div className="wb-sd-empty">该类型无标准描述格式，请直接在上方描述框手写</div>
+                  );
+                })()}
+                {/* 动作行程（部位档，v3.18 / v3.65）：视频场景不逐条量距离——部位即分档距离，
+                    手臂档对应动作等级 手指1×/手腕2×/前臂3×（黄金作业域）/大臂4×/肩5×；
+                    追加 躯干（超肩伸展）、眼/头（目视检查）、腿/脚（脚踏/踢踩）；「小臂」旧称统一为「前臂」。
                     转身=角度、弯腰=程度、走动=步数（各走字段分段，不在此行） */}
-                {needsBodyReach && (
+                {reachOpts && (
                   <div className="wb-sd">
                     <label className="wb-field wb-sd-reach">
                       <span>动作行程<i className="wb-sd-prep-tag">部位</i></span>
                       <div className="wb-seg">
-                        {BODY_REACH.map((r) => (
+                        {reachOpts.map((r) => (
                           <button key={r} type="button" className={sdReach === r ? 'on' : ''} onClick={() => setSdReach(sdReach === r ? '' : r)}>{r}</button>
                         ))}
                       </div>
@@ -3334,7 +3421,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                 ))}
               </div>
               <div className="sc-therblig-note">
-                检查器中动素类型居结构化描述区首位（=描述句首动词，如「拿取 后横梁 于 料箱 150（手腕）」），选后按标准格式生成字段、自动写入描述；行程用部位档（手指/手腕/小臂/大臂/肩）标识——视频场景不逐条量距离，距离字段选填；转身记角度、弯腰记程度、走动记步数。
+                检查器中动素类型居结构化描述区首位（=描述句首动词，如「拿取 后横梁 于 料箱 150（手腕）」），选后按标准格式生成字段、自动写入描述；行程用部位档（手臂类：手指/手腕/前臂/大臂/肩/躯干；目视类：眼/头/躯干；脚操作：腿/脚）标识——视频场景不逐条量距离，距离字段选填；转身记角度、弯腰记程度、走动记步数。
                 插/压/推/拉 默认按工夹具记 RNVA，对象为装入产品的物料时请改判 VA（自动预填理由模板）。另有经典动素（旧数据兼容）与「其他」兜底。改判 VA 类别必须写理由——自动默认值不允许静默覆盖。各类型完整定义、描述格式、分界标准与行程标识方法详见「动作标准库」配置页与《动作标准与填写说明》文档。
               </div>
             </div>
@@ -3369,7 +3456,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                 <div className="sc-row"><span>快捷工具箱（全部操作一处唤起，输入即过滤）</span><span><kbd>Ctrl</kbd>+<kbd>K</kbd></span></div>
                 <div className="sc-row"><span>动作要素检索（聚焦类型框直接输入：转身/转/zs 直达；整句录入自动归类）</span><span className="muted mono">type</span></div>
                 <div className="sc-row"><span>播放头分割（自动定位要素）</span><kbd>S</kbd></div>
-                <div className="sc-row"><span>新增要素<br /><i className="sc-sub">紧接前一要素止点生成连续片段，编号=最大编号+1；时长按交付条「新片段」设定</i></span><kbd>N</kbd></div>
+                <div className="sc-row"><span>新增要素<br /><i className="sc-sub">选中要素时插入到该要素之后（后面有空隙则按间隙收短，避免重叠）；未选中追加到末尾；编号按时间轴重排；时长按交付条「新片段」设定</i></span><kbd>N</kbd></div>
                 <div className="sc-row"><span>同上新增<br /><i className="sc-sub">复制末要素类型/描述/工时参数，片段仍与止点拼接连续</i></span><kbd>D</kbd></div>
                 <div className="sc-row"><span>对象继承预填<br /><i className="sc-sub">组合动作（拿取→放置、插→按…）自动带入上一要素的对象，位置等参数重填；不确定的组合（检查后返工/设备段）带「请确认」标注，改写即确认；新循环自动从空白开始</i></span><span className="muted">自动</span></div>
                 <div className="sc-row"><span>选中要素手别 左/右/双<br /><i className="sc-sub">选定后新要素沿用此手别（默认双手），免逐条点选</i></span><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span></div>

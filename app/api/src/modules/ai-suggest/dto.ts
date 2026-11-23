@@ -27,8 +27,13 @@ export class AdoptAiSuggestionDto {
 }
 
 /** 否决 AI 建议（理由可选，仅留审计） */
+/** 否决原因码（阶段 0：结构化拒绝反馈的起点；R1–R8 与前端一致） */
+export const REJECT_REASON_CODES = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8'] as const;
+
 export class RejectAiSuggestionDto {
   @IsOptional() @IsString() @Length(0, 256) reason?: string;
+  /** R1 证据不足 / R2 措施不可行 / R3 成本过高 / R4 影响品质 / R5 违反工艺安全 / R6 已有措施 / R7 收益不实 / R8 其他 */
+  @IsOptional() @IsIn(REJECT_REASON_CODES as unknown as string[]) reason_code?: string;
 }
 
 /** 自定义字典创建（规格书 §4：code 正则/name≤16/waste_type 必填 va_class/measure_type 必填 method_hint+action_class） */

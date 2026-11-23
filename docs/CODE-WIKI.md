@@ -82,7 +82,7 @@ IE_Improvement_Platform/
 │   ├── config/rules/            # JSON 规则集（DB/文件双源中的"文件源"）
 │   │   ├── va_rules.json        # VA 归类规则（RV 版本号）
 │   │   ├── waste_triggers.json  # 浪费触发器（类型过滤器 DSL）
-│   │   ├── motion_standard.json # 公司动作标准库（MS 版本号，MS1.4 = 14 一级 + 14 二级 = 28 类）
+│   │   ├── motion_standard.json # 公司动作标准库（MS 版本号，MS1.6 = 14 一级 + 14 二级 = 28 类）
 │   │   ├── ecrsa_map.json       # ECRS 手法映射
 │   │   └── redline_keywords.json# 采纳红线关键词
 │   └── config/benefit_params.json # 收益参数（费率/日产量/落地率）
@@ -275,7 +275,7 @@ POST /rules/:code/publish      ← 发布即全效（content.rv 即版本号）�
 |---|---|---|
 | `va_rules` | RV3.x | VA 归类规则 **44 条**（19 经典动素 ∪ 25 公司类型），判定表默认值 |
 | `waste_triggers` | WT 系列 | 浪费触发器（类型过滤器 DSL，dsl.ts 解析；如 WT13「拿取 same_desc_count>=2」→重复取放） |
-| `motion_standard` | MS1.x | 公司动作标准库（MS1.4 = 14 一级 + 14 二级 = 28 类）：定义/起止点/描述格式/影响因素/判定说明；`va_rules` RV3.64 为 44 类 |
+| `motion_standard` | MS1.x | 公司动作标准库（MS1.6 = 14 一级 + 14 二级 = 28 类）：定义/起止点/描述格式/影响因素/判定说明；`va_rules` RV3.64 为 44 类 |
 | `ecrsa_map` | — | ECRS 手法映射（浪费类别 → 取消/合并/重排/简化） |
 | `redline_keywords` | — | 建议采纳红线关键词（未确认 → 422 REDLINE_CONFIRM_REQUIRED） |
 
@@ -425,7 +425,7 @@ POST /rules/:code/publish      ← 发布即全效（content.rv 即版本号）�
 
 改代码前必须遵守（违反 = 返工）：
 
-1. **动素三分法（v3.14+）**：19 类 = 有效 9（VA）+ 辅助 5（RNVA）+ 无效 4（NVA）+ 其他兜底；v3.16 起并入公司标准；**MS1.4 实为 28 类**（41 为 MS1.0 历史值），`va_rules` RV3.64 为 44 类。AI 分解**分类不查词表**（6 类硬编码），但描述模板与 SOP 动词查 `motion_standard`（详见 `business_rules.md` B1）。
+1. **动素三分法（v3.14+）**：19 类 = 有效 9（VA）+ 辅助 5（RNVA）+ 无效 4（NVA）+ 其他兜底；v3.16 起并入公司标准；**MS1.6 实为 28 类**（MS1.4 为上一版；41 为 MS1.0 历史值），`va_rules` RV3.64 为 44 类。AI 分解**分类不查词表**（6 类硬编码），但描述模板与 SOP 动词查 `motion_standard`（详见 `business_rules.md` B1）。
 2. **RNVA（不是 NNVA）**：必要非增值只能压缩不能直接删，全链路符号统一。
 3. **VA 归类单一来源** = `va_rules` 规则表（可配置 + rv 版本号）。改判必须写结构化标记 `[VA改判|原:x|新:y|理由:z|人:w|日期]`，无理由后端 V1 拦截；类型变更时前端剥离旧标记。
 4. **收益公式固定**：`节省秒数 × 日产量 × 365 × 费率 ÷ 3600 × 落地率`；费率/日产量**无默认值**，未配置即阻断（不猜）。

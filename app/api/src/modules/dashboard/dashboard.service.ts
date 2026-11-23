@@ -433,6 +433,9 @@ export class DashboardService {
         return {
           imp_id: i.imp_id,
           station_id: i.station_id,
+          task_id: i.task_id ?? null,
+          /** 建议来源（rule / ai / manual）；跨公司模式不反查元素来源线 */
+          source: i.source ?? null,
           element_ids: i.element_ids,
           waste_type: i.waste_type,
           method: i.method,

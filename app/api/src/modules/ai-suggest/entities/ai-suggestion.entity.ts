@@ -40,5 +40,7 @@ export class AiSuggestion {
   @Column({ type: 'text', nullable: true }) raw_json: string | null;
   @Column({ length: 32, nullable: true }) reviewed_by: string | null;
   @Column({ type: 'datetime', nullable: true }) reviewed_at: Date | null;
+  /** v3.66 P3：否决原因（自优化闭环用） */
+  @Column({ length: 256, nullable: true }) reject_reason: string | null;
   @CreateDateColumn() created_at: Date;
 }

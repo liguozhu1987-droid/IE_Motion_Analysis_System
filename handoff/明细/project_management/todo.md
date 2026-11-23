@@ -165,7 +165,7 @@
 
 ### 本轮口径纠正（同步各处）
 
-1. `motion_standard` MS1.4 = 14 一级 + 14 二级 = **28 类**（41 为 MS1.0 历史值）；`va_rules` RV3.64 = **44 类**。
+1. `motion_standard` MS1.6 = 14 一级 + 14 二级 = **28 类**（MS1.6 补齐 移动/检查/机器自动 描述格式；41 为 MS1.0 历史值）；`va_rules` RV3.64 = **44 类**。
 2. **分类不查词表**（motion 6 类硬编码、hand 恒「其他」）；**描述模板与 SOP 动词查 `motion_standard`**。
 3. conf：仅 hand 用 `median(confs)`；默认 motion 是 0.9 起规则扣分。
 4. `AiBatchConfirm` 未接入、AI 页未走分片上传、`confAdj` 为死字段。

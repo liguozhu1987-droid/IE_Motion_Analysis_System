@@ -10,6 +10,7 @@ import PieChart from '../components/PieChart';
 import YamazumiChart from '../components/YamazumiChart';
 import HandsChart from '../components/HandsChart';
 import { METHOD_LABEL, VA_CLASS_LABEL, VA_COLOR, today } from '../constants';
+import { getCurrentTaskId } from '../taskContext';
 
 const candidateKey = (c: Candidate) => `${c.mapping_id ?? 'manual'}|${c.element_ids.join(',')}`;
 
@@ -32,6 +33,12 @@ export default function AnalysisPage({ stationId }: { stationId: string }) {
   const [vaEdit, setVaEdit] = useState<{ element_id: string; value: string; reason: string; desc: string } | null>(null);
   const [report, setReport] = useState<SuggestionReport | null>(null);
   const [diagnose, setDiagnose] = useState<{ report: string; generated_by: string; model: string } | null>(null);
+  /** v3.67：分析来源线（'' = 按当前版本自动选择；AI/手工分别分析，不混合） */
+  const [source, setSource] = useState<'manual' | 'ai_assisted' | ''>('');
+  const [versionLine, setVersionLine] = useState<'manual' | 'ai' | ''>('');
+
+  const activeSource: 'manual' | 'ai_assisted' | '' = source
+    || (versionLine === 'ai' ? 'ai_assisted' : versionLine === 'manual' ? 'manual' : '');
 
   const canGenerate = can('suggestion:generate');
   const canAdopt = can('suggestion:adopt');
@@ -41,22 +48,37 @@ export default function AnalysisPage({ stationId }: { stationId: string }) {
   const load = useCallback(async () => {
     const s = await api.station(stationId);
     setStation(s);
+    const versions = await api.stationVersions(stationId, getCurrentTaskId() || undefined).catch(() => []);
+    const current = versions.find((v) => v.is_current);
+    setVersionLine(current?.line ?? '');
+    const preferred: 'manual' | 'ai_assisted' | '' =
+      current?.line === 'ai' ? 'ai_assisted' : current?.line === 'manual' ? 'manual' : '';
+    const effective = source || preferred;
+    const taskId = getCurrentTaskId() || undefined;
     const [analysisRes, lineRes, impRes] = await Promise.all([
-      api.analysis(stationId),
-      api.lineAnalysis(s.line_id),
+      api.analysis(stationId, taskId, effective || undefined),
+      api.lineAnalysis(s.line_id, taskId, effective || undefined).catch(() => null),
       api.improvements({ station_id: stationId }),
     ]);
     setAnalysis(analysisRes);
     setLine(lineRes);
     setImprovements(impRes.improvements);
-  }, [stationId]);
+  }, [stationId, source]);
 
   useEffect(() => { load().catch((err) => setError(err.message)); }, [load]);
+
+  /* 版本切换后，若当前选择的来源线在该版本中不存在，回落到自动选择 */
+  useEffect(() => {
+    const counts = analysis?.source_counts;
+    if (!counts) return;
+    if (source === 'manual' && counts.manual === 0) setSource('');
+    if (source === 'ai_assisted' && counts.ai_assisted === 0) setSource('');
+  }, [analysis, source]);
 
   const generate = async () => {
     setBusy(true); setError(null); setAiBusy('suggest');
     try {
-      const res = await api.suggest(stationId);
+      const res = await api.suggest(stationId, activeSource || undefined);
       setSuggest(res);
       const initial: Record<string, boolean> = {};
       res.candidates.forEach((c, index) => { initial[candidateKey(c)] = index === 0; });
@@ -101,7 +123,7 @@ export default function AnalysisPage({ stationId }: { stationId: string }) {
   };
 
   const changeStatus = async (imp: Improvement) => {
-    const next = imp.status === '待实施' ? '已完成' : imp.status === '已完成' ? '已验证' : null;
+    const next = imp.status === '待实施' ? '进行中' : imp.status === '进行中' ? '已完成' : imp.status === '已完成' ? '已验证' : null;
     if (!next) return;
     setBusy(true); setError(null);
     try {
@@ -143,7 +165,7 @@ export default function AnalysisPage({ stationId }: { stationId: string }) {
   const runDiagnose = async () => {
     setBusy(true); setError(null); setAiBusy('diagnose');
     try {
-      setDiagnose(await api.diagnose(stationId));
+      setDiagnose(await api.diagnose(stationId, getCurrentTaskId() || undefined, activeSource || undefined));
       setMsg('AI 诊断完成：报告见下方「AI 诊断」卡片（待审状态）');
     } catch (err) {
       setMsg(null);
@@ -167,18 +189,20 @@ export default function AnalysisPage({ stationId }: { stationId: string }) {
   if (!analysis || !station) return <div className="card empty">{error ?? '加载中…'}</div>;
 
   const m = analysis.metrics;
+  const counts = analysis.source_counts ?? { manual: 0, ai_assisted: 0 };
   const light = line ? (line.balance_rate >= 85 ? 'VAR' : line.balance_rate >= 70 ? 'WARN' : 'BAD') : '';
 
   return (
     <div>
       <div className="page-head">
         <h1>{station.name} · 分析结果</h1>
-        <span className="sub mono">{station.station_id} · v{station.version} · {line?.line_id}</span>
+        <span className="sub mono">{station.station_id} · v{station.version} · {line?.line_id} · {activeSource === 'ai_assisted' ? 'AI 自动分解' : activeSource === 'manual' ? '手工分解' : '混合来源（只读）'}</span>
         <div className="spacer" />
-        <a className="btn" href={`#/workbench/${station.station_id}`}>去分解</a>
-        <a className="btn" href={`#/compare/${station.station_id}`}>改善对比</a>
-        {canGenerate && <button className="btn primary" disabled={busy} onClick={generate}>{aiBusy === 'suggest' ? '生成中…' : '生成改善建议'}</button>}
-        {can('analysis:read') && <button className="btn" disabled={busy} onClick={runDiagnose}>{aiBusy === 'diagnose' ? '诊断中…' : 'AI 诊断'}</button>}
+        {canGenerate && <button className="btn" disabled={busy} onClick={generate}
+          title="基于规则集（ECRSA 映射）生成操作级候选；不调用 LLM、不落库，采纳后才写入改善任务">
+          {aiBusy === 'suggest' ? '生成中…' : '生成规则候选'}
+        </button>}
+        {can('analysis:read') && <button className="btn primary" disabled={busy} onClick={runDiagnose}>{aiBusy === 'diagnose' ? '诊断中…' : 'AI 诊断'}</button>}
       </div>
 
       {error && <div className="error-banner">{error}</div>}
@@ -187,6 +211,31 @@ export default function AnalysisPage({ stationId }: { stationId: string }) {
       {/* v3.61：AI 调用全局横幅（统一反馈件；结果落在下方对应卡片） */}
       <AiCallBanner active={aiBusy === 'suggest'} label="正在生成候选改善建议" phase="规则引擎计算中" />
       <AiCallBanner active={aiBusy === 'diagnose'} label="正在调用 AI 诊断" phase="LLM 生成中，通常需要数十秒" />
+
+      {/* v3.67：分析来源线——AI 与手工分别分析，不混合 */}
+      {(counts.manual > 0 || counts.ai_assisted > 0) && (
+        <div className="filter-bar no-print">
+          <div className="filter-item">
+            <span>分析来源线</span>
+            <button type="button"
+              className={`btn sm${activeSource === 'manual' ? ' primary' : ''}`}
+              disabled={counts.manual === 0}
+              onClick={() => setSource('manual')}>
+              手工分解（{counts.manual}）
+            </button>
+            <button type="button"
+              className={`btn sm${activeSource === 'ai_assisted' ? ' primary' : ''}`}
+              disabled={counts.ai_assisted === 0}
+              onClick={() => setSource('ai_assisted')}>
+              AI 自动分解（{counts.ai_assisted}）
+            </button>
+          </div>
+          <span className="muted" style={{ fontSize: 12 }}>两条线分别分析，不混合；跨线结果不可比</span>
+        </div>
+      )}
+      {analysis.element_source === 'all' && counts.manual > 0 && counts.ai_assisted > 0 && (
+        <div className="note">当前版本同时包含 AI 与手工要素（legacy 混合版本）；请选择单一来源线查看。</div>
+      )}
 
       <div className="metrics" style={{ marginBottom: 14 }}>
         <div className="metric"><div className={`v ${m.ct > m.tt ? 'red' : 'teal'}`}>{m.ct}s</div><div className="l">工位工时 CT（Σ生效非异常ST）</div></div>
@@ -369,15 +418,21 @@ export default function AnalysisPage({ stationId }: { stationId: string }) {
 
       <div className="card">
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <h3 style={{ margin: 0 }}>改善建议（本工位 {improvements.length} 条）</h3>
-          <span className="muted">建议书可打印留档；状态流转：待实施→已完成→已验证</span>
+          <h3 style={{ margin: 0 }}>改善任务（本工位 {improvements.length} 条）</h3>
+          <span className="muted">建议书可打印留档；状态流转：待实施→进行中→已完成→已验证</span>
         </div>
         <table>
-          <thead><tr><th>浪费</th><th>方法</th><th>措施</th><th className="num">预估节省s</th><th className="num">优先级</th><th>状态</th><th>操作</th></tr></thead>
+          <thead><tr><th>浪费</th><th>来源</th><th>方法</th><th>措施</th><th className="num">预估节省s</th><th className="num">优先级</th><th>状态</th><th>操作</th></tr></thead>
           <tbody>
             {improvements.map((imp) => (
               <tr key={imp.imp_id}>
                 <td>{imp.waste_type}</td>
+                <td>
+                  <span className={`tag ${imp.element_source === 'ai_assisted' ? 't-blue' : imp.element_source === 'manual' ? 't-amber' : 't-gray'}`}>
+                    {imp.element_source === 'ai_assisted' ? 'AI 分解' : imp.element_source === 'manual' ? '手工分解' : imp.element_source === 'mixed' ? '混合' : '—'}
+                  </span>
+                  {imp.bol_version != null && <span className="muted mono" style={{ marginLeft: 4, fontSize: 11 }}>v{imp.bol_version}</span>}
+                </td>
                 <td>{METHOD_LABEL[imp.method] ?? imp.method}</td>
                 <td>{imp.measure}</td>
                 <td className="num">{imp.est_save_s}</td>
@@ -388,7 +443,7 @@ export default function AnalysisPage({ stationId }: { stationId: string }) {
                     <button className="btn sm ghost" disabled={busy} onClick={() => void openReport(imp)}>建议书</button>
                     {canStatus && imp.status !== '已验证' && (
                       <button className="btn sm" disabled={busy} onClick={() => changeStatus(imp)}>
-                        {imp.status === '待实施' ? '标记已完成' : '标记已验证'}
+                        {imp.status === '待实施' ? '开始实施' : imp.status === '进行中' ? '标记已完成' : '标记已验证'}
                       </button>
                     )}
                     {imp.status === '已验证' && <span className="muted">{imp.before_ct}s → {imp.after_ct}s</span>}
@@ -396,7 +451,7 @@ export default function AnalysisPage({ stationId }: { stationId: string }) {
                 </td>
               </tr>
             ))}
-            {improvements.length === 0 && <tr><td colSpan={7} className="empty">暂无建议，点右上角“生成改善建议”。</td></tr>}
+            {improvements.length === 0 && <tr><td colSpan={8} className="empty">暂无改善任务：规则候选点右上角「生成规则候选」；AI 建议见「AI 建议」页。</td></tr>}
           </tbody>
         </table>
       </div>

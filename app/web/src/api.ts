@@ -17,6 +17,10 @@ const taskQuery = (path: string, taskId?: string | null): string =>
 const taskBody = <T extends object>(body: T, taskId?: string | null): T =>
   taskId ? { ...body, task_id: taskId } : body;
 
+/** 来源线参数：与分析/对比端点共用 */
+const withSource = (path: string, source?: 'manual' | 'ai_assisted'): string =>
+  source ? `${path}${path.includes('?') ? '&' : '?'}source=${encodeURIComponent(source)}` : path;
+
 /* ---------------- token 存取 ---------------- */
 
 let accessToken: string | null = null;
@@ -378,6 +382,9 @@ export interface Hands { L: HandBlock[]; R: HandBlock[]; B: HandBlock[]; cycle_m
 export interface StationAnalysis {
   station: Station; elements: Element[]; metrics: Metrics; wastes: Waste[];
   pending: Pending[]; outliers: Outlier[]; hands: Hands;
+  /** v3.67 来源线：all=未过滤（legacy 只读）/ manual / ai_assisted */
+  element_source?: 'all' | 'manual' | 'ai_assisted';
+  source_counts?: { manual: number; ai_assisted: number };
   /**
    * v3.48 动作分析明细（与「Motion analysis_改善建议.xlsx · 动作分析-VA」同构）：
    * 每个生效要素一行——分类/浪费类型/改善方向全部规则口径（waste_triggers + ecrsa_map），
@@ -404,6 +411,7 @@ export interface LineAnalysis {
   line_id: string; tt_s: number; station_count: number; balance_rate: number; rows: LineRow[];
   bottleneck: { station_id: string; name: string; ct_s: number; tt_s: number; gap_s: number; va_pct: number; waste_count: number }[];
   totals: { ct_s: number; va_s: number; rnva_s: number; nva_s: number; outlier_count: number };
+  element_source?: 'all' | 'manual' | 'ai_assisted';
   rule_versions: { va_rules: number; waste_triggers: number };
   /** v3.3 产线元数据（t_line + t_tenant enrich；无记录时降级为 lineId/null） */
   line_name?: string; process_type?: string | null; product_type?: string | null;
@@ -477,7 +485,14 @@ export interface SuggestResult {
 }
 export interface Improvement {
   imp_id: string; station_id: string; task_id?: string | null; element_ids: string; waste_type: string; method: string; measure: string;
+  /** 建议来源：rule / ai / manual */
+  source?: string | null;
+  /** 涉及要素的来源线（按 element_ids 反查；混合/缺失为 null） */
+  element_source?: 'manual' | 'ai_assisted' | 'mixed' | null;
+  bol_version?: number | null;
   est_save_s: number; priority: number; status: string; owner: string | null; due: string | null;
+  /** v3.66 P2：闭环管理新增列 */
+  actual_measure?: string | null; actual_completed_at?: string | null; status_changed_at?: string | null; overdue_notified_at?: string | null;
   before_ct: number | null; after_ct: number | null; created_at: string;
   station_name?: string; line_id?: string;
   /** v3.3 维度字段（/improvements 与 /dashboard/improvements 统一返回） */
@@ -491,7 +506,11 @@ export interface AdoptPayload {
 }
 export interface SuggestionReport {
   header: { station_id: string; station_name: string; line_id: string; version: number; imp_id: string; generated_at: string; generated_by: string };
-  problem: { waste_type: string; measure: string; involved: { seq: number; type: string; desc: string; std_time: number; va_class: string }[] };
+  problem: {
+    waste_type: string; measure: string;
+    involved: { seq: number; type: string; desc: string; std_time: number; va_class: string; source?: string; bol_version?: number }[];
+    provenance?: { source?: string | null; element_source?: string | null; bol_version?: number | null; task_id?: string | null };
+  };
   benefit: { est_save_s: number; annual_yuan: number | null; before_ct: number | null; after_ct: number | null; params_configured: boolean; formula: string };
   steps: string[]; status: string; signatures: string[];
 }
@@ -506,8 +525,14 @@ export interface CompareBenefit {
 }
 export interface CompareResult {
   station: { station_id: string; name: string; line_id: string; tt_s: number };
-  prev: { version: number; ct: number; metrics: Metrics; element_count: number };
-  curr: { version: number; ct: number; metrics: Metrics; element_count: number };
+  /** v3.67：本次对比所属来源线；AI/手工不混合 */
+  source_line?: 'manual' | 'ai' | 'mixed';
+  available_lines?: {
+    line: 'manual' | 'ai'; source: 'manual' | 'ai_assisted'; label: string;
+    versions: number[]; count: number; latest_version: number | null;
+  }[];
+  prev: { version: number; ct: number; metrics: Metrics; element_count: number; line?: 'manual' | 'ai' | 'mixed' };
+  curr: { version: number; ct: number; metrics: Metrics; element_count: number; line?: 'manual' | 'ai' | 'mixed' };
   delta_ct: number; pairing_rate: number; pairs: PairRow[]; added: Element[]; removed: Element[];
   benefit: CompareBenefit | null; params_configured: boolean; warnings: string[];
 }
@@ -751,14 +776,14 @@ export const api = {
       `/stations/${encodeURIComponent(stationId)}/elements/${encodeURIComponent(elementId)}/va-confirm`, payload),
 
   /* 分析 */
-  analysis: (id: string, taskId?: string | null) =>
-    get<StationAnalysis>(taskQuery(`/stations/${encodeURIComponent(id)}/analysis`, taskId)),
-  lineAnalysis: (lineId: string, taskId?: string | null) =>
-    get<LineAnalysis>(taskQuery(`/lines/${encodeURIComponent(lineId)}/analysis`, taskId)),
+  analysis: (id: string, taskId?: string | null, source?: 'manual' | 'ai_assisted') =>
+    get<StationAnalysis>(withSource(taskQuery(`/stations/${encodeURIComponent(id)}/analysis`, taskId), source)),
+  lineAnalysis: (lineId: string, taskId?: string | null, source?: 'manual' | 'ai_assisted') =>
+    get<LineAnalysis>(withSource(taskQuery(`/lines/${encodeURIComponent(lineId)}/analysis`, taskId), source)),
   /** v3.53 AI 诊断：基于分析结果生成根因诊断 + 改善方向（纯文案，待审态） */
-  diagnose: (id: string) =>
+  diagnose: (id: string, taskId?: string | null, source?: 'manual' | 'ai_assisted') =>
     post<{ report: string; status: string; generated_by: string; model: string }>(
-      `/stations/${encodeURIComponent(id)}/analysis/diagnose`),
+      withSource(taskQuery(`/stations/${encodeURIComponent(id)}/analysis/diagnose`, taskId), source)),
   /** 导航树数据源：本租户全部产线的名称 + 一条状态（station:read） */
   linesSummary: () => get<LinesSummary>('/lines/summary'),
 
@@ -798,8 +823,8 @@ export const api = {
     post<Station & { program_number: string | null; cmc_line_id: number | null }>('/stations/from-cmc', taskBody(payload, taskId)),
 
   /* 建议 */
-  suggest: (id: string) => post<SuggestResult>(
-    taskQuery(`/stations/${encodeURIComponent(id)}/suggestions/generate`, getCurrentTaskId())),
+  suggest: (id: string, source?: 'manual' | 'ai_assisted') => post<SuggestResult>(
+    withSource(taskQuery(`/stations/${encodeURIComponent(id)}/suggestions/generate`, getCurrentTaskId()), source)),
   adopt: (id: string, payload: AdoptPayload) =>
     post<{ station_id: string; created: number; imp_ids: string[] }>(
       taskQuery(`/stations/${encodeURIComponent(id)}/suggestions/adopt`, getCurrentTaskId()), payload),
@@ -813,6 +838,10 @@ export const api = {
   updateImprovementStatus: (impId: string, status: string) =>
     patch<Improvement>(
       taskQuery(`/improvements/${encodeURIComponent(impId)}/status`, getCurrentTaskId()), { status }),
+  /** v3.66 P2：编辑改善任务（责任人/截止/实际措施/状态） */
+  updateImprovement: (impId: string, fields: { owner?: string; due?: string; actual_measure?: string; status?: string }) =>
+    patch<Improvement>(
+      taskQuery(`/improvements/${encodeURIComponent(impId)}`, getCurrentTaskId()), fields),
   improvementReport: (impId: string) => get<SuggestionReport>(`/improvements/${encodeURIComponent(impId)}/report`),
 
   /* AI 改善建议模块（规格书 §4；权限 suggestion:generate / ai:governance / user:write） */
@@ -846,9 +875,14 @@ export const api = {
     adopt: (suggestionId: string, confirmations?: { quality?: { name: string; date?: string }; ergonomics?: { name: string; date?: string } }) =>
       post<AiAdoptResult>(taskQuery(`/ai-suggestions/${encodeURIComponent(suggestionId)}/adopt`, getCurrentTaskId()),
         confirmations ? { confirmations } : undefined),
-    /** 否决（可选 reason ≤256 字） */
-    reject: (suggestionId: string, reason?: string) =>
-      post<{ suggestion_id: string; status: string }>(`/ai-suggestions/${encodeURIComponent(suggestionId)}/reject`, reason ? { reason } : undefined),
+    /** 否决（可选 reason ≤256 字；reasonCode R1–R8 结构化原因） */
+    reject: (suggestionId: string, reason?: string, reasonCode?: string) =>
+      post<{ suggestion_id: string; status: string }>(
+        `/ai-suggestions/${encodeURIComponent(suggestionId)}/reject`,
+        {
+          ...(reason ? { reason } : {}),
+          ...(reasonCode ? { reason_code: reasonCode } : {}),
+        }),
     /** 自定义字典 CRUD（ai:governance） */
     dict: {
       list: () => get<{ items: AiCustomDictVo[] }>('/ai-custom-dict'),
@@ -977,18 +1011,25 @@ export const api = {
   },
 
   /* 对比 */
-  compare: (id: string, v1?: number, v2?: number, taskId?: string | null) => {
+  compare: (id: string, v1?: number, v2?: number, taskId?: string | null, source?: 'manual' | 'ai_assisted') => {
     const qs = new URLSearchParams();
     if (v1) qs.set('v1', String(v1));
     if (v2) qs.set('v2', String(v2));
     if (taskId) qs.set('task_id', taskId);
+    if (source) qs.set('source', source);
     const suffix = qs.toString() ? `?${qs}` : '';
     return get<CompareResult>(`/stations/${encodeURIComponent(id)}/compare${suffix}`);
   },
-  /** v3.53 AI 差异解读：前后版本对比的自然语言解读 + 倒退预警（纯文案，待审态） */
-  interpret: (id: string, v1?: number, v2?: number) =>
+  /** v3.53 AI 差异解读：前后版本对比的自然语言解读 + 倒退预警（纯文案，待审态）。
+   *  v3.67：与 compare 保持同一任务/来源线/版本，避免解读对象与展示对象不一致。 */
+  interpret: (id: string, v1?: number, v2?: number, taskId?: string | null, source?: 'manual' | 'ai_assisted') =>
     post<{ interpretation: string; regressionWarnings: string[]; status: string; generated_by: string; model: string }>(
-      `/stations/${encodeURIComponent(id)}/compare/interpret`, { v1, v2 }),
+      `/stations/${encodeURIComponent(id)}/compare/interpret`,
+      {
+        v1, v2,
+        ...(taskId ? { task_id: taskId } : {}),
+        ...(source ? { source } : {}),
+      }),
   /** v3.53 视频场景切分：基于已上传视频文件名返回候选片段起止点（零 LLM） */
   sceneDetect: (name: string) =>
     post<{ scenes: { start_ms: number; end_ms: number; score: number }[]; durationS: number | null }>(

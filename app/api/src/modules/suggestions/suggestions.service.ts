@@ -6,18 +6,20 @@ import { Improvement } from '../../entities/improvement.entity';
 import { RulesService } from '../../core/rules/rules.service';
 import { StationRepository, LineRepository } from '../stations/stations.service';
 import { ImprovementRepository } from '../compare/improvement.repository';
-import { AnalysisService } from '../analysis/analysis.service';
+import { AnalysisService, AnalysisSource } from '../analysis/analysis.service';
 import { getLineParams, estimateBenefit } from '../compare/engine';
 import { buildCandidates, buildRedlineMarkers, checkRedlines } from './engine';
-import { AdoptCandidatesDto, ImprovementQuery } from './dto';
+import { AdoptCandidatesDto, ImprovementQuery, UpdateImprovementDto } from './dto';
 import { round2, today } from '../../core/shared/util';
 import { StationsService } from '../stations/stations.service';
 import { DataScope } from '../../auth/auth-user.interface';
 import { TaskScopeService } from '../../core/task-scope/task-scope.service';
+import { currentTenantId } from '../../tenant/tenant-context';
 
-/** 三态流转合法迁移表（MVP 口径：待实施→已完成→已验证） */
+/** 四态流转合法迁移表（v3.66 P2：新增「进行中」——待实施→进行中→已完成→已验证） */
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  待实施: ['已完成'],
+  待实施: ['进行中', '已完成'],
+  进行中: ['已完成'],
   已完成: ['已验证'],
   已验证: [],
 };
@@ -56,11 +58,11 @@ export class SuggestionsService {
   }
 
   /** 生成候选建议（不落库；日产量未配置时优先级按频次=1 计算并提示） */
-  async generateCandidates(stationId: string, taskId?: string | null) {
+  async generateCandidates(stationId: string, taskId?: string | null, source?: AnalysisSource) {
     const station = await this.stationRepo.findOne({ station_id: stationId });
     if (!station) throw new NotFoundException(`工位 ${stationId} 不存在`);
 
-    const analysis = await this.analysis.analyzeStationAtVersion(station, station.version, taskId);
+    const analysis = await this.analysis.analyzeStationAtVersion(station, station.version, taskId, source);
     const ecrsa = this.rules.getActive('ecrsa_map');
     const params = getLineParams(this.rules.getActive('benefit_params').json, station.line_id);
     const candidates = buildCandidates(analysis, ecrsa.json, params?.daily_output ?? null);
@@ -188,22 +190,70 @@ export class SuggestionsService {
       ? ((await this.ds.getRepository('t_tenant').find({ where: { tenant_id: In(tenantIds) } })) as any[])
       : [];
     const tenants = new Map(tenantRows.map((t) => [t.tenant_id as string, t]));
-    return { improvements: rows.map((r) => this.toVo(r, dims, tenants)) };
+    const elementMeta = await this.loadElementMeta(rows);
+    return { improvements: rows.map((r) => this.toVo(r, dims, tenants, elementMeta)) };
+  }
+
+  /** 改善任务 → 涉及要素的来源线/版本（不新增列：按 element_ids 反查 t_element） */
+  private async loadElementMeta(rows: Improvement[]): Promise<Map<string, { source: string; bol_version: number }>> {
+    const ids = [...new Set(rows.flatMap((r) => String(r.element_ids ?? '')
+      .split(',').map((s) => s.trim()).filter(Boolean)))];
+    if (ids.length === 0) return new Map();
+    const where: Record<string, unknown> = { element_id: In(ids) };
+    const tenantId = currentTenantId();
+    if (tenantId) where.tenant_id = tenantId;
+    const elements = await this.ds.getRepository(Element).find({ where } as any);
+    return new Map(elements.map((e) => [
+      e.element_id,
+      { source: String(e.source ?? 'manual'), bol_version: Number(e.bol_version) },
+    ]));
+  }
+
+  /** 单条任务的来源线/版本：混合或缺失时返回 null，前端显示“—” */
+  private elementMetaOf(
+    elementIds: string,
+    meta: Map<string, { source: string; bol_version: number }>,
+  ): { element_source: string | null; bol_version: number | null } {
+    const ids = String(elementIds ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const sources = new Set<string>();
+    const versions = new Set<number>();
+    for (const id of ids) {
+      const m = meta.get(id);
+      if (!m) continue;
+      sources.add(m.source);
+      versions.add(m.bol_version);
+    }
+    return {
+      element_source: sources.size === 1 ? [...sources][0] : sources.size > 1 ? 'mixed' : null,
+      bol_version: versions.size === 1 ? [...versions][0] : null,
+    };
   }
 
   /** 三态流转：已验证要求存在复测版本（≥2 个 bol_version）并回填 after_ct=当前版CT */
   async updateStatus(impId: string, status: string, taskId?: string | null) {
     const imp = await this.impRepo.findOne({ imp_id: impId });
     if (!imp) throw new NotFoundException(`改善建议 ${impId} 不存在`);
+    const patch = await this.statusPatch(imp, status, taskId);
+    await this.impRepo.update({ imp_id: impId }, patch);
+    const updated = await this.impRepo.findOne({ imp_id: impId });
+    return this.toVo(updated as Improvement);
+  }
 
-    const allowed = ALLOWED_TRANSITIONS[imp.status] ?? [];
-    if (!allowed.includes(status)) {
+  /** 唯一状态机入口：校验迁移合法 + 附带字段（已完成记实际完成时间；已验证要求复测并回填 after_ct） */
+  private assertTransition(from: string, to: string) {
+    const allowed = ALLOWED_TRANSITIONS[from] ?? [];
+    if (!allowed.includes(to)) {
       throw new ConflictException({
-        message: `状态不能从「${imp.status}」直接变为「${status}」`,
+        message: `状态不能从「${from}」直接变为「${to}」`,
         allowed,
       });
     }
+  }
 
+  private async statusPatch(imp: Improvement, status: string, taskId?: string | null): Promise<Record<string, any>> {
+    this.assertTransition(imp.status, status);
+    const patch: Record<string, any> = { status, status_changed_at: new Date() };
+    if (status === '已完成') patch.actual_completed_at = new Date();
     if (status === '已验证') {
       const station = await this.stationRepo.findOne({ station_id: imp.station_id });
       if (!station) throw new NotFoundException(`工位 ${imp.station_id} 不存在`);
@@ -228,13 +278,24 @@ export class SuggestionsService {
           { sid: imp.station_id, ver: station.version, tid: station.tenant_id });
       if (scope.task_id) ctQb.andWhere('e.task_id = :taskId', { taskId: scope.task_id });
       const ctAgg = await ctQb.getRawOne();
-      const ct = round2(Number(ctAgg?.ct ?? 0));
-      await this.impRepo.update({ imp_id: impId }, { status, after_ct: ct });
-      const updated = await this.impRepo.findOne({ imp_id: impId });
-      return this.toVo(updated as Improvement);
+      patch.after_ct = round2(Number(ctAgg?.ct ?? 0));
     }
+    return patch;
+  }
 
-    await this.impRepo.update({ imp_id: impId }, { status });
+  /** v3.66 P2：编辑改善任务——责任人/截止/实际措施/状态（状态走同一状态机） */
+  async updateImprovement(impId: string, body: UpdateImprovementDto, taskId?: string | null) {
+    const imp = await this.impRepo.findOne({ imp_id: impId });
+    if (!imp) throw new NotFoundException(`改善建议 ${impId} 不存在`);
+
+    const patch: any = {};
+    if (body.owner !== undefined) patch.owner = body.owner;
+    if (body.due !== undefined) patch.due = body.due ? new Date(body.due) : null;
+    if (body.actual_measure !== undefined) patch.actual_measure = body.actual_measure;
+    if (body.status !== undefined && body.status !== imp.status) {
+      Object.assign(patch, await this.statusPatch(imp, body.status, taskId));
+    }
+    if (Object.keys(patch).length > 0) await this.impRepo.update({ imp_id: impId }, patch);
     const updated = await this.impRepo.findOne({ imp_id: impId });
     return this.toVo(updated as Improvement);
   }
@@ -249,7 +310,7 @@ export class SuggestionsService {
     // 涉及要素按 element_id 解析（不按当前版本指针）：建议引用的是"提改进时的版本"，
     // 复测后版本指针前移，所引用要素仍须可在建议书中展示（MVP 同口径）。
     const ids = String(imp.element_ids ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-    let involved: { seq: number; type: string; desc: string; std_time: number; va_class: string }[] = [];
+    let involved: { seq: number; type: string; desc: string; std_time: number; va_class: string; source: string; bol_version: number }[] = [];
     if (ids.length > 0) {
       /* [task-scope:compat] 建议书按创建时记录的 element_id 精确取回（不是任务范围枚举），
          存量引用可能跨任务；t_improvement.task_id 归属属 #106，本轮不改写引用关系。 */
@@ -258,7 +319,10 @@ export class SuggestionsService {
       });
       const byId = new Map(rows.map((r) => [r.element_id, r]));
       involved = ids.map((id) => byId.get(id)).filter(Boolean)
-        .map((el) => ({ seq: el.seq, type: el.type, desc: el.desc, std_time: Number(el.std_time), va_class: el.va_class }));
+        .map((el) => ({
+          seq: el.seq, type: el.type, desc: el.desc, std_time: Number(el.std_time),
+          va_class: el.va_class, source: String(el.source ?? 'manual'), bol_version: Number(el.bol_version),
+        }));
     }
 
     const params = getLineParams(this.rules.getActive('benefit_params').json, station.line_id);
@@ -266,6 +330,15 @@ export class SuggestionsService {
     const annual = params && estSave > 0
       ? (estimateBenefit(estSave, params).annual_yuan as number)
       : null;
+
+    const srcs = new Set(involved.map((i) => i.source));
+    const vers = new Set(involved.map((i) => i.bol_version));
+    const provenance = {
+      source: imp.source ?? null,
+      element_source: srcs.size === 1 ? [...srcs][0] : srcs.size > 1 ? 'mixed' : null,
+      bol_version: vers.size === 1 ? [...vers][0] : null,
+      task_id: imp.task_id ?? null,
+    };
 
     return {
       header: {
@@ -277,7 +350,7 @@ export class SuggestionsService {
         generated_at: new Date().toISOString(),
         generated_by: operator || 'IE',
       },
-      problem: { waste_type: imp.waste_type, measure: imp.measure, involved },
+      problem: { waste_type: imp.waste_type, measure: imp.measure, involved, provenance },
       benefit: {
         est_save_s: estSave,
         annual_yuan: annual,
@@ -297,14 +370,24 @@ export class SuggestionsService {
    * dims/tenants 为产线与公司元数据（可选）：清单/集团任务列表注入展示维度；
    * 单条流转等场景不传时维度字段为 null（前端按需兜底）。
    */
-  private toVo(r: Improvement, dims?: Map<string, any>, tenants?: Map<string, any>) {
+  private toVo(
+    r: Improvement,
+    dims?: Map<string, any>,
+    tenants?: Map<string, any>,
+    elementMeta?: Map<string, { source: string; bol_version: number }>,
+  ) {
     const line = r.station ? dims?.get(r.station.line_id) : undefined;
     const tenant = tenants?.get(r.tenant_id);
+    const meta = elementMeta ? this.elementMetaOf(r.element_ids, elementMeta) : { element_source: null, bol_version: null };
     return {
       imp_id: r.imp_id,
       station_id: r.station_id,
       /** Wave2 / #106：归属分解任务（兼容模式为 null，不冒充任务号） */
       task_id: r.task_id ?? null,
+      /** 建议来源（rule / ai / manual）；元素级来源线见 element_source */
+      source: r.source ?? null,
+      element_source: meta.element_source,
+      bol_version: meta.bol_version,
       element_ids: r.element_ids,
       waste_type: r.waste_type,
       method: r.method,

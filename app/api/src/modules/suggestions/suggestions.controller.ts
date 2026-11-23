@@ -1,10 +1,12 @@
-import { Controller, Get, Param, Patch, Post, Body, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Patch, Post, Body, Query } from '@nestjs/common';
 import { SuggestionsService } from './suggestions.service';
-import { AdoptCandidatesDto, UpdateStatusDto, ImprovementQuery } from './dto';
+import { OverdueAlertService } from './overdue-alert.service';
+import { AdoptCandidatesDto, UpdateImprovementDto, UpdateStatusDto, ImprovementQuery } from './dto';
 import { RequirePermission } from '../../rbac/require-permission.decorator';
 import { CurrentUser } from '../../rbac/current-user.decorator';
 import { AuthUser } from '../../auth/auth-user.interface';
 import { StationsService } from '../stations/stations.service';
+import { AnalysisSource } from '../analysis/analysis.service';
 
 /**
  * 建议接口（MVP routes.js /api/stations/:id/suggestions/* 平移）。
@@ -25,9 +27,14 @@ export class SuggestionsController {
    */
   @Post('generate')
   @RequirePermission('suggestion:generate')
-  async generate(@Param('id') id: string, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
+  async generate(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Query('task_id') taskId?: string,
+    @Query('source') source?: string,
+  ) {
     await this.stations.assertWritable(id, user.userId, user.roles);
-    return this.suggestions.generateCandidates(id, taskId);
+    return this.suggestions.generateCandidates(id, taskId, parseSource(source));
   }
 
   /** 采纳候选建议（落库 t_improvement）→ v3.55：按可写范围校验 */
@@ -48,6 +55,7 @@ export class ImprovementsController {
   constructor(
     private readonly suggestions: SuggestionsService,
     private readonly stations: StationsService,
+    private readonly overdue: OverdueAlertService,
   ) {}
 
   /** 改善任务清单（v3.55：按可见工位收口——只返回调用者可见工位的任务） */
@@ -95,4 +103,33 @@ export class ImprovementsController {
     await this.suggestions.assertImprovementReadable(impId, user.userId, user.roles, user.dataScope);
     return this.suggestions.buildReport(impId, user.username);
   }
+
+  /** 编辑改善任务（v3.66 P2）：责任人/截止日期/实际措施/状态（待实施→进行中→已完成→已验证） */
+  @Patch(':impId')
+  @RequirePermission('suggestion:status')
+  async updateImprovement(@Param('impId') impId: string, @Body() body: UpdateImprovementDto, @CurrentUser() user: AuthUser, @Query('task_id') taskId?: string) {
+    await this.suggestions.assertImprovementWritable(impId, user.userId, user.roles);
+    return this.suggestions.updateImprovement(impId, body, taskId);
+  }
+
+  /** v3.66 P2：超期任务数（供前端 badge 显示） */
+  @Get('overdue-count')
+  @RequirePermission('suggestion:generate')
+  async overdueCount() {
+    return { overdue_count: await this.overdue.count() };
+  }
+
+  /** v3.66 P2：扫描超期并标记（建议加入 Windows 计划任务，每日一次） */
+  @Post('overdue-scan')
+  @RequirePermission('suggestion:status')
+  async overdueScan() {
+    return this.overdue.scanAndMark();
+  }
+}
+
+/** 来源线参数：缺省 = 不过滤（legacy 全量，只读）；非法值 400 */
+function parseSource(value?: string): AnalysisSource | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (value === 'manual' || value === 'ai_assisted') return value;
+  throw new BadRequestException('source 仅支持 manual / ai_assisted');
 }
