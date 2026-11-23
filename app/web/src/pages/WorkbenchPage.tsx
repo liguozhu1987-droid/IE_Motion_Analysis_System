@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiError, videoFileUrl, AUTH_REFRESHED_EVENT, refreshTokens, type Element, type Station, type StationVersion, type ValidationIssue } from '../api';
+import { api, ApiError, videoFileUrl, videoFileReadable, ensureMediaToken, mediaTokenLeftSec, AUTH_REFRESHED_EVENT, refreshTokens, type Element, type Station, type StationVersion, type ValidationIssue } from '../api';
 import { videoDerivatives, type DerivativeMeta } from '../video/derivatives';
 import { uploadVideo } from '../video/chunkedUpload';
 import { useVideoEngine } from '../video/useVideoEngine';
@@ -98,6 +98,68 @@ function writeStoredDraft(stationId: string, stationVersion: number, elements: D
 
 function clearStoredDraft(stationId: string): void {
   try { localStorage.removeItem(draftKeyOf(stationId)); } catch { /* ignore */ }
+}
+
+/**
+ * 服务端视频载入记忆（v3.63）：用 v3.63 的一次真实反馈——转码完载入视频后
+ * 切去做别的事，回来（切页/刷新/浏览器休眠后恢复）视频没了，只能重新导入并再等一轮转码。
+ *
+ * 根因：视频只存在 React 内存（videoUrl / serverName），工作台按工位卸载重挂后即丢；
+ * 服务端文件其实还在 storage/videos/<uuid>.mp4，但前端没有任何"这个工位用的哪条视频"的记录。
+ *
+ * 口径：只记**服务端视频**（uuid.mp4）。本地可直播文件走 object URL（浏览器安全限制下跨会话
+ * 无法恢复，只能重新选）；需转码的格式本来就会上传，恢复后零上传、零转码。
+ */
+const VIDEO_PREFIX = 'ie-wb-video:';
+/** 保存后广播：上传在旧页面实例里完成、当前实例已重挂时也能收到并恢复 */
+const WB_VIDEO_SAVED_EVENT = 'ie:wb-video-saved';
+const SERVER_VIDEO_RE = /^[0-9a-f-]{36}\.mp4$/;
+interface StoredVideo { v: 1; name: string; label: string; savedAt: number }
+
+function videoKeyOf(stationId: string): string { return `${VIDEO_PREFIX}${stationId}`; }
+
+function readStoredVideo(stationId: string): StoredVideo | null {
+  try {
+    const raw = localStorage.getItem(videoKeyOf(stationId));
+    if (!raw) return null;
+    const s = JSON.parse(raw) as Partial<StoredVideo>;
+    if (s?.v !== 1 || typeof s.name !== 'string' || !SERVER_VIDEO_RE.test(s.name)) return null;
+    return { v: 1, name: s.name, label: typeof s.label === 'string' && s.label ? s.label : s.name, savedAt: Number(s.savedAt) || 0 };
+  } catch { return null; }
+}
+
+function writeStoredVideo(stationId: string, name: string, label: string): void {
+  try {
+    const payload: StoredVideo = { v: 1, name, label, savedAt: Date.now() };
+    localStorage.setItem(videoKeyOf(stationId), JSON.stringify(payload));
+    // 延到下一拍广播：让当前实例先提交 videoUrl state，避免它自己再走一次恢复（多余请求）
+    window.setTimeout(() => {
+      try { window.dispatchEvent(new CustomEvent(WB_VIDEO_SAVED_EVENT, { detail: { stationId } })); } catch { /* ignore */ }
+    }, 0);
+  } catch { /* 隐私模式/配额满：降级为仅当前会话 */ }
+}
+
+function clearStoredVideo(stationId: string): void {
+  try { localStorage.removeItem(videoKeyOf(stationId)); } catch { /* ignore */ }
+}
+
+/** 本版本要素里真实关联过的服务端视频名（t_element.video_id；过滤 'manual'/'ai-segment' 等哨兵值） */
+function elementVideoOf(els: Element[] | undefined): string | null {
+  return els?.find((el) => typeof el.video_id === 'string' && SERVER_VIDEO_RE.test(el.video_id))?.video_id ?? null;
+}
+
+/** 播放 URL 内嵌令牌（媒体令牌或回退的 access token）的剩余秒数；无 token/非 JWT → null */
+function videoUrlTokenLeft(url: string): number | null {
+  try {
+    const raw = new URL(url, window.location.href).searchParams.get('token');
+    if (!raw) return null;
+    const parts = raw.split('.');
+    if (parts.length !== 3) return null;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded)) as { exp?: unknown };
+    return typeof payload.exp === 'number' ? payload.exp - Math.floor(Date.now() / 1000) : null;
+  } catch { return null; }
 }
 
 /**
@@ -371,6 +433,8 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   });
   useEffect(() => { try { localStorage.setItem('wb-new-dur', String(newDurS)); } catch { /* 隐私模式静默 */ } }, [newDurS]);
   const videoRef = useRef<HTMLVideoElement>(null);
+  /** videoUrl 的同步镜像：异步自救（媒体令牌重签后换源）时判断"是否已是同一地址"，避免二次重载 */
+  const videoUrlRef = useRef<string | null>(null);
   /** 服务端 canonical fps（index 派生 meta 供数；ADR-VID-001 决策 6：服务端优先，rVFC 采样降级为交叉校验） */
   const serverFpsRef = useRef<number | null>(null);
   /**
@@ -500,6 +564,68 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   }, [stationId]);
 
   useEffect(() => { load().catch((err) => setError(err.message)); }, [load]);
+
+  useEffect(() => { videoUrlRef.current = videoUrl; }, [videoUrl]);
+
+  /**
+   * v3.63：保留播放头/播放态的服务端视频换源（令牌轮换、代理接管共用）。
+   * 同一地址直接跳过——避免"其实没变"却触发视频整段重载。换源后重置鉴权自救额度。
+   */
+  const applyVideoSrc = useCallback((next: string | null) => {
+    if (!next || next === videoUrlRef.current) return;
+    const v = videoRef.current;
+    const resumeAt = v ? v.currentTime : 0;
+    const resumePlay = v ? !v.paused : false;
+    netRetriedRef.current = false;
+    videoUrlRef.current = next;
+    setVideoUrl(next);
+    const restore = () => {
+      if (v && resumeAt > 0) { try { v.currentTime = resumeAt; } catch { /* seek 失败忽略 */ } }
+      if (resumePlay) void v?.play().catch(() => { /* 自动播放被拒忽略 */ });
+      v?.removeEventListener('loadedmetadata', restore);
+    };
+    v?.addEventListener('loadedmetadata', restore);
+  }, []);
+
+  /**
+   * v3.63：进入工作台（含切页后返回 / 刷新 / 浏览器休眠后恢复）自动恢复上次载入的服务端视频。
+   * 顺序：本机按工位的记忆 → 本版本要素关联的 video_id。恢复前先申领长时效媒体令牌并用
+   * 1 字节 Range 校验文件仍可取；已删除/超出保留期则清掉记忆并明确提示。
+   * 只恢复服务端视频（uuid.mp4）：本地可直播文件是 object URL，浏览器安全限制下无法跨会话恢复。
+   */
+  const restoreStoredVideo = useCallback(async () => {
+    if (!loaded) return;
+    const stored = readStoredVideo(stationId);
+    const name = stored?.name ?? elementVideoOf(loaded.elements);
+    if (!name) return;
+    await ensureMediaToken(name); // 恢复后同样不随 access token 15min 到期而重载
+    if (!(await videoFileReadable(name))) {
+      clearStoredVideo(stationId);
+      setError('上次载入的视频已不可用（可能已被删除或超出保留期），请重新载入视频。');
+      return;
+    }
+    setServerName(name);
+    setVideoUrl(videoFileUrl(name));
+    setVideoName(stored?.label ?? `${name}（本版本要素关联的视频）`);
+    setPlayhead(0);
+    setPlaying(false);
+  }, [loaded, stationId]);
+
+  useEffect(() => {
+    if (!loaded || videoUrl) return;
+    void restoreStoredVideo();
+  }, [loaded, videoUrl, restoreStoredVideo]);
+
+  /* 上传可能发生在已卸载的旧页面实例里（转码等待期间切去做别的事）：完成时写记忆并广播，
+     当前实例若还没载入视频则立即恢复，不必等下一次重进 */
+  useEffect(() => {
+    const onSaved = (e: Event) => {
+      const d = (e as CustomEvent<{ stationId?: string }>).detail;
+      if (d?.stationId === stationId && !videoRef.current) void restoreStoredVideo();
+    };
+    window.addEventListener(WB_VIDEO_SAVED_EVENT, onSaved);
+    return () => window.removeEventListener(WB_VIDEO_SAVED_EVENT, onSaved);
+  }, [stationId, restoreStoredVideo]);
 
   const selectedElement = draft.find((d) => d.key === selected) ?? null;
 
@@ -1593,7 +1719,13 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
         source: d.source === 'ai_assisted' ? ('ai_assisted' as const) : ('manual' as const),
       };
     });
-    return { bol_version: loaded?.station.version, cycle_count: cycles, cv, elements };
+    return {
+      bol_version: loaded?.station.version, cycle_count: cycles, cv, elements,
+      /* v3.63：把当前服务端视频绑到本次提交的要素上（t_element.video_id）。此前不传，服务端兜底
+         为 'manual'，视频与工位没有关联：同线可见的人看不了该视频，换台机器也无从恢复。
+         本地可直播文件（未上传）没有服务端文件名 → 保持原有 'manual' 兜底。 */
+      ...(serverName ? { video_id: serverName } : {}),
+    };
   };
 
   const runValidate = async () => {
@@ -1743,9 +1875,15 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
       if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null; }
       pendingFileRef.current = null; // 已是服务端文件，后续播放错误不再回退
       netRetriedRef.current = false; // 新服务端 URL：鉴权自动重试额度重置
+      // v3.63：先申领长时效媒体令牌。access token 从登录时刻起算 15min，若转码/上传耗时较长，
+      // 直接用它拼 src 会让视频几分钟后就到期重载——这正是"放着不动视频自己刷新"的根因。
+      await ensureMediaToken(res.name);
       setVideoUrl(videoFileUrl(res.name));
       setServerName(res.name); // 触发派生懒生成 + 5s 轮询（下方 effect）
-      setVideoName(res.transcoded ? `${file.name} → MP4（已转换）` : `${file.name}（格式可直接播放）`);
+      const label = res.transcoded ? `${file.name} → MP4（已转换）` : `${file.name}（格式可直接播放）`;
+      setVideoName(label);
+      // v3.63：按工位记住这条服务端视频，切页/刷新/休眠恢复后自动载入，不必重新导入再等转码
+      writeStoredVideo(stationId, res.name, label);
       setVideoConverting(null);
       setMsg(`视频已就绪：${res.transcoded ? '服务器已转换为 MP4（H.264）' : '该格式浏览器可直接播放'}`);
     } catch (err) {
@@ -1755,37 +1893,71 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   };
 
   /**
-   * v3.28：access token 每 15min 静默刷新，服务端视频 URL 里的 ?token= 随之失效——
-   * 监听刷新事件换 URL 并恢复播放位置，长视频跨 token 周期播放不断链。
-   * 本地 object URL 不含 /videos/file/，自动跳过。
-   * SPEC-VID-P0：分析代理 URL（/derivative/proxy?token=）同样只认查询参数令牌，一并换新。
+   * v3.28/v3.63：令牌轮换后的 src 换新——但只在**当前 URL 内令牌确实将过期**时才换。
+   * 此前的实现每一次 access token 刷新都无条件换 src：派生轮询/其它页 API 触发的 401 刷新
+   * 也会让正在看的视频整段重载（表现为"没操作，视频却自己刷新了"）。
+   * 媒体令牌（4h）有效期内一律不动 src；只有临近/已过期才重建。
+   * 本地 object URL 不含 /videos/file/ 或 /derivative/proxy，自动跳过。
    */
   useEffect(() => {
     const onRefresh = () => {
-      const v = videoRef.current;
       if (!videoUrl || (!videoUrl.includes('/videos/file/') && !videoUrl.includes('/derivative/proxy'))) return;
-      const resumeAt = v ? v.currentTime : 0;
-      const resumePlay = v ? !v.paused : false;
-      setVideoUrl((prev) => {
-        if (!prev) return prev;
-        if (prev.includes('/videos/file/')) {
-          const name = prev.split('/videos/file/')[1]?.split('?')[0];
-          return name ? videoFileUrl(name) : prev;
-        }
-        // 代理 URL：/api/videos/<uuid>.mp4/derivative/proxy?token=<old> → 换新 token
-        const m = /\/videos\/([0-9a-f-]{36}\.mp4)\/derivative\/proxy/.exec(prev);
-        return m ? videoDerivatives.fileUrl(m[1], 'proxy') : prev;
-      });
-      const restore = () => {
-        if (v && resumeAt > 0) { try { v.currentTime = resumeAt; } catch { /* seek 失败忽略 */ } }
-        if (resumePlay) void v?.play().catch(() => {});
-        v?.removeEventListener('loadedmetadata', restore);
-      };
-      v?.addEventListener('loadedmetadata', restore);
+      const left = videoUrlTokenLeft(videoUrl);
+      if (left != null && left > 60) return; // 本次刷新与该视频无关
+      if (videoUrl.includes('/videos/file/')) {
+        const name = videoUrl.split('/videos/file/')[1]?.split('?')[0];
+        if (name) applyVideoSrc(videoFileUrl(name));
+        return;
+      }
+      const m = /\/videos\/([0-9a-f-]{36}\.mp4)\/derivative\/proxy/.exec(videoUrl);
+      if (m) applyVideoSrc(videoDerivatives.fileUrl(m[1], 'proxy'));
     };
     window.addEventListener(AUTH_REFRESHED_EVENT, onRefresh);
     return () => window.removeEventListener(AUTH_REFRESHED_EVENT, onRefresh);
-  }, [videoUrl]);
+  }, [videoUrl, applyVideoSrc]);
+
+  /**
+   * v3.63：闲置/回来时代币只做"将过期才轮换"。优先续媒体令牌（4h，会话内基本不触发；
+   * 触发时换一次 src 属必要，且恢复播放头）；媒体令牌未申领（回退 access token）时
+   * 才按 access token 剩余寿命 <120s 静默刷新并换源。
+   * 目标：放着不动几分钟，视频不再自己刷新；切回窗口也不重载。
+   */
+  useEffect(() => {
+    const src = videoUrl;
+    if (!src || (!src.includes('/videos/file/') && !src.includes('/derivative/proxy'))) return;
+    const isProxy = src.includes('/derivative/proxy');
+    const nameOf = serverName
+      ?? (isProxy
+        ? /\/videos\/([0-9a-f-]{36}\.mp4)\/derivative\/proxy/.exec(src)?.[1] ?? null
+        : src.split('/videos/file/')[1]?.split('?')[0] ?? null);
+    const rotate = () => {
+      if (!nameOf) return;
+      applyVideoSrc(isProxy ? videoDerivatives.fileUrl(nameOf, 'proxy') : videoFileUrl(nameOf));
+    };
+    const maybeRefresh = async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (nameOf) {
+        const mediaLeft = mediaTokenLeftSec(nameOf);
+        if (mediaLeft != null) {
+          if (mediaLeft > 300) return;
+          if (await ensureMediaToken(nameOf, 300)) rotate();
+          return;
+        }
+      }
+      const left = videoUrlTokenLeft(src);
+      if (left != null && left < 120) {
+        if (await refreshTokens()) rotate();
+      }
+    };
+    document.addEventListener('visibilitychange', maybeRefresh);
+    window.addEventListener('focus', maybeRefresh);
+    const timer = window.setInterval(() => { void maybeRefresh(); }, 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', maybeRefresh);
+      window.removeEventListener('focus', maybeRefresh);
+      window.clearInterval(timer);
+    };
+  }, [videoUrl, serverName, applyVideoSrc]);
 
   /**
    * SPEC-VID-P0 §4/§5/§6：服务端派生懒生成 + 5s 轮询（复用 ai-task 轮询范式，进度不上 SSE）。
@@ -1805,19 +1977,8 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
     const POLL_MAX = 360; // 30min 兜底（worker retry<2 自动重入；终态 error 会提前停）
     const stop = () => { if (timer != null) { window.clearInterval(timer); timer = null; } };
     const findKind = (list: DerivativeMeta[], kind: string) => list.find((d) => d.kind === kind) ?? null;
-    /** 切代理 src：保留当前播放头与播放态（与 token 刷新换 URL 同款恢复逻辑） */
-    const switchToProxy = (url: string) => {
-      const v = videoRef.current;
-      const resumeAt = v ? v.currentTime : 0;
-      const resumePlay = v ? !v.paused : false;
-      setVideoUrl(url);
-      const restore = () => {
-        if (v && resumeAt > 0) { try { v.currentTime = resumeAt; } catch { /* seek 失败忽略 */ } }
-        if (resumePlay) void v?.play().catch(() => {});
-        v?.removeEventListener('loadedmetadata', restore);
-      };
-      v?.addEventListener('loadedmetadata', restore);
-    };
+    /** 切代理 src：保留当前播放头与播放态（与令牌轮换换 URL 同款恢复逻辑） */
+    const switchToProxy = (url: string) => { setProxyActive(true); applyVideoSrc(url); };
     const poll = async () => {
       try {
         const list = await videoDerivatives.list(serverName);
@@ -1845,7 +2006,8 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
         const proxy = findKind(list, 'proxy');
         if (proxy?.status === 'ready') {
           stop();
-          setProxyActive(true);
+          await ensureMediaToken(serverName);
+          if (!alive) return; // 等令牌期间可能已卸载（切页/换视频）
           switchToProxy(videoDerivatives.fileUrl(serverName, 'proxy'));
         } else if (proxy?.status === 'error' && proxy.retry >= 2) {
           stop(); // 终态错误：保持原始视频，不再空轮询
@@ -1862,7 +2024,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
     void poll();
     timer = window.setInterval(poll, POLL_MS);
     return () => { alive = false; stop(); };
-  }, [serverName]);
+  }, [serverName, applyVideoSrc]);
 
   /* 首次使用自动打开一次帮助（localStorage 一次性标记；页面仍零常驻提示） */
   useEffect(() => {
@@ -2209,15 +2371,36 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                   if ((code === 3 || code === 4) && pendingFileRef.current && !serverTriedRef.current) {
                     serverTriedRef.current = true;
                     void convertOnServer(pendingFileRef.current);
-                  } else if (code === 2 && isServerSrc && !netRetriedRef.current) {
-                    /* 服务端视频 ?token= 有效 15min：长时间分解会过期 → 网络错误。
-                       刷新一次令牌即可，AUTH_REFRESHED_EVENT 会换新 URL 并恢复播放位置。 */
-                    netRetriedRef.current = true;
-                    void refreshTokens().then((ok) => {
-                      if (ok) setMsg('视频鉴权已刷新，正在恢复播放…');
-                      else setError('视频加载失败：登录状态已过期，请重新登录后再载入视频。');
-                    });
-                  } else if (code) {
+                    return;
+                  }
+                  /* 换源/拖动进度时浏览器会主动中止旧加载并报 ABORTED(1)——属正常，不当作错误 */
+                  if (code === 1 && isServerSrc) return;
+                  if (isServerSrc) {
+                    /* v3.63：只有 URL 内令牌真已过期/将过期才按鉴权重试。
+                       媒体令牌（长时效）有效期内的任何错误都是真实的网络/文件问题，不能靠换令牌掩盖，
+                       更不能因一次偶发错误就整段重载视频。 */
+                    const left = videoUrlTokenLeft(videoUrl ?? '');
+                    if (left != null && left <= 60 && !netRetriedRef.current) {
+                      netRetriedRef.current = true;
+                      void (async () => {
+                        const name = serverName
+                          ?? (videoUrl?.includes('/videos/file/')
+                            ? videoUrl.split('/videos/file/')[1]?.split('?')[0] ?? null
+                            : /\/videos\/([0-9a-f-]{36}\.mp4)\/derivative\/proxy/.exec(videoUrl ?? '')?.[1] ?? null);
+                        const minted = name ? await ensureMediaToken(name, 0, true) : false;
+                        // 媒体令牌重签成功即够（它不依赖 access token）；重签不了才轮换 access token 走回落
+                        const ok = minted || await refreshTokens();
+                        if (!ok) { setError('视频加载失败：登录状态已过期，请重新登录后再载入视频。'); return; }
+                        setMsg('视频鉴权已刷新，正在恢复播放…');
+                        if (name) {
+                          applyVideoSrc(videoUrl?.includes('/derivative/proxy')
+                            ? videoDerivatives.fileUrl(name, 'proxy') : videoFileUrl(name));
+                        }
+                      })();
+                      return;
+                    }
+                  }
+                  if (code) {
                     const reason = code === 1 ? '加载被中止' : code === 2 ? '网络中断或鉴权失败'
                       : code === 3 ? '视频解码失败' : code === 4 ? '该格式或编码无法播放' : '未知错误';
                     setError(`视频加载失败（${reason}）——可重试；若仍失败请改用 MP4(H.264+AAC) 格式。`);

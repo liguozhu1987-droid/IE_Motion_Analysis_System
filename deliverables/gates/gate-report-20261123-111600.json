@@ -1,0 +1,203 @@
+{
+  "schema": "ie-gate-report/v1",
+  "generatedAt": "2026-11-23T03:16:51.710Z",
+  "startedAt": "2026-11-23T03:16:00.022Z",
+  "finishedAt": "2026-11-23T03:16:51.710Z",
+  "profile": "fast",
+  "overall": "PASS",
+  "blocking": {
+    "total": 7,
+    "executed": 7,
+    "failed": 0,
+    "passed": 7
+  },
+  "advisory": {
+    "total": 2,
+    "failed": 1,
+    "failedIds": [
+      "repo:traceability"
+    ]
+  },
+  "skipped": [
+    {
+      "id": "eval:ai-segment",
+      "reason": "EVAL_REASON=真值 segments 为空"
+    }
+  ],
+  "noGo": {
+    "maintained": true,
+    "note": "门禁基线不等于解禁声明；QA No-Go 仍以 todo.md §一 与 risk_log.md §四 为准。"
+  },
+  "repo": {
+    "head": "e55e850b19f22a1fc11304ef1e677539fec9eb66",
+    "headShort": "e55e850",
+    "dirtyCount": 11,
+    "tags": [],
+    "branch": "main"
+  },
+  "gates": [
+    {
+      "id": "api:typecheck",
+      "title": "API 类型检查（tsc --noEmit）",
+      "blocking": true,
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 2633,
+      "counts": {
+        "pass": 1,
+        "fail": 0,
+        "unit": "编译错误"
+      },
+      "skipReason": null,
+      "error": null,
+      "note": null,
+      "command": "npm run typecheck",
+      "log": "deliverables/gates/logs/gate-report-20261123-111600/api_typecheck.log"
+    },
+    {
+      "id": "web:typecheck",
+      "title": "Web 类型检查（tsc --noEmit）",
+      "blocking": true,
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 17393,
+      "counts": {
+        "pass": 1,
+        "fail": 0,
+        "unit": "编译错误"
+      },
+      "skipReason": null,
+      "error": null,
+      "note": null,
+      "command": "npm run typecheck",
+      "log": "deliverables/gates/logs/gate-report-20261123-111600/web_typecheck.log"
+    },
+    {
+      "id": "web:css-classes",
+      "title": "CSS 类名「用了但未定义」静态门禁",
+      "blocking": true,
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 962,
+      "counts": {
+        "pass": 1,
+        "fail": 0,
+        "unit": "未定义类名"
+      },
+      "skipReason": null,
+      "error": null,
+      "note": null,
+      "command": "npm run test:css-classes",
+      "log": "deliverables/gates/logs/gate-report-20261123-111600/web_css_classes.log"
+    },
+    {
+      "id": "web:desc-hints",
+      "title": "描述联想（公司标准骨架）离线回归",
+      "blocking": true,
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 1450,
+      "counts": {
+        "pass": 6,
+        "fail": 0,
+        "unit": "用例"
+      },
+      "skipReason": null,
+      "error": null,
+      "note": null,
+      "command": "npm run test:desc-hints",
+      "log": "deliverables/gates/logs/gate-report-20261123-111600/web_desc_hints.log"
+    },
+    {
+      "id": "web:no-native-select",
+      "title": "禁用原生 <select> 静态扫描（复发≥3轮）",
+      "blocking": true,
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 347,
+      "counts": {
+        "pass": 1,
+        "fail": 0,
+        "unit": "原生 select"
+      },
+      "skipReason": null,
+      "error": null,
+      "note": null,
+      "command": "node scripts/gates/check-no-native-select.cjs",
+      "log": "deliverables/gates/logs/gate-report-20261123-111600/web_no_native_select.log"
+    },
+    {
+      "id": "api:batch-export-contract",
+      "title": "批量导出工作簿离线契约（6-sheet）",
+      "blocking": true,
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 2800,
+      "counts": {
+        "pass": 17,
+        "fail": 0,
+        "unit": "用例"
+      },
+      "skipReason": null,
+      "error": null,
+      "note": null,
+      "command": "node test/batch-export-contract.cjs",
+      "log": "deliverables/gates/logs/gate-report-20261123-111600/api_batch_export_contract.log"
+    },
+    {
+      "id": "api:smoke-isolated",
+      "title": "隔离冒烟契约（临时 SQLite，双遍一致 + 正式库/存储指纹不变）",
+      "blocking": true,
+      "status": "PASS",
+      "exitCode": 0,
+      "durationMs": 25123,
+      "counts": {
+        "pass": 147,
+        "fail": 0,
+        "unit": "用例"
+      },
+      "skipReason": null,
+      "error": null,
+      "note": null,
+      "command": "node test/isolated-run.cjs smoke",
+      "log": "deliverables/gates/logs/gate-report-20261123-111600/api_smoke_isolated.log"
+    },
+    {
+      "id": "eval:ai-segment",
+      "title": "AI 分解评测基线（真值/候选缺省时明确 SKIPPED）",
+      "blocking": false,
+      "status": "SKIP",
+      "exitCode": 78,
+      "durationMs": 125,
+      "counts": {
+        "pass": 0,
+        "fail": 0,
+        "unit": "命令"
+      },
+      "skipReason": "EVAL_REASON=真值 segments 为空",
+      "error": null,
+      "note": "0c：首次基线落档。真值必须由人独立标注（模板占位视为未配置）；P0-4 完成后再转 blocking 并按同一真值对比上一版。",
+      "command": "node scripts/gates/run-eval-gate.cjs",
+      "log": "deliverables/gates/logs/gate-report-20261123-111600/eval_ai_segment.log"
+    },
+    {
+      "id": "repo:traceability",
+      "title": "版本可追溯（0b 三项判据：工作区干净 / 已打 tag / 某 tag 含 scripts/gates 全部文件）",
+      "blocking": false,
+      "status": "FAIL",
+      "exitCode": 1,
+      "durationMs": 388,
+      "counts": {
+        "pass": 0,
+        "fail": 3,
+        "unit": "判据"
+      },
+      "skipReason": null,
+      "error": null,
+      "note": "0a 落地时必然未达成（待 0b 提交+tag）；保持 advisory，不改变门禁退出码。",
+      "command": "node scripts/gates/check-repo-traceability.cjs",
+      "log": "deliverables/gates/logs/gate-report-20261123-111600/repo_traceability.log"
+    }
+  ],
+  "reportBase": "deliverables/gates/gate-report-20261123-111600"
+}

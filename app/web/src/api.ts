@@ -1176,10 +1176,90 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
+/**
+ * v3.63 媒体播放令牌缓存（按视频名；内存 only）。
+ * access token 只在内存活 15min 且从登录时刻起算：直接塞进 <video src> 时，视频往往只播几分钟
+ * 就因令牌到期被迫换 src（整段重载 = 用户看到的"视频自己刷新了"）。改为向服务端申领
+ * 长时效（JWT_MEDIA_TTL，默认 4h）、按视频名作用域的媒体令牌；会话内不再发生令牌驱动的重载。
+ */
+const mediaTokens = new Map<string, { token: string; exp: number }>();
+
+/** JWT payload 的 exp（秒）；非 JWT/解析失败 → null */
+function jwtExpOf(token: string): number | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4))) as { exp?: unknown };
+    return typeof payload.exp === 'number' ? payload.exp : null;
+  } catch { return null; }
+}
+
+/** 该视频媒体令牌的剩余秒数（未申领 → null）；工作台据此在将过期前换新 */
+export function mediaTokenLeftSec(name: string): number | null {
+  const c = mediaTokens.get(name);
+  if (!c) return null;
+  return c.exp - Math.floor(Date.now() / 1000);
+}
+
+/**
+ * 申领/复用媒体令牌（POST /videos/:name/media-token）。force=true 无条件重签（媒体报错自救用）。
+ * 服务端仍按实时 station:read + 资源归属复核；令牌只被视频/派生下发端点接受。
+ */
+export async function ensureMediaToken(name: string, minLeftSec = 300, force = false): Promise<boolean> {
+  const cur = mediaTokens.get(name);
+  const left = cur ? cur.exp - Math.floor(Date.now() / 1000) : null;
+  if (!force && left != null && left > minLeftSec) return true;
+  try {
+    const res = await request<{ token: string; expiresIn: number }>(
+      `/videos/${encodeURIComponent(name)}/media-token`, { method: 'POST' },
+    );
+    if (!res?.token) return false;
+    mediaTokens.set(name, {
+      token: res.token,
+      exp: jwtExpOf(res.token) ?? Math.floor(Date.now() / 1000) + (Number(res.expiresIn) || 0),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 带媒体令牌的路径地址；尚未申领或已过期时回退 access token（旧调用点零改动仍可用） */
+export function mediaUrlWithToken(path: string, name: string): string {
+  const entry = mediaTokens.get(name);
+  const t = entry && entry.exp > Math.floor(Date.now() / 1000) ? entry.token : accessToken;
+  const q = t ? `?token=${encodeURIComponent(t)}` : '';
+  return `${BASE}${path}${q}`;
+}
+
 /** v3.28：服务端视频播放地址（<video> src 用）——标签发不了 Authorization 头，token 走 ?token= 查询参数。
  *  BASE 为相对（/api，同源反代）或绝对（http://host:3001）两种形态都能正确拼出。 */
 export function videoFileUrl(name: string): string {
-  return apiUrlWithToken(`/videos/file/${encodeURIComponent(name)}`);
+  return mediaUrlWithToken(`/videos/file/${encodeURIComponent(name)}`, name);
+}
+
+/**
+ * v3.63：服务端视频是否仍可取（工作台恢复上次载入视频前的存活校验）。
+ * 用 1 字节 Range 而不是整文件 GET；HEAD 在部分反代上会被改写，Range GET 与 <video> 走同一路径。
+ * 403/404 = 已删除或无可见权 → false；其余状态/网络异常 → true（交给 <video> onError 如实报错，
+ * 不因服务端瞬时故障把"记住的视频"误清掉）。
+ */
+export async function videoFileReadable(name: string): Promise<boolean> {
+  const doFetch = () => fetch(videoFileUrl(name), { headers: { Range: 'bytes=0-0' } });
+  try {
+    let res = await doFetch();
+    if (res.status === 401) {
+      // 先重签媒体令牌（换掉 URL 里的过期令牌）；重签失败再试 access token（回落链路）
+      const ok = await ensureMediaToken(name, 0, true) || await refreshTokens();
+      if (!ok) return true; // 续期失败交给 <video> onError 如实报错
+      res = await doFetch();
+    }
+    if (res.status === 403 || res.status === 404) return false;
+    return true;
+  } catch {
+    return true;
+  }
 }
 
 /** 带 ?token= 的 API 地址（SPEC-VID-P0 §4-3 派生文件下发同范式：<video>/<img> 发不了 Authorization 头） */

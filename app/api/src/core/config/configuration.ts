@@ -17,6 +17,8 @@ export interface AppConfig {
   // jwt
   jwtAccessSecret: string; jwtAccessTtl: string;
   jwtRefreshSecret: string; jwtRefreshTtl: string;
+  /** 媒体播放令牌有效期（<video>/<img> 的 ?token=；长时效避免会话内换 src 重载视频） */
+  jwtMediaTtl: string;
   loginMaxFail: number; loginLockMin: number;
   // 安全 / 反向代理（客户端 IP 信任链、安全响应头、指标抓取令牌）
   clientIpHeader: string;
@@ -112,6 +114,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     jwtRefreshSecret: env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret-change-me',
     jwtAccessTtl: env.JWT_ACCESS_TTL ?? '15m',
     jwtRefreshTtl: env.JWT_REFRESH_TTL ?? '7d',
+    jwtMediaTtl: env.JWT_MEDIA_TTL ?? '4h',
     loginMaxFail: Number(env.LOGIN_MAX_FAIL ?? 5),
     loginLockMin: Number(env.LOGIN_LOCK_MIN ?? 15),
     // 客户端 IP 信任链：ARR 与 API 同机，真实流量的 socket peer 恒为 127.0.0.1，

@@ -10,9 +10,25 @@ import { AuthedRequest, AuthUser } from '../../auth/auth-user.interface';
  * （<video>/<img> 标签发不了 Authorization 头）。
  */
 
-/** 手动鉴权（@Public 端点用）：返回用户或 null，不抛错 */
+/** 媒体令牌声明：scope=media + vid=源视频名；只允许被同名视频的下发端点接受 */
+export const MEDIA_TOKEN_SCOPE = 'media';
+
+/**
+ * JWT_TTL 解析（m/h/d；与 auth.service parseTtl 同口径），返回秒。
+ * 非法值回落 fallbackSec——媒体令牌宁可短也不给无限期。
+ */
+export function parseJwtTtlSec(ttl: string, fallbackSec: number): number {
+  const m = /^(\d+)([mhd])$/.exec(ttl);
+  if (!m) return fallbackSec;
+  const n = Number(m[1]);
+  return m[2] === 'm' ? n * 60 : m[2] === 'h' ? n * 3600 : n * 86400;
+}
+
+/** 手动鉴权（@Public 端点用）：返回用户或 null，不抛错。
+ *  expectedMediaName 传入时：携带 scope=media 的长时效媒体令牌必须 vid 与该视频名一致，
+ *  否则按无效令牌处理（防止拿 A 视频的令牌读 B 视频）。 */
 export async function resolveAuthUser(
-  jwt: JwtService, loader: AuthUserLoader, req: AuthedRequest,
+  jwt: JwtService, loader: AuthUserLoader, req: AuthedRequest, expectedMediaName?: string,
 ): Promise<AuthUser | null> {
   const header = req.headers?.['authorization'];
   const raw = Array.isArray(header) ? header[0] : header;
@@ -23,7 +39,11 @@ export async function resolveAuthUser(
   if (!token && q) token = q;
   if (!token) return null;
   try {
-    const payload = jwt.verify(token);
+    const payload = jwt.verify(token) as { sub?: string; scope?: unknown; vid?: unknown };
+    if (payload?.scope === MEDIA_TOKEN_SCOPE) {
+      if (!expectedMediaName || payload.vid !== expectedMediaName) return null;
+    }
+    if (!payload?.sub) return null;
     return await loader.load(payload.sub);
   } catch {
     return null;
@@ -32,9 +52,9 @@ export async function resolveAuthUser(
 
 /** 校验并返回用户：无 token / 权限不足 → 401（与现有 file/:name 口径一致） */
 export async function requireStationRead(
-  jwt: JwtService, loader: AuthUserLoader, req: AuthedRequest,
+  jwt: JwtService, loader: AuthUserLoader, req: AuthedRequest, expectedMediaName?: string,
 ): Promise<AuthUser> {
-  const user = await resolveAuthUser(jwt, loader, req);
+  const user = await resolveAuthUser(jwt, loader, req, expectedMediaName);
   if (!user) throw new UnauthorizedException('无效或缺失的访问令牌');
   if (!user.permissions.has('station:read')) throw new UnauthorizedException('权限不足：需要 station:read');
   return user;

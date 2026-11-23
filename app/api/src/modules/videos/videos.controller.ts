@@ -1,5 +1,5 @@
 import {
-  BadRequestException, Body, Controller, Get, Logger, Param, Post, Query, Req, Res, UnauthorizedException,
+  BadRequestException, Body, Controller, Get, Inject, Logger, Param, Post, Query, Req, Res, UnauthorizedException,
 } from '@nestjs/common';
 import { UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express/multer';
@@ -14,7 +14,8 @@ import { Public } from '../../rbac/public.decorator';
 import { RequirePermission } from '../../rbac/require-permission.decorator';
 import { VideosService } from './videos.service';
 import { ChunkUploadService } from './chunk-upload.service';
-import { resolveAuthUser, sendFileSafe } from './video-auth.helper';
+import { MEDIA_TOKEN_SCOPE, parseJwtTtlSec, resolveAuthUser, sendFileSafe } from './video-auth.helper';
+import { APP_CONFIG, AppConfig } from '../../core/config/configuration';
 
 /** 上传临时目录：转码/直通完成后即删除，只留 storage/videos/<uuid>.mp4 终态 */
 const TMP_DIR = path.resolve(process.cwd(), 'storage', 'videos', 'tmp');
@@ -28,6 +29,7 @@ export class VideosController {
     private readonly chunks: ChunkUploadService,
     private readonly jwt: JwtService,
     private readonly loader: AuthUserLoader,
+    @Inject(APP_CONFIG) private readonly cfg: AppConfig,
   ) {
     fs.mkdirSync(TMP_DIR, { recursive: true });
   }
@@ -101,6 +103,30 @@ export class VideosController {
   }
 
   /**
+   * v3.63：媒体播放令牌（长时效、按视频名作用域）。
+   * 背景：<video>/<img> 的 ?token= 若直接用 access token，会随登录时刻起 15min 到期；
+   * 工作台每遇令牌轮换只能换 src，整段视频重载——用户观感就是"放着不动几分钟，视频自己刷新了"。
+   * 本端点用同一把密钥签发 scope=media/vid=<name> 的长时效令牌（JWT_MEDIA_TTL，默认 4h），
+   * 只被 /videos/file 与 /videos/:name/derivative 接受（JwtAuthGuard 明确拒绝它走业务接口），
+   * 每次下发仍按实时权限（station:read）+ 资源归属（assertReadable）复核。
+   */
+  @Post(':name/media-token')
+  @RequirePermission('station:read')
+  async mediaToken(@Param('name') name: string, @Req() req: AuthedRequest) {
+    const user = req.user;
+    if (!user) throw new UnauthorizedException('未登录');
+    const filePath = this.videos.filePathOf(name);
+    if (!filePath || !fs.existsSync(filePath)) throw new BadRequestException('视频文件不存在或名称非法');
+    await this.videos.assertReadable(name, user);
+    const expiresIn = parseJwtTtlSec(this.cfg.jwtMediaTtl, 4 * 3600);
+    const token = this.jwt.sign(
+      { sub: user.userId, username: user.username, tenant_id: user.tenantId, scope: MEDIA_TOKEN_SCOPE, vid: name },
+      { secret: this.cfg.jwtAccessSecret, expiresIn },
+    );
+    return { token, expiresIn };
+  }
+
+  /**
    * 播放终态文件（Range 支持由 res.sendFile 原生提供——<video> 拖动进度依赖 206）。
    * @Public + 手动鉴权：<video> 标签发不了 Authorization 头，token 走 ?token= 查询参数
    * （内网工具可接受；也可用 Authorization 头直连调试）。校验 access token + station:read 权限。
@@ -110,7 +136,7 @@ export class VideosController {
   @Public()
   @Get('file/:name')
   async file(@Param('name') name: string, @Req() req: AuthedRequest, @Res() res: Response) {
-    const user = await this.authenticate(req);
+    const user = await this.authenticate(req, name);
     if (!user) throw new UnauthorizedException('无效或缺失的访问令牌');
     if (!user.permissions.has('station:read')) throw new UnauthorizedException('权限不足：需要 station:read');
     const filePath = this.videos.filePathOf(name);
@@ -154,8 +180,9 @@ export class VideosController {
     return this.videos.detectScenes(filePath);
   }
 
-  /** Bearer 头优先，回退 ?token= 查询参数（视频标签场景） */
-  private async authenticate(req: AuthedRequest) {
+  /** Bearer 头优先，回退 ?token= 查询参数（视频标签场景）。
+   *  媒体令牌（scope=media）只接受绑定同一视频名的请求；其余端点（expectedMediaName 缺省）一律拒绝。 */
+  private async authenticate(req: AuthedRequest, expectedMediaName?: string) {
     const header = req.headers?.['authorization'];
     const raw = Array.isArray(header) ? header[0] : header;
     let token = raw?.startsWith('Bearer ') ? raw.slice(7) : null;
@@ -165,7 +192,9 @@ export class VideosController {
     if (!token && q) token = q;
     if (!token) return null;
     try {
-      const payload = this.jwt.verify(token);
+      const payload = this.jwt.verify(token) as { sub?: string; scope?: unknown; vid?: unknown };
+      if (payload?.scope === MEDIA_TOKEN_SCOPE && (!expectedMediaName || payload.vid !== expectedMediaName)) return null;
+      if (!payload?.sub) return null;
       return await this.loader.load(payload.sub);
     } catch {
       return null;

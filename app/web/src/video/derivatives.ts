@@ -5,7 +5,7 @@
  *  - 文件下发（fileUrl）是 @Public + ?token= 查询参数——<video>/<img> 标签发不了 Authorization 头。
  * :name = 源视频文件名 uuid.mp4（后端 filePathOf 白名单同款，防路径穿越）。
  */
-import { apiUrlWithToken, request } from '../api';
+import { mediaUrlWithToken, request } from '../api';
 
 /** 派生类型（SPEC-VID-P0 §3 表 t_video_derivative.kind） */
 export type DerivativeKind = 'proxy' | 'sprite' | 'index';
@@ -51,9 +51,10 @@ export const videoDerivatives = {
   list: (name: string) =>
     request<DerivativeMeta[]>(`/videos/${encodeURIComponent(name)}/derivatives`),
 
-  /** §4-3 派生文件地址（<video>/<img> src 用；Range 206 由 sendFile 原生提供） */
+  /** §4-3 派生文件地址（<video>/<img> src 用；Range 206 由 sendFile 原生提供）。
+   *  v3.63：优先用该视频的媒体令牌（长时效），令牌轮换不再导致整段视频重载。 */
   fileUrl: (name: string, kind: DerivativeFileKind) =>
-    apiUrlWithToken(`/videos/${encodeURIComponent(name)}/derivative/${kind}`),
+    mediaUrlWithToken(`/videos/${encodeURIComponent(name)}/derivative/${kind}`, name),
 
   /** §4-4 单 kind JSON meta（预载前探活，不暴露列表） */
   meta: (name: string, kind: DerivativeKind) =>

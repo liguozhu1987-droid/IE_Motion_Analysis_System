@@ -73,7 +73,7 @@ export class DerivativeController {
     @Req() req: AuthedRequest,
     @Res() res: Response,
   ) {
-    const user = await requireStationRead(this.jwt, this.loader, req);
+    const user = await requireStationRead(this.jwt, this.loader, req, name);
     if (kind !== 'proxy' && kind !== 'sprite') {
       throw new BadRequestException('kind 仅支持 proxy / sprite');
     }
@@ -95,7 +95,7 @@ export class DerivativeController {
     @Param('kind') kind: string,
     @Req() req: AuthedRequest,
   ) {
-    const user = await requireStationRead(this.jwt, this.loader, req);
+    const user = await requireStationRead(this.jwt, this.loader, req, name);
     if (!DERIVATIVE_KINDS.includes(kind as DerivativeKind)) {
       throw new BadRequestException('kind 仅支持 proxy / sprite / index');
     }

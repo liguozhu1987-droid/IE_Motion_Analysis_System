@@ -31,6 +31,9 @@ export class JwtAuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException('访问令牌无效或已过期');
     }
+    /* 媒体播放令牌（长时效；scope=media）只能走 /videos 下发端点的查询参数鉴权，
+       绝不能当业务接口的 Bearer 使用——否则等于把 15min 的会话令牌变成长效万能令牌 */
+    if (payload?.scope === 'media') throw new UnauthorizedException('媒体令牌不能用于业务接口');
     const user = await this.loader.load(payload.sub);
     if (!user) throw new UnauthorizedException('用户不存在或已停用');
     req.user = user;
