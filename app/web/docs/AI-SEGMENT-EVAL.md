@@ -37,8 +37,21 @@
    node app/web/tools/eval-ai-segment.cjs <候选.json> <真值.json> --json <报告.json>
    ```
 5. 输出报告含：查全/查准、覆盖率、边界误差（中位/P90/±0.5s/±1s/±2s 命中率）、
-   类型准确率（严格/宽松双口径）、三项验收对照、`达标项 n/3`。
+   类型准确率（严格/宽松双口径）、**时间 IoU（匹配对均值 / 真值最佳均值）**、
+   **边界 F1（±100/200/500/1000/2000ms）**、三项验收对照、`达标项 n/3`。
    门禁留档在 `deliverables/gates/eval/ai-segment-YYYYMMDD-HHMMSS.json` 与 `latest.json`。
+
+## 指标口径（v3.60 新增）
+
+| 指标 | 定义 | 读法 |
+|---|---|---|
+| `temporal_iou.matched_mean` | IoU≥阈值匹配对的平均 IoU | 只衡量「配上的」段重合度；偏高但 recall 低说明漏检多 |
+| `temporal_iou.gt_best_mean` | 每条真值对全部候选取最佳 IoU 后求均值（漏检记 0） | 同时惩罚漏检，适合做跨版本对比 |
+| `boundary_f1[tol_ms]` | 起点+终点都视为边界点，在 ±τ 内一对一最近匹配后的 P/R/F1 | 小段边界点密度高，@100ms 对小段偏严格；报告同时保留中位/P90 误差 |
+
+- 边界 F1 的 τ 固定为 `100 / 200 / 500 / 1000 / 2000ms`，JSON 中为 `metrics.boundary_f1[]`；
+- 改切分算法 / 阈值 / ROI 后，用**同一份真值**对比 `latest.json` 与历史报告的同名字段；
+- 真值未标注时这些字段不会出现在报告中（门禁 SKIPPED），**不得用 AI 候选反向生成真值**。
 
 ## 标注器自检
 

@@ -2,6 +2,19 @@
 
 > 滚动维护。每条待决项**必须带推荐项**（SKILL.md §四）。整理 2026-11-18。
 
+## 〇、时效声明（2026-11-22 核验）
+
+> 本台账是**带日期的历史记录**，正文按「不静默改写」原则保留原貌。下列条目已确认过时，**勿再作为现状引用**：
+
+| 条目 | 过时原因（2026-11-22 实测） | 现行口径 |
+|---|---|---|
+| **R04** | `AGENT必读.md` 已瘦身为 27 行指针，其看板并入 `handoff/02-任务看板.md`，不存在「表格散落/编号重复」 | 看板见 `handoff/02-任务看板.md` |
+| **R10** | 5173 现由**本项目** `app/web` 的 vite 占用（PID 属本仓库），不再是 Intelligent Capacity System | 无需改 5174；本项目 dev 跑 5173 |
+| **R05 的「仅 1 提交」** | 当前 `git rev-list --count HEAD` = **14**；R05 已于 2026-11-19 标注闭合 | 见 R05 行末处置说明 |
+| **文中对 `AGENT必读.md` 章节/编号（§4.1、#110、§7 等）的引用** | 该文件已瘦身，原详尽内容迁至 `handoff/归档/AGENT必读-本机开发版-2026-11-20.md` 与 `handoff/02-任务看板.md` | 以迁移后的文件为准 |
+
+> 判定依据：以实际运行状态为准（SKILL.md §3.1）；本表只登记**已实测证伪**的条目，未实测者保持原样。
+
 ## 一、已确认事项（口径已定，不再讨论）
 
 - Phase 2（分解任务全链路）与 Phase 3（#103–#108 任务归属）**全部完成并验收**，零遗留 DDL。
@@ -26,13 +39,13 @@
 | **R01** | **四套记忆文件口径冲突、无唯一事实源** | `SKILL.md` 指向不存在的 `memory/`；`AGENT必读.md` / `项目记忆.md` / `docs/CODE-WIKI.md` / `.workbuddy/memory/` 各记一份，历史文档出现「无宽放/评比」「无标准时间」等低估 | 新 Agent 读错口径 → 提出重复建设建议 | **已处置**：本目录建成，`business_rules.md` 为唯一准绳 + 勘误三条。推荐：后续每次评审先做实码复核再下结论 |
 | **R02** | **SKILL.md 是跨项目模板，技术栈与验证命令全错配** | 原文写 Intelligent Capacity System / Python / `.venv\Scripts\python.exe -m pytest` / `app.main` / `frontend` / `alembic` / `sql_migrations`；本项目为 NestJS+React+SQL Server；§七把 `.workbuddy/` 列为反模式，与 `AGENT必读.md` §7 冲突 | 按 SKILL.md 跑命令必然失败；治理动作被误判 | **已处置（2026-11-19）**：用户确认修订，`SKILL.md` 已按本项目重写（旧跨项目模板清空）；验证命令改为 `test:gate` / `test:eval` / `smoke:isolated` / `migrate:prod`，反模式纠正 `.workbuddy` 口径 |
 | **R03** | **文档路径口径不一致** | 看板/汇报写 `tools/eval-ai-segment.cjs`、`docs/AI-SEGMENT-EVAL.md`，实际在 **`app/web/tools/` 与 `app/web/docs/`**；根 `tools/`、根 `docs/` 下无 | 门/CI 按根路径写会找不到脚本；QA 判「有地基无门」 | **推荐**：统一为 `app/web/...` 全路径，并把该脚本接进单命令回归门 |
-| **R04** | **AGENT必读.md 看板结构损坏** | §6 表格在 §7「看板更新规则」之后又散落 `\|57\|…\|108\|` 行；编号重复（两个 57、两个 93）、顺序倒错；看板更新规则夹在表格中间 | 看板不再可读，无法作为进度事实源 | **推荐**：把散落行归回 §6 表格、编号去重、§7 移到表格之后。**本轮未大改，仅按规则追加一行 #109** |
-| **R05** | **版本历史断裂（最高优先级）** | `git log` 仅 1 提交（884b71e / 2026-11-09 init）；`git status` **95 文件未提交**（80 在 `app/`，含 `SKILL.md`、`AGENT必读.md`、`migrate.ts`、deliverables）；分支 main；Phase 2/3 成果无版本历史 | 无法回滚到上一个可用状态；所有「通过数」对应 HEAD 之外代码 | **已处置（2026-11-19）**：基线提交 `0a72733` + tag `baseline-2026-11-19`；`git status` 干净；strict `TRACE_CHECKS=3/3`（tag 含 gates 5/5）。不再按未提交文件数核对 |
+| **R04** | **AGENT必读.md 看板结构损坏** | §6 表格在 §7「看板更新规则」之后又散落 `\|57\|…\|108\|` 行；编号重复（两个 57、两个 93）、顺序倒错；看板更新规则夹在表格中间 | 看板不再可读，无法作为进度事实源 | **推荐**：把散落行归回 §6 表格、编号去重、§7 移到表格之后。**本轮未大改，仅按规则追加一行 #109**　【已过期 2026-11-22：AGENT必读已瘦身为 27 行指针，看板在 handoff/02】 |
+| **R05** | **版本历史断裂（最高优先级）** | `git log` 仅 1 提交（884b71e / 2026-11-09 init）；`git status` **95 文件未提交**（80 在 `app/`，含 `SKILL.md`、`AGENT必读.md`、`migrate.ts`、deliverables）；分支 main；Phase 2/3 成果无版本历史 | 无法回滚到上一个可用状态；所有「通过数」对应 HEAD 之外代码 | **已处置（2026-11-19）**：基线提交 `0a72733` + tag `baseline-2026-11-19`；`git status` 干净；strict `TRACE_CHECKS=3/3`（tag 含 gates 5/5）。不再按未提交文件数核对　【时效注 2026-11-22：当前提交数 14，本项已闭合】 |
 | **R06** | **回归门缺位 / 断言腐蚀** | 无 CI；`eval-ai-segment.cjs` 未证实绑定单命令门；`test-ai-segment` 28/30 中 B2/B10 断言过期；11 套 UI 串行回归未跑；`test-dw-isolation-guard.cjs` 未迁隔离基座；v348 恒定 3 项失败 | 「历史跑过」被误写为「持续已验证」 | **推荐**：按 QA 解禁路径 ②–⑤ 逐条收口；放宽期望须先说明「原期望为何错」并给 Spec 依据 |
 | **R07** | **安全依赖与部署** | `test:deps` api **FAIL 10 high / 1 critical**、web PASS；无 CI 拦截；OIDC/IIS-ARR/内网证书未落地；SMTP 告警未配；留档导出无自动清理 | 上线合规不通过 | **推荐**：先清 critical，再逐条 high 带复审日期豁免；接 CI 快门（`perf-security-baseline.mjs`） |
 | **R08** | **AI 切分现场泛化未验证** | #90 实证 ROI 写死 0.18–0.78 / 0.30–0.80，换工位须重标复测；光照突变、机位漂移无护栏；MediaPipe 手部在蓝手套场景检出率仅 34.6%（左手 0.3%），已改帧差默认 | 固定 30fps 固定机位全绿 ≠ 换工位可用 | **推荐**：保留帧差默认（勿回切姿态路线）；把「ROI 标定 + 换工位复测」写进上线检查表；补 3 类素材对照 |
 | **R09** | **两套时间轴未对齐** | `ai-segment/landmark.ts:148` 用 `frameIndex*SAMPLE_MS`；`video/useVideoEngine.ts:70` 用 `round(currentTime*fps)` | 任何「点数字跳源帧/逐帧工效学」都会静默指错帧（VFR 或非 all-intra 代理） | **推荐**：canonical fps 单一来源 + all-intra 代理前置；实现前不做逐帧打分 |
-| **R10** | **5173 端口被另一项目占用** | 2026-11-12 日志：`D:\Application\Intelligent Capacity System\frontend` 的 vite 占 5173（PID 23824），**不是本项目进程，不可擅自 kill** | 直接 `npm run dev` 会漂到不确定端口 | **推荐**：本项目固定 `--port 5174 --strictPort --host 127.0.0.1`；恢复 5173 须先与用户确认 |
+| **R10** | **5173 端口被另一项目占用** | 2026-11-12 日志：`D:\Application\Intelligent Capacity System\frontend` 的 vite 占 5173（PID 23824），**不是本项目进程，不可擅自 kill** | 直接 `npm run dev` 会漂到不确定端口 | **推荐**：本项目固定 `--port 5174 --strictPort --host 127.0.0.1`；恢复 5173 须先与用户确认　【已过期 2026-11-22：5173 现由本项目 vite 占用，无需改 5174】 |
 | **R11** | 进程内状态 / 无 down 脚本 | 登录限流桶、dashboard TTL 缓存、告警 firing 均在进程内；`migrate.ts` 无回滚脚本；无 CI | 多实例失效；迁移只能靠备份回滚 | 推荐：单实例部署（当前）；扩实例前状态外置；每次迁移前 `npm run ops:backup` |
 | **R12** | 不可逆决策门（架构评审 D1–D4） | 改 `hand` 语义会破坏 V2 同手链与三轨时间线；改 `std_time` 口径会让 CT/VA/平衡率/收益不可比；对外 ±x% 声明需统计方法背书；PMTS 覆盖 std_time 会污染历史 ST | 做错要重做整个分析体系 | **推荐：本轮一律不做**。若后续要做，逐项确认 + ADR + 双轨并存（不覆盖历史） |
 | **R19** | **AI 分解落库丢失源视频基准（审计链断）** | `AiSegmentPage.tsx:661-672` 用 cursor 从 0 重排、完全不用候选 `start_ms`；`:693` 写死 `video_id='ai-segment'`；导出 JSON 有真实时间但落库丢失 | 要素无法回指源帧；点数字跳源帧对 AI 要素不成立 | **推荐（P0，零 DDL）**：落库改用 `r.start_ms` + 真实 `video_id`。**改前须定重叠处理策略**（会触发 `validation.ts:116-131` V2 同手重叠），不得放宽校验 |

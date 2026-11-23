@@ -81,6 +81,8 @@ export interface AnalyzeResult {
   elapsedMs: number;
   sampleMs: number;
   frames: number;
+  /** 检出到手的采样帧数（仅 hand 检测器；motion 不做手部识别，返回 undefined） */
+  detectedFrames?: number;
 }
 
 /** 三档阈值：换模型只调这里 */

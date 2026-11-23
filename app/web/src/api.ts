@@ -333,6 +333,10 @@ export interface LineShare {
 export interface ShareCandidate { user_id: string; username: string; display_name: string }
 export interface StationVersion {
   version: number; element_count: number; ct: number; is_current: boolean; is_sealed: boolean;
+  /** 版本线：ai=AI 自动分解结果，manual=人工分解（2026-11-22） */
+  line: 'manual' | 'ai';
+  /** 线内序号：M-01 / A-01 中的 01 */
+  line_no: number;
 }
 export interface Element {
   element_id: string; tenant_id: string; station_id: string;
@@ -681,7 +685,11 @@ export const api = {
 
   /* 要素 */
   /** 取要素：version 省略=当前版本；指定则取历史版本（跨循环复用） */
-  elements: (id: string, version?: number, taskId?: string | null) => get<{ station_id: string; version: number; current_version: number; elements: Element[] }>(
+  elements: (id: string, version?: number, taskId?: string | null) => get<{
+    station_id: string; version: number; current_version: number; elements: Element[];
+    /** 当前版本的线（ai/manual）与线内编号（前端显示 M-01 / A-01） */
+    version_line: 'manual' | 'ai'; line_version: number; versions: StationVersion[];
+  }>(
     taskQuery(`/stations/${encodeURIComponent(id)}/elements${version ? `?version=${version}` : ''}`, taskId)),
   validateElements: (id: string, payload: SubmitPayload) =>
     post<ValidateResult>(`/stations/${encodeURIComponent(id)}/elements/validate`, payload),
@@ -1139,7 +1147,8 @@ export const api = {
     /** 服务器 ffmpeg 可用性与格式支持清单 */
     capabilities: () => get<VideoCapabilities>('/videos/capabilities'),
     /** v3.57 视频库：保留状态与操作入口（默认只看可见范围内的源视频） */
-    assets: () => get<VideoAssetView[]>('/videos/assets'),
+    assets: () => get<{ items: VideoAssetView[] } | VideoAssetView[]>('/videos/assets')
+      .then((r) => (Array.isArray(r) ? r : (r?.items ?? []))),
     asset: (name: string) => get<VideoAssetView>(`/videos/assets/${encodeURIComponent(name)}`),
     setRetention: (name: string, action: 'extend' | 'permanent') =>
       post<VideoAssetView>(`/videos/assets/${encodeURIComponent(name)}/retention`, { action }),

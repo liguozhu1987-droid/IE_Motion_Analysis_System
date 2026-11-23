@@ -107,3 +107,18 @@
    但对话框宽度仅 560，需更紧的行高与内边距，避免横向撑破。 */
 .share-dlg .panel-table { font-size: 12px; }
 .share-dlg .panel-table td { padding: 5px 6px; }
+
+/* 错误边界兜底（v3.60）：单页渲染异常不再整树白屏；页面级保留顶栏可导航 */
+.eb-wrap { display: flex; justify-content: center; padding: 40px 16px; }
+.eb-card {
+  width: min(620px, 100%); background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 24px;
+}
+.eb-card h2 { margin: 0 0 8px; font-size: 18px; color: var(--ink); }
+.eb-msg { margin: 0 0 12px; color: var(--ink2); font-size: 13px; line-height: 1.7; }
+.eb-detail {
+  margin: 0 0 12px; padding: 10px; background: #f6f8fb; border: 1px solid var(--line);
+  border-radius: 6px; font-size: 11px; color: var(--ink3); white-space: pre-wrap;
+  overflow: auto; max-height: 160px;
+}
+.eb-acts { display: flex; gap: 8px; flex-wrap: wrap; }

@@ -10,7 +10,7 @@
  *  - AI 只产「候选」，类型恒为弱建议，必须人工逐条确认后才落库
  *  - 落入要素时 desc 强制非空（后端 V1 要求），时间链按顺序累加重排（避开 V2 同手重叠）
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, fetchVideoBlob, type Element, type Station } from '../api';
 import { getCurrentTaskId } from '../taskContext';
 import { TYPE_DEFAULTS } from '../constants';
@@ -57,6 +57,69 @@ const DETECTOR_HINT: Record<Detector, string> = {
   motion: '按画面运动能量切分：戴手套、远景都稳，不依赖手部识别；手别是建议值，需你确认。',
   hand: '按手部关键点切分：能给出确定手别，但要求画面里手清晰、最好不戴手套。',
 };
+
+/* ── 段级循环预览 / 边界微调（人工核对 AI 分段） ──
+ * 预卷/后卷：边界对不对必须看动作前后各发生了什么，只看段内判断不了。
+ * 帧步长按 30fps 近似（视频元素不暴露真实 fps；100ms 是分析采样步长，不适合做边界微调）。 */
+const PREVIEW_PRE_MS = 300;
+const PREVIEW_POST_MS = 200;
+const PREVIEW_LOOPS = 2;
+const FRAME_MS = 1000 / 30;
+const MIN_SEG_EDIT_MS = 100;
+
+/** 行内 filmstrip 取样点：起点内侧、段中点、终点内侧（与证据帧弹窗同一口径） */
+const stripTimesOf = (r: { start_ms: number; end_ms: number }) =>
+  [r.start_ms + 80, Math.round((r.start_ms + r.end_ms) / 2), Math.max(0, r.end_ms - 80)];
+
+/* ── 分析结果本地暂存（v3.60）：AI 候选只在点「写入新版本」后才入库，
+ * 之前只存在页面内存里——刷新/HMR/切页即丢。这里按工位把候选草稿存 localStorage，
+ * 刷新后自动恢复，降低人工确认过程中的丢失风险。 */
+const DRAFT_VERSION = 1;
+const DRAFT_TTL_MS = 7 * 24 * 3600 * 1000;
+const draftKeyOf = (stationId: string) => `ai-seg-draft:${stationId}`;
+
+/* ── SOP 批量导入（v3.60）：从 Excel 复制（制表符）/ CSV（逗号）/ 每行「动词 对象」。
+ * 动词必须是动作标准库词表内的一级/二级动词（与手工录入同一封闭词表）；校验在保存时服务端再兜一次。 */
+interface SopImportParse {
+  steps: SopStep[];
+  /** 不在词表内的动词（去重） */
+  invalid: string[];
+  /** 被自动去重的重复行数（动词+对象相同） */
+  duplicates: number;
+  /** 有效但为空的步骤行数（仅注释/空行不算） */
+  skipped: number;
+}
+function parseSopImport(text: string, vocab: Set<string>): SopImportParse {
+  const steps: SopStep[] = [];
+  const invalid = new Set<string>();
+  const seen = new Set<string>();
+  let duplicates = 0;
+  let skipped = 0;
+  for (const rawLine of text.split(/\r?\n/)) {
+    let line = rawLine.replace(/，/g, ',').trim();
+    if (!line || line.startsWith('#')) continue;
+    /* 允许粘贴带序号的 SOP：去掉行首 "1." / "1、" / "1)" */
+    line = line.replace(/^\d{1,3}[.、)]\s*/, '');
+    const fields = line.split(/\t|,/).map((s) => s.trim()).filter(Boolean);
+    let verb: string;
+    let object: string;
+    if (fields.length >= 2) {
+      verb = fields[0];
+      object = fields.slice(1).join(' ');
+    } else {
+      const sp = line.split(/\s+/).filter(Boolean);
+      verb = sp[0] ?? '';
+      object = sp.slice(1).join(' ');
+    }
+    if (!verb) { skipped += 1; continue; }
+    if (vocab.size > 0 && !vocab.has(verb)) { invalid.add(verb); continue; }
+    const key = `${verb}|${object}`;
+    if (seen.has(key)) { duplicates += 1; continue; }
+    seen.add(key);
+    steps.push(object ? { verb, object } : { verb });
+  }
+  return { steps, invalid: [...invalid], duplicates, skipped };
+}
 
 /** 候选行的可编辑投影：候选本身不可变，要素参数在这里编辑 */
 interface Row {
@@ -137,8 +200,16 @@ const roiText = (r: Roi) =>
  * v3.43 证据帧抓取（P1-1）：离屏 <video> 逐时刻 seek → canvas → JPEG dataURL。
  * 用独立离屏元素，不碰主播放器的播放位置（现场习惯「填完按 L 播视频」不能被打断）。
  * 证据帧只在本次会话内存中展示，不上传、不落库（与视频零上传边界一致）。
+ *
+ * v3.60：抽出可复用的离屏抓帧器——行内 filmstrip 需要批量抓帧，
+ * 每行单独建 <video> 会把元数据加载开销放大 N 倍；这里一次加载、多次抓取。
  */
-async function captureFrames(videoUrl: string, timesMs: number[]): Promise<string[]> {
+interface FrameGrabber {
+  grab: (timesMs: number[]) => Promise<string[]>;
+  close: () => void;
+}
+
+async function openFrameGrabber(videoUrl: string): Promise<FrameGrabber> {
   const v = document.createElement('video');
   v.src = videoUrl;
   v.muted = true;
@@ -162,23 +233,34 @@ async function captureFrames(videoUrl: string, timesMs: number[]): Promise<strin
     const ctx = cv.getContext('2d');
     if (!ctx) throw new Error('无法创建截图画布');
     const dur = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
-    const out: string[] = [];
-    for (const tMs of timesMs) {
-      const t = dur ? Math.min(Math.max(tMs / 1000, 0), dur - 0.05) : tMs / 1000;
-      await new Promise<void>((res) => {
-        let done = false;
-        const fin = () => { if (done) return; done = true; v.removeEventListener('seeked', fin); res(); };
-        v.addEventListener('seeked', fin);
-        setTimeout(fin, 1200);
-        try { v.currentTime = t; } catch { fin(); }
-      });
-      ctx.drawImage(v, 0, 0, W, H);
-      out.push(cv.toDataURL('image/jpeg', 0.72));
-    }
-    return out;
-  } finally {
+    return {
+      async grab(timesMs: number[]) {
+        const out: string[] = [];
+        for (const tMs of timesMs) {
+          const t = dur ? Math.min(Math.max(tMs / 1000, 0), dur - 0.05) : tMs / 1000;
+          await new Promise<void>((res) => {
+            let done = false;
+            const fin = () => { if (done) return; done = true; v.removeEventListener('seeked', fin); res(); };
+            v.addEventListener('seeked', fin);
+            setTimeout(fin, 1200);
+            try { v.currentTime = t; } catch { fin(); }
+          });
+          ctx.drawImage(v, 0, 0, W, H);
+          out.push(cv.toDataURL('image/jpeg', 0.72));
+        }
+        return out;
+      },
+      close() { v.remove(); },
+    };
+  } catch (e) {
     v.remove();
+    throw e;
   }
+}
+
+async function captureFrames(videoUrl: string, timesMs: number[]): Promise<string[]> {
+  const g = await openFrameGrabber(videoUrl);
+  try { return await g.grab(timesMs); } finally { g.close(); }
 }
 
 /**
@@ -278,10 +360,25 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
   const [durationMs, setDurationMs] = useState(0);
   const [playhead, setPlayhead] = useState(0);
 
+  /* ── 段级循环预览 + 边界微调：selId=当前选中候选（停止播放后仍保留，便于继续调边界） ── */
+  const [selId, setSelId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewLoop, setPreviewLoop] = useState(1);
+  /** 预览倍速：1=正常，0.5=慢放（Chrome 不支持负速率，倒放不做） */
+  const [previewRate, setPreviewRate] = useState(1);
+  const previewRef = useRef<{ id: string; startMs: number; endMs: number; loop: number } | null>(null);
+  /** 时间轴拖动边界：选中候选后出现左右手柄（pointer capture，拖出块外仍连续） */
+  const dragRef = useRef<{ id: string; edge: 'start' | 'end'; startX: number; startMs: number; endMs: number } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
   const [rows, setRows] = useState<Row[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [phase, setPhase] = useState<AnalyzePhase>('load');
   const [progress, setProgress] = useState({ processedMs: 0, totalMs: 0, detected: 0 });
+  /** 分析后统计：hand=检出帧/采样帧；motion 不做手部识别（detected=null） */
+  const [analysisStats, setAnalysisStats] = useState<{ detected: number | null; frames: number } | null>(null);
+  /** 从 localStorage 恢复的草稿信息（有值 = 本次是恢复而非新分析） */
+  const [draftInfo, setDraftInfo] = useState<{ savedAt: number; count: number; videoName: string | null } | null>(null);
   const [analyzed, setAnalyzed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [skipCovered, setSkipCovered] = useState(false);
@@ -291,6 +388,7 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
   const pickDetector = (d: Detector) => {
     setDetector(d);
     setRows([]); setAnalyzed(false); setError(null); setSaved(null); setAlignRes(null);
+    setAnalysisStats(null);
     try { localStorage.setItem(DETECTOR_KEY, d); } catch { /* 隐私模式忽略 */ }
   };
 
@@ -325,10 +423,17 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
   const [sopDraft, setSopDraft] = useState<SopStep[]>([]);
   const [sopBusy, setSopBusy] = useState(false);
   const [sopMsg, setSopMsg] = useState<string | null>(null);
+  /* 批量导入：一次粘贴多步（Excel 复制/CSV/文本），导入后仍需「保存到工位」才生效 */
+  const [sopImportOpen, setSopImportOpen] = useState(false);
+  const [sopImportText, setSopImportText] = useState('');
+  const [sopImportMode, setSopImportMode] = useState<'append' | 'replace'>('append');
   const [alignRes, setAlignRes] = useState<SopAlignResult | null>(null);
 
   /* ── v3.43 P1：证据帧 ── */
   const [evi, setEvi] = useState<{ id: string; times: number[]; urls: string[] | null; err?: string } | null>(null);
+  /** 行内 filmstrip：每行 3 帧缩略图（会话内存，不落库）；按行 id 缓存 */
+  const [strips, setStrips] = useState<Record<string, string[]>>({});
+  const stripTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   /* ── v3.53 场景切分候选（服务端 ffmpeg 检测；仅「从服务器载入」的视频可用，零 LLM） ── */
   const [sceneScenes, setSceneScenes] = useState<{ start_ms: number; end_ms: number; score: number }[] | null>(null);
@@ -351,7 +456,7 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
 
   const showEvidence = async (r: Row) => {
     if (!videoUrl) return;
-    const times = [r.start_ms + 80, Math.round((r.start_ms + r.end_ms) / 2), Math.max(0, r.end_ms - 80)];
+    const times = stripTimesOf(r);
     setEvi({ id: r.id, times, urls: null });
     try {
       const urls = await captureFrames(videoUrl, times);
@@ -504,6 +609,9 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
   const [uploadPct, setUploadPct] = useState(0);
   /** 免转码直通的服务器视频若在本机播不了，记下源文件做一次转码重试 */
   const serverRetryRef = useRef<{ file: File; raw: boolean } | null>(null);
+  /** 本机导入的源文件：浏览器解不了视频轨（HEVC 静默黑屏）时用于自动上传转码，每文件一次 */
+  const localFileRef = useRef<File | null>(null);
+  const localFallbackTriedRef = useRef(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
@@ -527,6 +635,54 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
   /* 标准库描述格式模板（v3.38）：进页面拉一次，供候选描述骨架用 */
   useEffect(() => { void loadFormatTpl(); }, []);
 
+  /* 刷新/重进页面：恢复本工位上次未写入的分析草稿（7 天内有效） */
+  useEffect(() => {
+    const key = draftKeyOf(stationId);
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d?.v !== DRAFT_VERSION || !Array.isArray(d.rows) || d.rows.length === 0) { localStorage.removeItem(key); return; }
+      if (!Number.isFinite(d.savedAt) || Date.now() - d.savedAt > DRAFT_TTL_MS) { localStorage.removeItem(key); return; }
+      setRows(d.rows as Row[]);
+      setAnalyzed(true);
+      if (d.detector === 'hand' || d.detector === 'motion') setDetector(d.detector);
+      if (d.stats && typeof d.stats.frames === 'number') {
+        setAnalysisStats({ detected: typeof d.stats.detected === 'number' ? d.stats.detected : null, frames: d.stats.frames });
+      }
+      setDraftInfo({ savedAt: d.savedAt, count: d.rows.length, videoName: typeof d.videoName === 'string' ? d.videoName : null });
+    } catch { /* 草稿损坏/隐私模式：忽略，不影响正常分析 */ }
+  }, [stationId]);
+
+  /* 结果变更 → 400ms 防抖暂存本机；仅「写入新版本」成功后清除 */
+  useEffect(() => {
+    if (!analyzed || rows.length === 0) return;
+    const timer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(draftKeyOf(stationId), JSON.stringify({
+          v: DRAFT_VERSION, savedAt: Date.now(), stationId, videoName, videoFrom, detector,
+          rows, stats: analysisStats,
+        }));
+      } catch { /* 配额/隐私模式：静默降级为仅内存 */ }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [rows, analyzed, stationId, videoName, videoFrom, detector, analysisStats]);
+
+  /* 有未写入结果时，刷新/关闭标签页给浏览器原生确认（切页由草稿兜底） */
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (analyzed && rows.length > 0) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [analyzed, rows.length]);
+
+  const discardDraft = () => {
+    try { localStorage.removeItem(draftKeyOf(stationId)); } catch { /* 忽略 */ }
+    setRows([]); setAnalyzed(false); setAnalysisStats(null); setDraftInfo(null);
+    setSelId(null); setPreviewId(null); previewRef.current = null;
+  };
+
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
   }, []);
@@ -536,11 +692,18 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     const url = URL.createObjectURL(file);
     objectUrlRef.current = url;
+    localFileRef.current = file;
+    localFallbackTriedRef.current = false;
+    serverRetryRef.current = null;
+    previewRef.current = null;
+    setPreviewId(null);
+    setSelId(null);
     setVideoUrl(url);
     setVideoName(file.name);
     setVideoFrom('local');
     setServerFileName(null);
     setRows([]); setAnalyzed(false); setError(null); setSaved(null); setConfirming(false); setAlignRes(null);
+    setAnalysisStats(null);
   };
 
   /** 把服务器视频安进来：拉 blob → object URL（与本地文件同一条分析链路） */
@@ -549,12 +712,17 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     const objUrl = URL.createObjectURL(blob);
     objectUrlRef.current = objUrl;
+    localFileRef.current = null;
     serverRetryRef.current = retry;
+    previewRef.current = null;
+    setPreviewId(null);
+    setSelId(null);
     setVideoUrl(objUrl);
     setVideoName(label);
     setVideoFrom('server');
     setServerFileName(serverName ?? null);
     setRows([]); setAnalyzed(false); setConfirming(false); setAlignRes(null);
+    setAnalysisStats(null);
   };
 
   /** v3.39：从服务器载入（手机拍片 → 上传 → 分析）。上传带进度；传完服务端还要探测/转码。 */
@@ -574,8 +742,34 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
     }
   };
 
+  /**
+   * 本机文件视频轨解码失败（HEVC 在无解码能力的浏览器里常是「音轨正常、画面全黑且不报错」）
+   * → 自动上传服务器转一次码再拉回本机分析。每文件只做一次（localFallbackTriedRef 防循环）。
+   */
+  const convertLocalOnServer = async (file: File) => {
+    if (uploading) return;
+    setUploading(true); setUploadPct(0);
+    setError(`当前浏览器无法解码该视频的画面（常见于 HEVC/H.265）。正在自动上传服务器转码，完成后自动载入，请稍候…`);
+    try {
+      const handle = await api.videos.uploadWithProgress(file, setUploadPct, false);
+      const label = `${file.name}（服务器已转码 · ${handle.probe.width}×${handle.probe.height}${handle.probe.durationS != null ? ` · ${handle.probe.durationS.toFixed(1)}s` : ''}）`;
+      await applyServerVideo(handle.url, label, null, handle.name);
+      setError(null);
+    } catch (e: any) {
+      setError(`自动转码失败：${e?.message ?? e}。请改用 H.264/AAC 的 MP4，或换用 Edge 浏览器载入。`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   /** 免转码直通的视频若在本机播不了（老浏览器无 HEVC 解码），自动请求服务端转码重试一次 */
   const onVideoError = async () => {
+    const local = localFileRef.current;
+    if (local && !localFallbackTriedRef.current) {
+      localFallbackTriedRef.current = true;
+      await convertLocalOnServer(local);
+      return;
+    }
     const cur = serverRetryRef.current;
     if (!cur || !cur.raw || uploading) return;
     setError('该浏览器无法直接播放此视频编码，正在请求服务器转码（稍候）…');
@@ -597,8 +791,18 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
   const run = async () => {
     const v = videoRef.current;
     if (!v || !videoUrl) { setError('请先载入视频，再开始分析'); return; }
+    /* 前置拦截：视频轨未解码（HEVC 黑屏）时抽帧全是黑帧，跑下去只会得到「手部检出 0 帧」的假结果 */
+    if (!v.videoWidth || !v.videoHeight) {
+      setError('当前浏览器无法解码该视频的画面（画面轨为空，常见于 HEVC/H.265）。请等待自动转码完成；若仍为空，改用「从服务器载入」或换用 Edge 浏览器。');
+      return;
+    }
     setError(null); setSaved(null); setConfirming(false);
     setRows([]); setAnalyzed(false);
+    setAnalysisStats(null);
+    /* 重新分析前退出段级预览：播放与抽帧都要独占 currentTime */
+    previewRef.current = null;
+    setPreviewId(null);
+    setSelId(null);
     setAnalyzing(true); setPhase('load');
     setProgress({ processedMs: 0, totalMs: 0, detected: 0 });
     const ac = new AbortController();
@@ -624,6 +828,7 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
         },
       };
       const res = detector === 'hand' ? await analyzeVideo(v, opts) : await analyzeMotion(v, opts);
+      setAnalysisStats({ detected: res.detectedFrames ?? null, frames: res.frames });
       setRows(res.candidates.map((c) => {
         const overlaps = covered.some((r) => c.start_ms < r.end_ms && c.end_ms > r.start_ms);
         /* v3.38：类型直接采用算法建议（运动能量=运动学规则分类 / 手部关键点一期恒「其他」），
@@ -695,6 +900,9 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
       }, getCurrentTaskId() || undefined);
       setSaved(`已写入 v${res.version}（新版本，AI 分解独立版）：要素 ${res.element_count} 条，CT ${res.ct}s。原手工分解数据在 v${station.version} 只读封存互不影响。可前往分解工作台切换版本查看，或直接运行「浪费识别」。`);
       setConfirming(false);
+      /* 已落库：清掉本地草稿，避免下次进入恢复出已写入的旧结果 */
+      try { localStorage.removeItem(draftKeyOf(stationId)); } catch { /* 忽略 */ }
+      setDraftInfo(null);
       await load();
     } catch (e: any) {
       const errs = e?.body?.errors ?? e?.errors;
@@ -728,6 +936,39 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
     } finally {
       setSopBusy(false);
     }
+  };
+
+  /** SOP 批量导入：解析 → 词表校验 → 合并（追加/替换）到草稿；保存仍走 saveSop 的服务端校验 */
+  const doSopImport = () => {
+    const parsed = parseSopImport(sopImportText, new Set(Object.keys(FORMAT_TPL)));
+    if (!parsed.steps.length) {
+      setSopMsg(parsed.invalid.length
+        ? `没有可导入的步骤：${parsed.invalid.slice(0, 6).join('、')} 不在动作标准库词表内`
+        : '没有识别到有效步骤（每行格式：动词 对象；Excel 两列可直接复制粘贴）');
+      return;
+    }
+    if (parsed.invalid.length) {
+      setSopMsg(`有 ${parsed.invalid.length} 个动词不在动作标准库词表内：${parsed.invalid.slice(0, 6).join('、')}；请修正后再导入`);
+      return;
+    }
+    const base = sopImportMode === 'replace' ? [] : sopDraft.filter((s) => s.verb.trim());
+    const seen = new Set<string>();
+    const merged: SopStep[] = [];
+    for (const s of [...base, ...parsed.steps]) {
+      const key = `${s.verb}|${s.object ?? ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(s);
+    }
+    if (merged.length > 40) {
+      setSopMsg(`合并后 ${merged.length} 步，超过 40 步上限；请改用「替换」或分批导入`);
+      return;
+    }
+    setSopDraft(merged);
+    setAlignRes(null);
+    setSopImportOpen(false);
+    setSopImportText('');
+    setSopMsg(`已导入 ${parsed.steps.length} 步${parsed.duplicates ? `（自动去重 ${parsed.duplicates} 条）` : ''}；检查顺序后点「保存到工位」。`);
   };
 
   /**
@@ -797,6 +1038,183 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
     v.currentTime = Math.max(0, Math.min((durationMs || 0) / 1000, ms / 1000));
     setPlayhead(Math.max(0, ms));
   };
+
+  /* ── 段级循环预览：点击候选 → 预卷 300ms 播到终点后 200ms，循环 2 次 ── */
+  const stopPreview = () => {
+    const wasActive = previewRef.current !== null;
+    previewRef.current = null;
+    setPreviewId(null);
+    const v = videoRef.current;
+    if (v) {
+      if (wasActive) { try { v.pause(); } catch { /* 忽略 */ } }
+      v.playbackRate = 1;
+    }
+  };
+
+  const startPreview = (row: Row) => {
+    const v = videoRef.current;
+    if (!v) return;
+    /* 再点同一段 = 停止（与工作台片段循环一致的开关语义） */
+    if (previewRef.current && previewRef.current.id === row.id) { stopPreview(); return; }
+    previewRef.current = { id: row.id, startMs: row.start_ms, endMs: row.end_ms, loop: 1 };
+    setSelId(row.id);
+    setPreviewId(row.id);
+    setPreviewLoop(1);
+    v.playbackRate = previewRate;
+    try { v.currentTime = Math.max(0, (row.start_ms - PREVIEW_PRE_MS) / 1000); } catch { /* 忽略 */ }
+    void v.play().catch(() => undefined);
+  };
+
+  const togglePreviewRate = () => {
+    const next = previewRate === 1 ? 0.5 : 1;
+    setPreviewRate(next);
+    if (videoRef.current) videoRef.current.playbackRate = next;
+  };
+
+  /** 边界动过之后，防抖重抓该行缩略图（500ms；连续拖拽只算最后一次） */
+  const scheduleStripRefresh = (id: string) => {
+    if (!videoUrl) return;
+    const row = rows.find((x) => x.id === id);
+    if (!row) return;
+    const times = stripTimesOf(row);
+    const timers = stripTimersRef.current;
+    if (timers[id]) clearTimeout(timers[id]);
+    timers[id] = setTimeout(() => {
+      delete timers[id];
+      void captureFrames(videoUrl, times)
+        .then((urls) => setStrips((prev) => ({ ...prev, [id]: urls })))
+        .catch(() => undefined);
+    }, 500);
+  };
+
+  /** 选中行起点/终点按帧微调（正在预览时同步循环范围，不必重开） */
+  const nudgeBoundary = (id: string, which: 'start' | 'end', frames: number) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    const delta = Math.round(frames * FRAME_MS);
+    const nextStart = which === 'start'
+      ? Math.max(0, Math.min(row.end_ms - MIN_SEG_EDIT_MS, row.start_ms + delta))
+      : row.start_ms;
+    const nextEnd = which === 'end'
+      ? Math.max(row.start_ms + MIN_SEG_EDIT_MS, row.end_ms + delta)
+      : row.end_ms;
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, start_ms: nextStart, end_ms: nextEnd } : r)));
+    const p = previewRef.current;
+    if (p && p.id === id) { p.startMs = nextStart; p.endMs = nextEnd; }
+    scheduleStripRefresh(id);
+  };
+
+  /** 把当前播放位置设为选中段的起点/终点（ELAN 式：先帧步进对位，再按 [ / ] 落边界） */
+  const setBoundaryAtPlayhead = (which: 'start' | 'end') => {
+    const v = videoRef.current;
+    const id = selId;
+    if (!v || !id) return;
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    const ms = Math.round(v.currentTime * 1000);
+    const nextStart = which === 'start' ? Math.max(0, Math.min(ms, row.end_ms - MIN_SEG_EDIT_MS)) : row.start_ms;
+    const nextEnd = which === 'end' ? Math.max(ms, row.start_ms + MIN_SEG_EDIT_MS) : row.end_ms;
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, start_ms: nextStart, end_ms: nextEnd } : r)));
+    const p = previewRef.current;
+    if (p && p.id === id) { p.startMs = nextStart; p.endMs = nextEnd; }
+    scheduleStripRefresh(id);
+  };
+
+  /* 时间轴边界拖动：手柄按下后 pointer capture，移动/抬起都落在手柄上 */
+  const beginBoundaryDrag = (e: React.PointerEvent, row: Row, edge: 'start' | 'end') => {
+    e.preventDefault(); e.stopPropagation();
+    stopPreview();
+    setSelId(row.id);
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* 忽略 */ }
+    dragRef.current = { id: row.id, edge, startX: e.clientX, startMs: row.start_ms, endMs: row.end_ms };
+    setDraggingId(row.id);
+  };
+
+  const onBoundaryDragMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    e.preventDefault(); e.stopPropagation();
+    /* 像素 → 毫秒：时间轴 PPS 像素/秒；向左可拖到 0，向右不早于最小段长 */
+    const delta = Math.round(((e.clientX - d.startX) / PPS) * 1000);
+    const start = d.edge === 'start' ? Math.max(0, Math.min(d.endMs - MIN_SEG_EDIT_MS, d.startMs + delta)) : d.startMs;
+    const end = d.edge === 'end' ? Math.max(d.startMs + MIN_SEG_EDIT_MS, d.endMs + delta) : d.endMs;
+    setRows((prev) => prev.map((r) => (r.id === d.id ? { ...r, start_ms: start, end_ms: end } : r)));
+    const p = previewRef.current;
+    if (p && p.id === d.id) { p.startMs = start; p.endMs = end; }
+    setPlayhead(d.edge === 'start' ? start : end);
+  };
+
+  const onBoundaryDragEnd = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    e.preventDefault(); e.stopPropagation();
+    dragRef.current = null;
+    setDraggingId(null);
+    const row = rows.find((r) => r.id === d.id);
+    if (row) seekTo(d.edge === 'start' ? row.start_ms : row.end_ms);
+    scheduleStripRefresh(d.id);
+  };
+
+  /** 单帧步进（Shift ×10）：退出循环预览后停在目标帧，便于对边界 */
+  const stepFrame = (dir: number, frames = 1) => {
+    const v = videoRef.current;
+    if (!v) return;
+    stopPreview();
+    const dur = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : (durationMs || 0) / 1000;
+    const t = Math.max(0, Math.min(dur, v.currentTime + (dir * frames * FRAME_MS) / 1000));
+    try { v.pause(); } catch { /* 忽略 */ }
+    try { v.currentTime = t; } catch { /* 某些格式 seek 会抛，忽略 */ }
+    setPlayhead(Math.round(t * 1000));
+  };
+
+  /* 键盘：←/→ 单帧（Shift=10 帧）、[ / ] 设起止。输入框聚焦时跳过（避免抢输入）。 */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      if (!videoRef.current) return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        stepFrame(e.key === 'ArrowLeft' ? -1 : 1, e.shiftKey ? 10 : 1);
+      } else if (e.key === '[') {
+        e.preventDefault();
+        setBoundaryAtPlayhead('start');
+      } else if (e.key === ']') {
+        e.preventDefault();
+        setBoundaryAtPlayhead('end');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selId, rows]);
+
+  /* 分析完成 → 一次加载离屏视频，顺序为每行抓 3 帧缩略图（后台进行，不阻塞确认） */
+  useEffect(() => {
+    if (!analyzed || !videoUrl || rows.length === 0) { setStrips({}); return; }
+    let cancelled = false;
+    const list = [...rows].sort((a, b) => a.start_ms - b.start_ms);
+    (async () => {
+      let g: FrameGrabber | null = null;
+      try {
+        g = await openFrameGrabber(videoUrl);
+        for (const r of list) {
+          if (cancelled) break;
+          const urls = await g.grab(stripTimesOf(r));
+          if (cancelled) break;
+          setStrips((prev) => ({ ...prev, [r.id]: urls }));
+        }
+      } catch { /* 抓帧失败不影响主流程，行内保留占位 */ }
+      finally { g?.close(); }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analyzed, videoUrl]);
+
+  /* 卸载时清掉缩略图防抖定时器 */
+  useEffect(() => () => {
+    for (const t of Object.values(stripTimersRef.current)) clearTimeout(t);
+  }, []);
 
   if (loadErr) return <div className="card empty">工位 {stationId} 加载失败：{loadErr}</div>;
 
@@ -876,16 +1294,60 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
                 playsInline
                 onError={() => void onVideoError()}
                 onLoadedMetadata={(e) => {
-                  const d = e.currentTarget.duration;
+                  const v = e.currentTarget;
+                  const d = v.duration;
                   setDurationMs(Number.isFinite(d) && d > 0 ? Math.round(d * 1000) : 0);
+                  /* HEVC 静默黑屏：音轨正常、元数据就绪，但 videoWidth 恒 0 且不触发 MediaError
+                     → onError 回退不会启动。以「元数据已就绪但无画面尺寸」判定解码失败，
+                     500ms 复核防元数据异步补齐，每文件只回退一次。 */
+                  const file = localFileRef.current;
+                  if (file && v.videoWidth === 0 && v.videoHeight === 0 && !localFallbackTriedRef.current) {
+                    window.setTimeout(() => {
+                      if (localFileRef.current === file && v.videoWidth === 0 && v.videoHeight === 0 && !localFallbackTriedRef.current) {
+                        localFallbackTriedRef.current = true;
+                        void convertLocalOnServer(file);
+                      }
+                    }, 500);
+                  }
                 }}
-                onTimeUpdate={(e) => setPlayhead(Math.round(e.currentTarget.currentTime * 1000))}
+                onTimeUpdate={(e) => {
+                  const v = e.currentTarget;
+                  setPlayhead(Math.round(v.currentTime * 1000));
+                  /* 段级循环预览：播到「终点 + 后卷」再从头播，跑满 2 次自动停 */
+                  const p = previewRef.current;
+                  if (p) {
+                    const endS = (p.endMs + PREVIEW_POST_MS) / 1000;
+                    if (v.ended || v.currentTime >= endS) {
+                      if (p.loop < PREVIEW_LOOPS) {
+                        p.loop += 1;
+                        setPreviewLoop(p.loop);
+                        try { v.currentTime = Math.max(0, (p.startMs - PREVIEW_PRE_MS) / 1000); } catch { /* 忽略 */ }
+                        void v.play().catch(() => undefined);
+                      } else {
+                        previewRef.current = null;
+                        setPreviewId(null);
+                        try { v.pause(); } catch { /* 忽略 */ }
+                        v.playbackRate = 1;
+                      }
+                    }
+                  }
+                }}
+                onPause={() => {
+                  /* 用户自己按了暂停：退出预览（停止按钮会先清 ref，不在此列） */
+                  if (previewRef.current) {
+                    previewRef.current = null;
+                    setPreviewId(null);
+                    const v = videoRef.current;
+                    if (v) v.playbackRate = 1;
+                  }
+                }}
               />
             ) : (
               <div className="aip-video-empty">
                 <p>载入一段工位视频（画面里要能看到手）</p>
                 <p className="muted">
                   「载入视频」选本地文件，零上传、最快；手机拍片可走「从服务器载入」先传服务器。
+                  <br />若本机浏览器解不了该编码（如 HEVC/H.265 黑屏），会自动上传服务器转码一次再拉回分析。
                   <br />两种方式的**分析都在本机完成**，不占用服务器算力。
                 </p>
               </div>
@@ -991,11 +1453,17 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
             )}
             {analyzing && (
               <div className="ais-overlay" role="status" aria-live="polite">
-                <h4>{phase === 'load' ? '正在加载本机视觉模型…' : phase === 'scan' ? '正在分析手部动作…' : '正在归并动作边界…'}</h4>
+                <h4>
+                  {phase === 'load'
+                    ? (detector === 'hand' ? '正在加载本机视觉模型…' : '正在准备画面分析…')
+                    : phase === 'scan'
+                      ? (detector === 'hand' ? '正在分析手部动作…' : '正在分析画面运动…')
+                      : '正在归并动作边界…'}
+                </h4>
                 {phase === 'load' ? (
                   <>
                     <div className="ais-sweep" aria-hidden="true" />
-                    <p>首次约 2–4 秒（模型共 21MB，浏览器缓存后更快；无需外网）</p>
+                    <p>{detector === 'hand' ? '首次约 2–4 秒（模型共 21MB，浏览器缓存后更快；无需外网）' : '逐帧读取画面并计算运动能量，首次无需下载模型'}</p>
                   </>
                 ) : (
                   <>
@@ -1004,7 +1472,11 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
                     </div>
                     <p>
                       已处理 {(progress.processedMs / 1000).toFixed(1)}s / {(progress.totalMs / 1000).toFixed(1)}s
-                      {phase === 'scan' ? ` · 手部检出 ${progress.detected} 帧` : ''}
+                      {phase === 'scan'
+                        ? (detector === 'hand'
+                          ? ` · 手部检出 ${progress.detected} 帧`
+                          : ' · 运动能量检测（本模式不识别手部）')
+                        : ''}
                     </p>
                   </>
                 )}
@@ -1013,6 +1485,42 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
               </div>
             )}
           </div>
+
+          {/* 段级核对：循环预览 + 边界微调（点击候选块/表格行即选中并播放） */}
+          {selId && (() => {
+            const r = rows.find((x) => x.id === selId);
+            if (!r) return null;
+            return (
+              <div className="aip-pv" role="status" aria-live="polite">
+                <b className="mono">{r.id.toUpperCase()}</b>
+                <span className="aip-pv-time mono">{(r.start_ms / 1000).toFixed(2)}–{(r.end_ms / 1000).toFixed(2)}s</span>
+                {previewId === r.id
+                  ? <span className="aip-pv-loop">循环 {previewLoop}/{PREVIEW_LOOPS}{previewRate === 0.5 ? ' · 0.5×' : ''}</span>
+                  : <span className="muted">已选中</span>}
+                <button type="button" className="btn sm primary" disabled={uploading}
+                  onClick={() => startPreview(r)}
+                  title={`从起点前 ${PREVIEW_PRE_MS}ms 播到终点后 ${PREVIEW_POST_MS}ms，循环 ${PREVIEW_LOOPS} 次；再点一次停止`}>
+                  {previewId === r.id ? '重新播放' : '循环播放'}
+                </button>
+                <button type="button" className="btn sm" onClick={stopPreview} disabled={previewId !== r.id}>停止</button>
+                <button type="button" className={`btn sm${previewRate === 0.5 ? ' primary' : ''}`} onClick={togglePreviewRate}
+                  title="0.5× 慢放，便于判断动作起止">0.5×</button>
+                <span className="aip-pv-sep" aria-hidden />
+                <span className="aip-pv-bd">
+                  起点
+                  <button type="button" className="aip-pv-nudge" onClick={() => nudgeBoundary(r.id, 'start', -1)} aria-label="起点前移一帧">−帧</button>
+                  <button type="button" className="aip-pv-nudge" onClick={() => nudgeBoundary(r.id, 'start', 1)} aria-label="起点后移一帧">+帧</button>
+                </span>
+                <span className="aip-pv-bd">
+                  终点
+                  <button type="button" className="aip-pv-nudge" onClick={() => nudgeBoundary(r.id, 'end', -1)} aria-label="终点前移一帧">−帧</button>
+                  <button type="button" className="aip-pv-nudge" onClick={() => nudgeBoundary(r.id, 'end', 1)} aria-label="终点后移一帧">+帧</button>
+                </span>
+                <span className="aip-pv-sep" aria-hidden />
+                <span className="aip-pv-tip">←/→ 单帧 · Shift×10 · [ 设为起点 · ] 设为终点</span>
+              </div>
+            );
+          })()}
 
           {/* 简化时间线：只用于看候选落在视频哪里 + 点击定位（不可编辑，编辑在工作台） */}
           <div className="aip-tl-wrap">
@@ -1023,16 +1531,32 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
             <div className="aip-tl-scroll">
               <div className="aip-tl" style={{ width: Math.max(320, (durationMs / 1000) * PPS), minWidth: '100%' }}
                 onPointerDown={(e) => {
+                  stopPreview();
                   const rect = e.currentTarget.getBoundingClientRect();
                   seekTo(Math.round(((e.clientX - rect.left) / PPS) * 1000));
                 }}>
                 {rows.map((r) => (
                   <div key={r.id}
-                    className={`aip-cand hand-${r.hand} tier-${r.tier}${r.include ? '' : ' off'}${r.overlaps ? ' ov' : ''}`}
+                    className={`aip-cand hand-${r.hand} tier-${r.tier}${r.include ? '' : ' off'}${r.overlaps ? ' ov' : ''}${selId === r.id ? ' sel' : ''}${previewId === r.id ? ' playing' : ''}${draggingId === r.id ? ' dragging' : ''}`}
                     style={{ left: (r.start_ms / 1000) * PPS, width: Math.max(5, ((r.end_ms - r.start_ms) / 1000) * PPS - 2) }}
-                    title={`${r.id} · ${HAND_LABEL[r.hand]} · ${(r.start_ms / 1000).toFixed(1)}→${(r.end_ms / 1000).toFixed(1)}s · 置信 ${r.conf}${r.overlaps ? ' · 与现有要素重叠' : ''}`}
+                    title={`${r.id} · ${HAND_LABEL[r.hand]} · ${(r.start_ms / 1000).toFixed(1)}→${(r.end_ms / 1000).toFixed(1)}s · 置信 ${r.conf}${r.overlaps ? ' · 与现有要素重叠' : ''} · 点击循环预览`}
+                    onPointerDown={(e) => { e.stopPropagation(); startPreview(r); }}
                   >
                     <b>{r.id.toUpperCase()}</b>
+                    {selId === r.id && (
+                      <>
+                        <span className="aip-cand-h l" title="拖动调整起点"
+                          onPointerDown={(e) => beginBoundaryDrag(e, r, 'start')}
+                          onPointerMove={onBoundaryDragMove}
+                          onPointerUp={onBoundaryDragEnd}
+                          onPointerCancel={onBoundaryDragEnd} />
+                        <span className="aip-cand-h r" title="拖动调整终点"
+                          onPointerDown={(e) => beginBoundaryDrag(e, r, 'end')}
+                          onPointerMove={onBoundaryDragMove}
+                          onPointerUp={onBoundaryDragEnd}
+                          onPointerCancel={onBoundaryDragEnd} />
+                      </>
+                    )}
                   </div>
                 ))}
                 <div className="aip-playhead" style={{ left: (playhead / 1000) * PPS }} />
@@ -1081,6 +1605,29 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
             </button>
           </div>
 
+          {draftInfo && (
+            <div className="aip-draft" role="status">
+              <span>
+                已恢复上次未保存的分析结果：<b>{draftInfo.count}</b> 条
+                {draftInfo.videoName ? ` · ${draftInfo.videoName}` : ''} ·{' '}
+                {new Date(draftInfo.savedAt).toLocaleString('zh-CN', { hour12: false })}
+                <span className="muted">（载入同一视频后可预览/抓帧；结果自动暂存在本机）</span>
+              </span>
+              <button type="button" className="btn sm" onClick={discardDraft}>丢弃草稿</button>
+            </div>
+          )}
+
+          {analyzed && analysisStats && (
+            <div className={`aip-stats${analysisStats.detected === 0 ? ' warn' : ''}`}>
+              {analysisStats.detected === null
+                ? `运动能量采样 ${analysisStats.frames} 帧（本模式不识别手部，手别为建议值）`
+                : `手部检出 ${analysisStats.detected}/${analysisStats.frames} 帧（${((analysisStats.detected / (analysisStats.frames || 1)) * 100).toFixed(1)}%）`}
+              {detector === 'hand' && analysisStats.detected === 0
+                ? '。0 帧常见原因：戴手套、手部过小/远景、逆光；建议改「运动能量」模式。'
+                : ''}
+            </div>
+          )}
+
           <div className="ais-table-scroll">
             {!analyzed ? (
               <div className="ais-empty">
@@ -1106,13 +1653,17 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
                         checked={included.length > 0 && included.length === rows.length}
                         onChange={(e) => setRows((prev) => prev.map((r) => ({ ...r, include: e.target.checked })))} />
                     </th>
-                    <th>段</th><th>手别</th><th>时间段</th><th>时长</th><th>置信</th><th>提示</th><th>类型</th><th>描述</th><th>帧</th>
+                    <th>段</th><th>手别</th><th>时间段</th><th>时长</th><th>置信</th><th>提示</th><th>类型</th><th>描述</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[...rows].sort((a, b) => a.start_ms - b.start_ms).map((r) => (
-                    <tr key={r.id} className={`${r.include ? '' : 'dim'}${r.overlaps ? ' ov' : ''}`}
-                      onClick={(e) => { if ((e.target as HTMLElement).tagName === 'TD') seekTo(r.start_ms); }}>
+                    <Fragment key={r.id}>
+                    <tr className={`${r.include ? '' : 'dim'}${r.overlaps ? ' ov' : ''}${selId === r.id ? ' sel' : ''}`}
+                      onClick={(e) => {
+                        /* 点单元格 = 选中并循环预览该段；点输入框/按钮不抢交互 */
+                        if ((e.target as HTMLElement).tagName === 'TD') startPreview(r);
+                      }}>
                       <td>
                         <input type="checkbox" checked={r.include} aria-label={`纳入 ${r.id}`}
                           onChange={(e) => patch(r.id, { include: e.target.checked })} />
@@ -1150,15 +1701,37 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
                         <input className="aip-inp wide" value={r.desc} onChange={(e) => patchDesc(r.id, e.target.value)}
                           placeholder="必填：这条动作在做什么" aria-label={`${r.id} 描述`} />
                       </td>
-                      <td>
-                        <button type="button" className="btn sm" aria-label={`${r.id} 证据帧`}
-                          title="抓取该段的起始/中间/结束三帧作为视觉证据（本机内存展示，不上传）"
-                          onClick={(ev) => { ev.stopPropagation(); void showEvidence(r); }}
-                          disabled={evi !== null && evi.id === r.id && evi.urls === null}>
-                          {evi !== null && evi.id === r.id && evi.urls === null ? '抓帧中…' : '帧'}
-                        </button>
-                      </td>
-                    </tr>
+                      </tr>
+                    {strips[r.id] && (
+                      <tr className="ais-strip-tr">
+                        <td colSpan={9}>
+                          <div className="aip-strip-row">
+                            <span className="aip-strip-lbl mono">{r.id.toUpperCase()}</span>
+                            <div className="aip-strip">
+                              {strips[r.id].map((u, i) => {
+                                const t = stripTimesOf(r)[i];
+                                return (
+                                  <img key={i} src={u} alt={`${r.id} 第${i + 1}帧`}
+                                    title={`${(t / 1000).toFixed(2)}s · 点击跳到该帧`}
+                                    onClick={() => {
+                                      stopPreview();
+                                      seekTo(t);
+                                      setSelId(r.id);
+                                    }} />
+                                );
+                              })}
+                            </div>
+                            <button type="button" className="btn sm" aria-label={`${r.id} 证据帧大图`}
+                              title="打开大图证据帧（起始/中间/结束三帧，本机内存展示，不上传）"
+                              onClick={() => void showEvidence(r)}
+                              disabled={evi !== null && evi.id === r.id && evi.urls === null}>
+                              {evi !== null && evi.id === r.id && evi.urls === null ? '抓帧中…' : '放大'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -1187,6 +1760,9 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
             </div>
             <p className="aip-note">
               写入将封存当前版本（v{station?.version}，现有 {existing.length} 条手工要素保持只读）并开新版本 v{(station?.version ?? 1) + (existing.length > 0 ? 1 : 0)} 放入 AI 要素。写入后可在分解工作台切换版本对照精修。AI 不替代 IE 判断。
+            </p>
+            <p className="aip-note">
+              分析结果每 0.4s 自动暂存在本机浏览器（刷新/切页不丢）；点「写入新版本」才真正入库。
             </p>
             {!confirming ? (
               <button className="btn primary" disabled={included.length === 0 || (existing.length > 0 && !canRetest)}
@@ -1273,7 +1849,65 @@ export default function AiSegmentPage({ stationId }: { stationId: string }) {
               ))}
               <button type="button" className="btn sm" disabled={sopDraft.length >= 40}
                 onClick={() => setSopDraft((prev) => [...prev, { verb: '' }])}>＋添加步骤</button>
+              <button type="button" className="btn sm" disabled={sopBusy}
+                onClick={() => { setSopImportOpen(true); setSopMsg(null); }}
+                title="从 Excel 复制两列、CSV 或文本批量导入（动词须在动作标准库词表内）">
+                批量导入
+              </button>
             </div>
+
+            {sopImportOpen && (() => {
+              const vocab = new Set(Object.keys(FORMAT_TPL));
+              const parsed = parseSopImport(sopImportText, vocab);
+              const baseCount = sopImportMode === 'append' ? sopDraft.filter((s) => s.verb.trim()).length : 0;
+              const mergedCount = baseCount + parsed.steps.length;
+              const tooMany = mergedCount > 40;
+              const canImport = parsed.steps.length > 0 && parsed.invalid.length === 0 && !tooMany;
+              return (
+                <div className="aip-sop-import">
+                  <p className="muted">
+                    每行一步：<b>动词 对象</b>，或从 Excel 复制两列（制表符）/ CSV（逗号）；# 开头为注释，行首序号自动去掉。
+                    动词必须来自动作标准库词表；导入只填草稿，仍需点「保存到工位」。
+                  </p>
+                  <textarea value={sopImportText} rows={7} aria-label="SOP 批量导入文本"
+                    placeholder={'拿取 后横梁\n装配 后横梁\n目检 后横梁'}
+                    onChange={(e) => setSopImportText(e.target.value)} />
+                  <div className="aip-sop-import-row">
+                    <label className="aip-opt">
+                      <input type="radio" checked={sopImportMode === 'append'}
+                        onChange={() => setSopImportMode('append')} />追加到现有步骤
+                    </label>
+                    <label className="aip-opt">
+                      <input type="radio" checked={sopImportMode === 'replace'}
+                        onChange={() => setSopImportMode('replace')} />替换现有步骤
+                    </label>
+                    <label className="btn sm">选择文件（CSV/TXT）
+                      <input type="file" accept=".csv,.txt,.tsv,text/plain,text/csv" style={{ display: 'none' }}
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!f) return;
+                          try { setSopImportText(await f.text()); } catch { setSopMsg('文件读取失败'); }
+                        }} />
+                    </label>
+                  </div>
+                  <p className={`aip-sop-import-meta${parsed.invalid.length || tooMany ? ' warn' : ''}`}>
+                    识别 {parsed.steps.length} 步
+                    {parsed.duplicates ? ` · 自动去重 ${parsed.duplicates} 条` : ''}
+                    {parsed.skipped ? ` · 跳过 ${parsed.skipped} 行` : ''}
+                    {parsed.invalid.length ? ` · 词表外动词 ${parsed.invalid.length} 个：${parsed.invalid.slice(0, 6).join('、')}` : ''}
+                    {tooMany ? ` · 合并后 ${mergedCount} 步，超过 40 步上限` : ''}
+                  </p>
+                  <div className="aip-roi-acts">
+                    <button type="button" className="btn sm primary" disabled={!canImport} onClick={doSopImport}>
+                      导入 {parsed.steps.length} 步
+                    </button>
+                    <button type="button" className="btn sm"
+                      onClick={() => { setSopImportOpen(false); setSopImportText(''); }}>取消</button>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="aip-roi-acts" style={{ marginTop: 10 }}>
               <button type="button" className="btn sm primary" disabled={sopBusy}

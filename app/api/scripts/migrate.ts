@@ -652,8 +652,10 @@ const MIGRATIONS: string[] = [
   `IF COL_LENGTH('t_batch_export_record','task_id') IS NULL ALTER TABLE t_batch_export_record ADD task_id NVARCHAR(32) NULL`,
   `IF COL_LENGTH('t_batch_export_record','task_no') IS NULL ALTER TABLE t_batch_export_record ADD task_no NVARCHAR(64) NULL`,
   // ④ 方案 A 的产线化修正：§3.1「任务属于单产线」是硬约束，故按 (tenant_id, line_id) 各建一条
-  //    legacy 归档任务。该租户第一条产线保持 task_no='DT-LEGACY'，其余加产线后缀保证租户内唯一。
-  //    首次执行只建一条；后续发现存量跨产线（如测试夹具 L01）时补建，不覆盖已有任务。
+  //    legacy 归档任务。**task_id 是全局主键**——只有全局首个 (租户, 产线) 保留 task_no='DT-LEGACY'，
+  //    其余必须带租户前缀（`DT-LG-<租户>-<产线>`，≤32 字符），否则多租户各自最小产线会撞同一主键
+  //    （2026-11-20 生产实测：DEFAULT/L01 与 OTHER/L02 同时映射 DT-LEGACY → PK 冲突）。
+  //    首次执行只建一条；后续发现存量跨产线时补建，不覆盖已有任务。
   `IF OBJECT_ID('t_decomposition_task','U') IS NOT NULL
    INSERT INTO t_decomposition_task
      (task_id, tenant_id, task_no, line_id, project_id, project_no_snapshot, name, round_type, round_no,
@@ -662,8 +664,10 @@ const MIGRATIONS: string[] = [
           CAST(MIN(s.created_at) AS DATE), CAST(MAX(s.created_at) AS DATE), 'archived', NULL, NULL, NULL, 'migrate', SYSUTCDATETIME(), NULL
    FROM t_station s
    CROSS APPLY (SELECT
-      CASE WHEN s.line_id = (SELECT MIN(s2.line_id) FROM t_station s2 WHERE s2.tenant_id = s.tenant_id)
-           THEN 'DT-LEGACY' ELSE 'DT-LEGACY-' + LEFT(s.line_id, 20) END AS task_id,
+      CASE WHEN s.tenant_id = (SELECT MIN(s4.tenant_id) FROM t_station s4)
+           AND s.line_id = (SELECT MIN(s2.line_id) FROM t_station s2 WHERE s2.tenant_id = s.tenant_id)
+           THEN 'DT-LEGACY'
+           ELSE 'DT-LG-' + LEFT(s.tenant_id, 8) + '-' + LEFT(s.line_id, 12) END AS task_id,
       s.tenant_id, s.line_id) x
    WHERE NOT EXISTS (SELECT 1 FROM t_decomposition_task t
                      WHERE t.tenant_id = s.tenant_id AND t.round_type = 'legacy' AND t.line_id = s.line_id)

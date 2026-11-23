@@ -17,6 +17,32 @@ import { createWebAssetsMiddleware } from './core/web-assets';
  *  在这里压缩图片/字体只会白烧 CPU 并可能把已压缩内容压得更大 */
 const COMPRESSIBLE_TYPE = /^(?:application\/(?:json|xml|javascript|x-ndjson|x-www-form-urlencoded)|text\/)/i;
 
+/**
+ * 内网 DNS / 数据库连接瞬断兜底（2026-11-22 实锤）：
+ * 后台任务（告警监控、派生 worker 等）在 DNS 抖动时会以**未处理的 Promise 拒绝**冒出
+ * QueryFailedError；Node 默认直接退出，表现为"整个 API 突然消失"。
+ * 这里仅把「连接类」错误降级为告警（连接池会在后续请求自动重连），
+ * 其他未处理拒绝仍按致命处理（记录后重新抛出，由 Node 退出），不掩盖真 bug。
+ */
+const TRANSIENT_DB_CODES = new Set(['ENOTFOUND', 'ESOCKET', 'ETIMEOUT', 'ECONNRESET', 'ECONNREFUSED']);
+function isTransientDbError(reason: unknown): boolean {
+  const r = reason as Record<string, any> | null | undefined;
+  const codes = [r?.code, r?.driverError?.code, r?.originalError?.code, r?.cause?.code];
+  if (codes.some((c) => typeof c === 'string' && TRANSIENT_DB_CODES.has(c))) return true;
+  const msg = String(r?.message ?? reason ?? '');
+  return /getaddrinfo|Failed to connect to .*:1433|Connection lost|Connection is closed/i.test(msg);
+}
+const processGuardLog = new Logger('ProcessGuard');
+process.on('unhandledRejection', (reason) => {
+  if (isTransientDbError(reason)) {
+    processGuardLog.warn(`数据库连接瞬断，已保持进程运行（后台任务下轮重试）：${String((reason as any)?.message ?? reason)}`);
+    return;
+  }
+  processGuardLog.error('未处理的 Promise 拒绝（非连接类，按致命处理）', reason as any);
+  // 未注册监听时 Node 会直接退出；注册后需显式恢复该行为，避免吞掉真正的代码缺陷
+  setImmediate(() => { throw reason; });
+});
+
 function compressionFilter(_req: Request, res: Response): boolean {
   const contentType = String(res.getHeader('Content-Type') ?? '');
   if (!contentType) return false;

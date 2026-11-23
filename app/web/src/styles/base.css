@@ -99,7 +99,7 @@ p:last-child { margin-bottom: 0; }
   border: 1px solid var(--line2); background: var(--card-solid); color: var(--ink);
   padding: 6px 13px; border-radius: var(--r-md); font-size: 13px; cursor: pointer;
   font-family: inherit; line-height: 1.5; white-space: nowrap;
-  transition: all var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
   box-shadow: var(--sh-1);
 }
 .btn:hover { border-color: var(--steel-400); color: var(--steel); transform: translateY(-1px); box-shadow: var(--sh-2); }

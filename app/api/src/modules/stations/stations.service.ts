@@ -590,6 +590,9 @@ export class StationsService {
       .createQueryBuilder('e')
       .select('e.bol_version', 'version')
       .addSelect('COUNT(*)', 'element_count')
+      /* 版本线推导（2026-11-22）：版本内要素全部来自 AI → A 线，否则 M 线。
+         生产实测每个版本内 AI/manual 不混合，故该判定可靠。 */
+      .addSelect("COALESCE(SUM(CASE WHEN e.source = 'ai_assisted' THEN 1 ELSE 0 END), 0)", 'ai_count')
       .addSelect('COALESCE(SUM(CASE WHEN e.outlier_flag = 0 THEN e.std_time ELSE 0 END), 0)', 'ct')
       .where('e.station_id = :sid AND e.tenant_id = :tid', { sid: stationId, tid: s.tenant_id });
     if (scopeTaskId) qb.andWhere('e.task_id = :taskId', { taskId: scopeTaskId });
@@ -598,15 +601,30 @@ export class StationsService {
       .orderBy('e.bol_version', 'ASC')
       .getRawMany() as any[];
     const byVer = new Map<number, any>(rows.map((r) => [Number(r.version), r]));
-    const out: { version: number; element_count: number; ct: number; is_current: boolean; is_sealed: boolean }[] = [];
+    const out: {
+      version: number; element_count: number; ct: number;
+      is_current: boolean; is_sealed: boolean;
+      /** 版本线：ai=AI 自动分解结果，manual=人工分解 */
+      line: 'manual' | 'ai';
+      /** 线内序号（M-01 / A-01 的 01） */
+      line_no: number;
+    }[] = [];
+    let mNo = 0;
+    let aNo = 0;
     for (let v = 1; v <= s.version; v += 1) {
       const row = byVer.get(v);
+      const elemCount = row ? Number(row.element_count) : 0;
+      const aiCount = row ? Number(row.ai_count) : 0;
+      const line: 'manual' | 'ai' = elemCount > 0 && aiCount === elemCount ? 'ai' : 'manual';
+      const lineNo = line === 'ai' ? (aNo += 1) : (mNo += 1);
       out.push({
         version: v,
-        element_count: row ? Number(row.element_count) : 0,
+        element_count: elemCount,
         ct: row ? round2(Number(row.ct)) : 0,
         is_current: v === s.version,
         is_sealed: v < s.version,
+        line,
+        line_no: lineNo,
       });
     }
     return out;

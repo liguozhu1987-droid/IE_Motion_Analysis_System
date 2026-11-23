@@ -67,7 +67,13 @@ async function api(base: string, method: string, path: string, opts: { token?: s
   return { status: res.status, data: json, text };
 }
 
-async function login(base: string, username: string, password = '123456') {
+/** 种子口令可由环境变量注入（2026-11-20：admin 口令被界面验证改掉后冒烟被阻）；默认仍是种子值 123456。
+ *  SMOKE_SEED_PASS=非管理员种子账号（viewer1/leader1/other1…）；SMOKE_ADMIN_PASS=admin 单独注入
+ *  （仅 admin 被改口令时用，其余账号保持 123456；两者都缺省 = 纯种子环境）。 */
+const SEED_PASS = process.env.SMOKE_SEED_PASS || '123456';
+const ADMIN_PASS = process.env.SMOKE_ADMIN_PASS || SEED_PASS;
+
+async function login(base: string, username: string, password = SEED_PASS) {
   const r = await api(base, 'POST', '/api/auth/login', { body: { username, password } });
   return r;
 }
@@ -176,7 +182,7 @@ async function main() {
   const noToken = await api(base, 'GET', '/api/stations');
   check('无 token 访问业务接口 → 401', noToken.status === 401);
 
-  const admin = await login(base, 'admin');
+  const admin = await login(base, 'admin', ADMIN_PASS);
   check('admin 登录 → 200', admin.status === 200, admin.data?.detail);
   check('签发 accessToken', typeof admin.data?.accessToken === 'string');
 
@@ -185,7 +191,7 @@ async function main() {
 
   // —— 3. 登录锁定（连错 5 次）——
   for (let i = 0; i < 5; i++) await login(base, 'leader1', 'bad');
-  const locked = await login(base, 'leader1', '123456');
+  const locked = await login(base, 'leader1', SEED_PASS);
   checkR('连错 5 次后即使正确密码也锁定 → 401', locked, locked.status === 401 && /锁定/.test(locked.data?.detail ?? locked.data?.message ?? ''));
 
   // —— 4. RBAC ——

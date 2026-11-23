@@ -7,6 +7,7 @@ import StationTabs from './components/StationTabs';
 import ContextPanel from './components/ContextPanel';
 import OnboardingStrip from './components/OnboardingStrip';
 import UserMenu from './components/UserMenu';
+import ErrorBoundary from './components/ErrorBoundary';
 import { api, type AiSuggestElementSource, type AiWasteElementSource, type DashboardFilters, type DashboardSummary, type LinesSummary, type Station } from './api';
 
 // 按路由拆包（报告 W3）：页面组件走 React.lazy 动态导入，避免单 chunk 过大拖累驾驶舱首屏 LCP。
@@ -217,6 +218,8 @@ function Shell() {
    * v3.55：服务端按可见范围收口后，普通用户直接输入他人工位 URL 会拿到 403。
    * 此处给出明确提示（而不是静默置空 → 页面空白无解释），并把左侧树选中项拉回自己的范围。 */
   const routeStationId = 'id' in route ? route.id : '';
+  /** 页面级错误边界的复位键：切页即清错（顶栏/侧栏保留，用户可直接切走） */
+  const routeKey = `${route.page}:${routeStationId}`;
   const [deniedStation, setDeniedStation] = useState<string | null>(null);
   useEffect(() => {
     if (!routeStationId) { setStationDetail(null); setDeniedStation(null); return; }
@@ -443,6 +446,8 @@ function Shell() {
                 <a className="btn sm primary" href="#/help">打开帮助中心</a>
               </div>
             )}
+            {/* 页面级兜底：单页渲染异常时顶栏/侧栏保留，可直接切走（v3.60） */}
+            <ErrorBoundary resetKey={routeKey} title="页面出错了">
             <Suspense fallback={<PageFallback />}>
             {denied ? (
               <div className="deny-card">
@@ -526,6 +531,7 @@ function Shell() {
               <ChangePasswordPage forced={false} />
             )}
             </Suspense>
+            </ErrorBoundary>
           </main>
         </div>
 

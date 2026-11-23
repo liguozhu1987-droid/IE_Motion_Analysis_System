@@ -222,5 +222,6 @@ export async function analyzeVideo(
     elapsedMs: Date.now() - t0,
     sampleMs: SAMPLE_MS,
     frames: frames.length,
+    detectedFrames: frames.filter((x) => x.L || x.R).length,
   };
 }

@@ -24,7 +24,7 @@
 | `handoff/明细/project_management/progress.md` | 进度、验收证据、交接确认 | 滚动 |
 | `handoff/明细/agent_memory/*/README.md` | 按 Agent 类型的细化工作规矩 | 长期规矩 |
 | `AGENT必读.md` | **第一入口**：API 契约速查 + 任务看板 + 工程纪律 | 工程执行索引（从上述口径派生，保留其历史详尽记录） |
-| `项目记忆.md` | 2026-10-24 共享快照 | **已冻结的历史参考**，不再更新 |
+| `项目记忆.md` | 2026-10-24 共享快照 | **已冻结的历史参考**，不再更新　【已过期 2026-11-22：该文件已移至 `handoff/归档/项目记忆-旧平台快照-2026-10-24.md`，仓库根不再存在】 |
 | `docs/CODE-WIKI.md` | 完整代码导航 | 派生文档 |
 | `.workbuddy/memory/YYYY-MM-DD.md` | **会话工作日志（Append-only）** | 按项目纪律保留，记录「做了什么/关键决策/坑」 |
 | `.workbuddy/memory/MEMORY.md` | 跨会话精简索引（≤3000 字） | 索引，不是口径源 |

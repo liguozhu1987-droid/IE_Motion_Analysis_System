@@ -66,8 +66,15 @@ export class ElementsService {
       withTask({ station_id: stationId, bol_version: target }, scope),
       { order: { seq: 'ASC' } },
     );
+    /* 版本线（2026-11-22）：当前版本属于 AI 线还是人工线，以及线内编号。
+       前端据此显示 M-01 / A-01，并在 AI 版本上禁用「提交」（防人工内容写进 AI 版本）。 */
+    const versions = await this.stations.versions(stationId, scope.task_id ?? undefined);
+    const cur = versions.find((v) => v.version === target);
     return {
       station_id: stationId, version: target, current_version: station.version, elements,
+      version_line: cur?.line ?? 'manual',
+      line_version: cur?.line_no ?? 1,
+      versions,
       task_scope: scopeMarker(scope),
     };
   }

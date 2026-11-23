@@ -205,15 +205,18 @@
 .ais-table .ais-conf-weak { color: var(--ink3); }
 
 /* ── 批量确认弹窗 ── */
-.ais-modal-mask {
-  position: fixed; inset: 0; z-index: 120;
-  background: rgb(15 23 32 / 46%);
-  display: flex; align-items: center; justify-content: center;
-}
+/* 原生 <dialog>（2026-11-22）：top-layer / 焦点限制 / Esc / 背景 inert 由浏览器提供。
+   背景滚动隔离的两条为必做（缺任一条，滚轮会在对话框上穿透到页面）。 */
 .ais-modal {
   width: min(92vw, 440px); background: var(--card);
   border: 1px solid var(--line2); box-shadow: 0 18px 48px rgb(15 23 32 / 28%);
   padding: 16px 18px; text-align: left;
+  margin: auto; max-height: 85vh; overflow: auto; color: inherit;
+}
+.ais-modal:modal { overscroll-behavior: contain; }
+.ais-modal::backdrop {
+  background: rgb(15 23 32 / 46%);
+  overflow: hidden; overscroll-behavior: contain;
 }
 .ais-modal h4 { font-size: 14px; margin: 0 0 10px; color: var(--ink); }
 .ais-modal dl { display: grid; grid-template-columns: 76px 1fr; gap: 4px 10px; margin: 0 0 12px; }
@@ -293,6 +296,56 @@
 .aip-cand.hand-B { top: 9px; }
 .aip-playhead { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--red); pointer-events: none; }
 
+/* 段级核对：循环预览 + 边界微调（v3.60，人工验证 AI 分段是否切对） */
+.aip-cand.sel { outline: 2px solid var(--blue); outline-offset: -1px; z-index: 1; padding: 0 9px; }
+.aip-cand.playing { background: var(--blue); border-color: var(--blue); color: #fff; }
+.aip-cand.dragging { cursor: ew-resize; }
+/* 拖动边界手柄（选中后出现）：覆盖在块左右边，touch-action 关闭保证触屏拖动连续 */
+.aip-cand-h {
+  position: absolute; top: 0; bottom: 0; width: 7px; background: var(--blue);
+  opacity: 0.55; cursor: ew-resize; touch-action: none; z-index: 2;
+}
+.aip-cand-h:hover, .aip-cand.dragging .aip-cand-h { opacity: 1; }
+.aip-cand-h.l { left: 0; border-radius: 3px 0 0 3px; }
+.aip-cand-h.r { right: 0; border-radius: 0 3px 3px 0; }
+.aip-pv {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; padding: 6px 8px;
+  border: 1px solid var(--blue-line); background: var(--blue-bg); border-radius: 6px; font-size: 12px; color: var(--ink2);
+}
+.aip-pv-time { color: var(--ink); }
+.aip-pv-loop { color: var(--blue); font-weight: 600; }
+.aip-pv-sep { width: 1px; height: 16px; background: var(--line2); }
+.aip-pv-bd { display: inline-flex; align-items: center; gap: 3px; color: var(--ink3); }
+.aip-pv-nudge {
+  border: 1px solid var(--line); background: #fff; border-radius: 4px; padding: 1px 5px;
+  font-size: 11px; color: var(--ink2); cursor: pointer;
+}
+.aip-pv-nudge:hover { border-color: var(--blue-line); color: var(--blue); }
+.aip-pv-tip { color: var(--ink3); font-size: 11px; }
+
+/* 分析后统计（v3.60）：hand 显示检出帧/采样帧；motion 明确标注不识别手部，避免把 0 误读为失败 */
+.aip-stats { padding: 5px 10px; font-size: 11px; color: var(--ink3); border-bottom: 1px solid var(--line); background: #fbfcfe; }
+.aip-stats.warn { color: var(--amber); background: var(--amber-bg); }
+
+/* 本地草稿恢复提示（v3.60）：分析结果写入前自动暂存，刷新/切页可恢复 */
+.aip-draft {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 10px; font-size: 11px; color: var(--ink2);
+  background: var(--teal-bg); border-bottom: 1px solid var(--teal-line);
+}
+.aip-draft .muted { margin-left: 4px; }
+
+/* 行内 filmstrip（v3.60）：每候选行下方通栏 3 帧缩略图，点击跳到该帧；会话内存，不落库 */
+.ais-strip-tr td { background: #fafbfd; border-bottom: 1px solid var(--line); padding: 3px 6px 5px; }
+.aip-strip-row { display: flex; align-items: center; gap: 6px; }
+.aip-strip-lbl { color: var(--ink3); font-size: 10px; }
+.aip-strip { display: inline-flex; gap: 2px; vertical-align: middle; margin-right: 4px; }
+.aip-strip img {
+  width: 52px; height: 29px; object-fit: cover; border-radius: 3px;
+  border: 1px solid var(--line); cursor: pointer; display: block; background: #0d1117;
+}
+.aip-strip img:hover { border-color: var(--blue); }
+
 .aip-error { margin-top: 10px; padding: 8px 10px; border: 1px solid var(--red-line); background: var(--red-bg); color: var(--red); border-radius: 6px; font-size: 12px; }
 .aip-ok { margin-top: 10px; padding: 8px 10px; border: 1px solid var(--teal-line); background: var(--teal-bg); color: var(--teal); border-radius: 6px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
@@ -369,6 +422,18 @@
 .aip-sop-idx { width: 22px; text-align: right; color: var(--ink3); flex: none; }
 .aip-sop-step .aip-inp { width: 150px; flex: none; }
 .aip-sop-step .aip-inp.wide { flex: 1; width: auto; }
+/* 批量导入（v3.60）：Excel 复制/CSV/文本 → 解析预览 → 追加或替换草稿 */
+.aip-sop-import {
+  border: 1px dashed var(--blue-line); background: var(--blue-bg); border-radius: 6px;
+  padding: 8px; display: flex; flex-direction: column; gap: 6px;
+}
+.aip-sop-import textarea {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 12px;
+  border: 1px solid var(--line); border-radius: 4px; padding: 6px; resize: vertical;
+}
+.aip-sop-import-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.aip-sop-import-meta { margin: 0; font-size: 11px; color: var(--ink3); }
+.aip-sop-import-meta.warn { color: var(--amber); }
 .aip-sop-res { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
 .aip-sop-res > b { font-size: 13px; }
 .aip-sop-res ul { margin: 6px 0; padding-left: 18px; max-height: 200px; overflow: auto; }

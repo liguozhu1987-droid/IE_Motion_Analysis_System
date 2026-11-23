@@ -90,7 +90,7 @@ main.container-wide { padding: 6px 10px 8px; }
   font-size: 12px; font-weight: 600; color: var(--ink2); cursor: pointer; font-family: inherit;
   border: 1px solid var(--line2); border-radius: 7px; padding: 4px 10px; background: #fff;
   display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
-  transition: all 0.14s ease;
+  transition: color 0.14s ease, background-color 0.14s ease, border-color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
 }
 .wb-top-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
 .wb-top-btn.icon { padding: 4px 8px; font-weight: 700; }
@@ -142,7 +142,7 @@ main.container-wide { padding: 6px 10px 8px; }
   border: 1px dashed rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.012);
   color: rgba(255, 255, 255, 0.72); border-radius: 12px; cursor: pointer; font-family: inherit;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
-  transition: all 0.18s ease;
+  transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 .wb-drop:hover { border-color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.04); color: #fff; }
 .wb-drop-ico {
@@ -177,7 +177,7 @@ main.container-wide { padding: 6px 10px 8px; }
   min-width: 26px; height: 28px; padding: 0 4px; border: none; border-radius: 7px;
   background: transparent; color: rgba(255, 255, 255, 0.82); cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; font-family: inherit; font-size: 12px;
-  transition: all 0.12s ease;
+  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 .wb-tp-btn:hover { background: rgba(255, 255, 255, 0.13); color: #fff; }
 .wb-tp-btn.sm { font-size: 11px; letter-spacing: -0.02em; color: rgba(255, 255, 255, 0.72); }
@@ -193,7 +193,7 @@ main.container-wide { padding: 6px 10px 8px; }
 .wb-tp-speed button {
   border: none; background: transparent; color: rgba(255, 255, 255, 0.5);
   font-size: 11px; padding: 3px 5px; border-radius: 6px; cursor: pointer; font-family: inherit;
-  transition: all 0.12s ease; font-variant-numeric: tabular-nums;
+  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease; font-variant-numeric: tabular-nums;
 }
 .wb-tp-speed button:hover { color: #fff; background: rgba(255, 255, 255, 0.11); }
 .wb-tp-speed button.on { background: rgba(255, 255, 255, 0.92); color: #0b1119; font-weight: 700; }
@@ -201,7 +201,7 @@ main.container-wide { padding: 6px 10px 8px; }
 .wb-loop-btn {
   border: 1px solid rgba(255, 255, 255, 0.18); background: transparent; color: rgba(255, 255, 255, 0.55);
   font-size: 10.5px; font-weight: 600; padding: 3px 7px; border-radius: 6px; cursor: pointer;
-  margin-left: 6px; font-family: inherit; white-space: nowrap; transition: all 0.12s ease;
+  margin-left: 6px; font-family: inherit; white-space: nowrap; transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 .wb-loop-btn:hover { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
 .wb-loop-btn.on { background: rgba(45, 212, 191, 0.16); color: #5eead4; border-color: rgba(94, 234, 212, 0.5); }
@@ -258,7 +258,7 @@ main.container-wide { padding: 6px 10px 8px; }
 .wb-insp-toggle-btn {
   font-size: 11px; color: var(--ink3); background: none; border: 1px solid var(--line2);
   border-radius: 6px; padding: 2px 8px; cursor: pointer; font-family: inherit;
-  transition: all 0.12s ease; white-space: nowrap;
+  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease; white-space: nowrap;
 }
 .wb-insp-toggle-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
 /* 检查器折叠态的常驻展开入口（v3.19）：
@@ -272,7 +272,7 @@ main.container-wide { padding: 6px 10px 8px; }
   font-size: 11px; font-weight: 600; color: #dbe7f3; font-family: inherit;
   background: rgba(13, 22, 34, 0.82); border: 1px solid #2b3d52; border-radius: 8px;
   padding: 5px 11px; cursor: pointer; white-space: nowrap;
-  backdrop-filter: blur(4px); transition: all 0.12s ease;
+  backdrop-filter: blur(4px); transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 .wb-insp-show:hover { border-color: var(--blue); color: #fff; background: rgba(20, 34, 50, 0.94); }
 .wb-insp-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; }
@@ -341,7 +341,7 @@ button.wb-sec-t-sub:hover { text-decoration: underline; }
 .wb-seg { display: flex; border: 1px solid var(--line2); border-radius: 8px; overflow: hidden; background: #fff; }
 .wb-seg button {
   flex: 1 1 0; min-width: 0; border: none; background: transparent; padding: 5px 7px; font-size: 12px; color: var(--ink3);
-  cursor: pointer; font-family: inherit; border-right: 1px solid var(--line); transition: all 0.12s ease;
+  cursor: pointer; font-family: inherit; border-right: 1px solid var(--line); transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 .wb-seg button:last-child { border-right: none; }
 .wb-seg button:hover { background: var(--bg); color: var(--ink); }
@@ -428,7 +428,7 @@ button.wb-sec-t-sub:hover { text-decoration: underline; }
   font-size: 11px; font-weight: 700; color: #ffd9a0;
   background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 200, 120, 0.45);
   border-radius: 8px; padding: 3px 9px; backdrop-filter: blur(3px);
-  font-family: inherit; cursor: pointer; transition: all 0.12s ease;
+  font-family: inherit; cursor: pointer; transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 .wb-seg-chip:hover { border-color: #ffbf6b; color: #fff; background: rgba(60, 30, 0, 0.72); }
 .wb-ver { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 11.5px; border-bottom: 1px dashed var(--line); }
@@ -460,7 +460,7 @@ button.wb-sec-t-sub:hover { text-decoration: underline; }
   margin-left: 6px; font-size: 10.5px; font-weight: 700; color: #b45309;
   background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px;
   padding: 1px 7px; cursor: pointer; font-family: inherit; white-space: nowrap;
-  transition: all 0.12s ease;
+  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 .wb-seg-cancel:hover { background: #fde68a; border-color: #f59e0b; color: #92400e; }
 /* J/K/L 穿梭倍速显示（超出 0.25~1 按钮档时亮出） */
@@ -468,7 +468,7 @@ button.wb-sec-t-sub:hover { text-decoration: underline; }
 .wb-tlstrip-toggle {
   flex: 0 0 auto; border: 1px solid var(--line2); background: #fff; color: var(--ink3);
   font-size: 11px; font-family: inherit; border-radius: 7px; padding: 3px 9px; cursor: pointer;
-  transition: all 0.14s ease;
+  transition: color 0.14s ease, background-color 0.14s ease, border-color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
 }
 .wb-tlstrip-toggle:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
 .wb-tlstrip-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; height: clamp(116px, 13vh, 124px); }
@@ -476,7 +476,7 @@ button.wb-sec-t-sub:hover { text-decoration: underline; }
 .wb-tabs button {
   border: none; background: transparent; color: var(--ink3); font-size: 12px; font-family: inherit;
   padding: 4px 12px; border-radius: 7px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-  transition: all 0.14s ease;
+  transition: color 0.14s ease, background-color 0.14s ease, border-color 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
 }
 .wb-tabs button:hover { color: var(--ink); }
 .wb-tabs button.on { background: #fff; color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(16, 30, 54, 0.09); }
@@ -665,7 +665,7 @@ button.wb-sec-t-sub:hover { text-decoration: underline; }
 .wb-icon {
   flex: 0 0 auto; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--line2); background: #fff; color: var(--ink3); border-radius: 7px; cursor: pointer;
-  transition: all 0.12s ease;
+  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 .wb-icon:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
 .wb-icon.danger:hover { border-color: var(--red-line); color: var(--red); background: var(--red-bg); }
@@ -700,7 +700,7 @@ button.wb-sec-t-sub:hover { text-decoration: underline; }
   display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px;
   width: 100%; text-align: left; font-family: inherit; font-size: 13px; cursor: pointer;
   border: 1px solid var(--line); background: #fff; border-radius: 9px; padding: 7px 12px;
-  transition: all 0.12s ease;
+  transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 .rz-row:hover { border-color: var(--blue); background: var(--blue-bg); }
 .rz-row:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -893,3 +893,26 @@ input[type="radio"], input[type="checkbox"] { width: auto; flex: 0 0 auto; }
 .wb-converting-txt { min-width: 0; }
 /* 工具箱（Ctrl+K）分组容器：分组头 sticky 之后，组内条目需有呼吸间距 */
 .wb-tbx-g { display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; }
+
+/* AI 版本提示条（2026-11-22）：当前版本含 AI 自动分解结果时，提示人工先复测开新版本。
+   AI 与人工按版本隔离——封存旧版保留 AI 成果，新版空白供人工分解，互不覆盖。 */
+.wb-ai-notice {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 6px 14px; font-size: 12px; color: var(--ink2);
+  background: var(--copper-bg); border-bottom: 1px solid var(--copper-line);
+}
+.wb-ai-notice b { color: var(--copper-600); }
+.wb-ai-notice .muted { color: var(--ink3); }
+.wb-ai-notice .wb-top-btn { margin-left: auto; }
+
+/* 版本线徽标（2026-11-22）：M-01 = 人工分解线，A-01 = AI 自动分解线。
+   两条线按版本内容推断，人工内容不能提交到 A 线版本。 */
+.wb-line-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 5px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0;
+}
+.wb-line-badge.manual { background: var(--steel-bg); color: var(--steel); border: 1px solid var(--steel-line); }
+.wb-line-badge.ai { background: var(--copper-bg); color: var(--copper-600); border: 1px solid var(--copper-line); }
+.wb-ver-line { font-weight: 700; }
+.wb-ver-line.ai { color: var(--copper-600); }
+.wb-ver-line.manual { color: var(--steel); }

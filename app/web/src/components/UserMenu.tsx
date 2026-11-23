@@ -74,7 +74,8 @@ export default function UserMenu() {
   return (
     <div className={`userchip${open ? ' uc-open' : ''}`} ref={ref}>
       <button type="button" className="uc-trigger" onClick={() => setOpen((v) => !v)}
-        aria-haspopup="dialog" aria-expanded={open} title="查看我的角色与权限">
+        aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? 'uc-pop' : undefined}
+        title="查看我的角色与权限">
         <span className="uc-avatar">{initial}</span>
         <span className="uc-meta">
           <span className="uc-name">{user.displayName || user.username}</span>
@@ -87,7 +88,7 @@ export default function UserMenu() {
       <button className="userchip-logout" onClick={() => void logout()}>退出</button>
 
       {open && (
-        <div className="uc-pop" role="dialog" aria-label="我的权限">
+        <div id="uc-pop" className="uc-pop" role="dialog" aria-label="我的权限">
           <div className="uc-pop-head">
             <h4>{user.displayName || user.username}</h4>
             <div className="uc-pop-id">{user.username} · {user.roles.join(' / ') || '—'}</div>

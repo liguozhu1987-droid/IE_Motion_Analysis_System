@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiError, videoFileUrl, AUTH_REFRESHED_EVENT, type Element, type Station, type StationVersion, type ValidationIssue } from '../api';
+import { api, ApiError, videoFileUrl, AUTH_REFRESHED_EVENT, refreshTokens, type Element, type Station, type StationVersion, type ValidationIssue } from '../api';
 import { videoDerivatives, type DerivativeMeta } from '../video/derivatives';
 import { uploadVideo } from '../video/chunkedUpload';
 import { useVideoEngine } from '../video/useVideoEngine';
@@ -44,6 +44,10 @@ interface Loaded {
   station: Station;
   elements: Element[];
   versions: StationVersion[];
+  /** 当前版本的线：ai=AI 自动分解，manual=人工分解（2026-11-22） */
+  line: 'manual' | 'ai';
+  /** 线内编号（M-01 / A-01 的 01） */
+  lineNo: number;
 }
 
 /**
@@ -62,6 +66,39 @@ const durToGrid = (s: number) => Math.round(s * 100) / 100;
 /** 要素止点（ms）= 后端 V2 校验同公式：start_ms + round(量化后 dur_s × 1000)，恒为整数 */
 const elEndMs = (d: { start_ms: number; dur_s: number }) =>
   Math.round(d.start_ms + durToGrid(d.dur_s) * 1000);
+
+/**
+ * 本地草稿（2026-11-22）：未提交的手工分解在刷新/切页/崩溃后不丢。
+ * 按工位存 localStorage，记录写入时的版本号；只在「有未提交修改（draftDirty）」时写，
+ * 提交成功或回到干净态即清除。AI 自动分解结果存在服务端、按版本隔离，两者互不影响。
+ */
+const DRAFT_PREFIX = 'ie-wb-draft:';
+interface StoredDraft { v: 1; stationVersion: number; savedAt: string; elements: Draft[]; cycles: number; cv: number }
+
+function draftKeyOf(stationId: string): string { return `${DRAFT_PREFIX}${stationId}`; }
+
+function readStoredDraft(stationId: string): StoredDraft | null {
+  try {
+    const raw = localStorage.getItem(draftKeyOf(stationId));
+    if (!raw) return null;
+    const d = JSON.parse(raw) as StoredDraft;
+    if (d?.v !== 1 || !Array.isArray(d.elements)) return null;
+    return d;
+  } catch { return null; }
+}
+
+function writeStoredDraft(stationId: string, stationVersion: number, elements: Draft[], cycles: number, cv: number): void {
+  try {
+    const payload: StoredDraft = { v: 1, stationVersion, savedAt: new Date().toISOString(), elements, cycles, cv };
+    const s = JSON.stringify(payload);
+    if (s.length > 900_000) return; // 防配额爆炸；正常工位远低于此
+    localStorage.setItem(draftKeyOf(stationId), s);
+  } catch { /* 隐私模式/配额满：降级为仅内存 */ }
+}
+
+function clearStoredDraft(stationId: string): void {
+  try { localStorage.removeItem(draftKeyOf(stationId)); } catch { /* ignore */ }
+}
 
 /**
  * v3.28 可选视频格式：浏览器能直播的（MP4/H.264、MOV/H.264、WebM/VP8/VP9/AV1）本地直载；
@@ -394,6 +431,8 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   const pendingFileRef = useRef<File | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const serverTriedRef = useRef(false);
+  /** 网络错误只自动刷新鉴权一次（服务端视频 ?token= 有效 15min，长时间分解会过期） */
+  const netRetriedRef = useRef(false);
   /** 服务端转码中进行态（显示源文件名）：浮层提示，避免用户面对黑屏以为卡死 */
   const [videoConverting, setVideoConverting] = useState<string | null>(null);
 
@@ -403,14 +442,20 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   const canWrite = can('element:write');
   const canRetest = can('station:retest');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { discardLocal?: boolean }) => {
     const [station, elementRes, versions] = await Promise.all([
       api.station(stationId),
       api.elements(stationId),
       api.stationVersions(stationId),
     ]);
-    setLoaded({ station, elements: elementRes.elements, versions });
-    setDraft(elementRes.elements.map((el) => ({
+    setLoaded({
+      station,
+      elements: elementRes.elements,
+      versions,
+      line: elementRes.version_line ?? 'manual',
+      lineNo: elementRes.line_version ?? 1,
+    });
+    const serverDraft: Draft[] = elementRes.elements.map((el) => ({
       key: el.element_id,
       seq: el.seq,
       start_ms: el.start_ms,
@@ -428,7 +473,27 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
       source: el.source,
       // 库中已提交要素：入库值即显式评定值（工时专家会审 P0-1）
       rated: 'hand' as const,
-    })));
+    }));
+    /* 本地草稿恢复：仅当版本一致且草稿非空，才用它覆盖服务端视图。
+       提交成功后调用方传 discardLocal:true（此时草稿已清除，双保险）。 */
+    const local = opts?.discardLocal ? null : readStoredDraft(stationId);
+    const restore = !!local && local.stationVersion === station.version && local.elements.length > 0;
+    if (restore) {
+      /* 草稿只存人工编辑内容；服务端已有的 AI 要素必须并回来（AI 成果不可丢），
+         合并后按起点重排 seq——seq 只是序号，提交时服务端会按排序重赋。 */
+      const localKeys = new Set(local!.elements.map((e) => e.key));
+      const missingAi = serverDraft.filter((d) => d.source === 'ai_assisted' && !localKeys.has(d.key));
+      const merged = [...local!.elements, ...missingAi]
+        .sort((a, b) => a.start_ms - b.start_ms)
+        .map((e, i) => ({ ...e, seq: i + 1 }));
+      setDraft(merged);
+      setCycles(local!.cycles);
+      setCv(local!.cv);
+      setMsg(`已恢复本地草稿（${new Date(local!.savedAt).toLocaleString()}，${local!.elements.length} 条）`
+        + `${missingAi.length > 0 ? `；已保留服务端 ${missingAi.length} 条 AI 要素` : ''}——尚未提交到服务端的内容。`);
+    } else {
+      setDraft(serverDraft);
+    }
     /* v3.49 自动跟随基线：存量灌入只记右缘不滚动（否则打开工作台时间线跳到最右端） */
     tlEdgeRef.current = elementRes.elements.reduce((m, el) => Math.max(m, elEndMs(el)), 0);
     setSelected(null);
@@ -463,6 +528,19 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
   }, [draft, loaded]);
   /** 可跑浪费识别的前提：当前版本有已提交要素（后端按 station.version 分析已提交数据） */
   const hasCommitted = (loaded?.elements.length ?? 0) > 0;
+  /** 当前版本里的 AI 自动分解要素数：用于提示「人工分解请先复测开新版本」 */
+  const aiCount = loaded?.elements.filter((e) => e.source === 'ai_assisted').length ?? 0;
+
+  /* 本地草稿自动保存：脏则 800ms 防抖写入本机，回到干净态即清除。
+     提交成功后由 submit 显式 clearStoredDraft + reload，双保险。 */
+  useEffect(() => {
+    if (!loaded) return;
+    const t = window.setTimeout(() => {
+      if (draftDirty) writeStoredDraft(stationId, loaded.station.version, draft, cycles, cv);
+      else clearStoredDraft(stationId);
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [draft, draftDirty, loaded, stationId, cycles, cv]);
 
   /* ---- 公司动作分解标准（motion_standard 规则集，DB 发布版优先、内置兜底）----
      类型下拉按一级分组、二级直选；结构化描述字段由所选类型的描述格式动态生成 */
@@ -1539,12 +1617,16 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
       setMsg(`提交成功：${res.element_count} 个要素，CT=${res.ct}s（v${res.version}）`);
       setWarnings(res.warnings ?? []);
       setSubmitted(true);
-      await load();
+      clearStoredDraft(stationId); // 已入库：本地草稿使命结束
+      await load({ discardLocal: true });
     } catch (err) {
       if (err instanceof ApiError && err.status === 400 && (err.errors?.length ?? 0) > 0) {
         setIssues(err.errors!);
         setWarnings(err.warnings ?? []);
         setError(err.message);
+      } else if (err instanceof ApiError && err.status === 409 && /AI 自动分解要素/.test(err.message)) {
+        // AI 版本守卫：给出可操作路径，并说明本地草稿不会丢
+        setError(`${err.message}　→ 点上方提示条「复测并继续」，你的本地草稿会自动带到新版本。`);
       } else {
         setError((err as Error).message);
       }
@@ -1564,7 +1646,12 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
     setBusy(true); setError(null);
     try {
       const res = await api.startRetest(stationId);
-      setMsg(`已封存 v${loaded?.station.version}，当前版本 v${res.version}`);
+      /* 未提交的本地草稿跟到新版本：复测封存的是服务端版本，不应连带丢掉用户正在做的人工分解 */
+      const carried = readStoredDraft(stationId);
+      if (carried && carried.elements.length > 0) {
+        writeStoredDraft(stationId, res.version, carried.elements, carried.cycles, carried.cv);
+      }
+      setMsg(`已封存 v${loaded?.station.version}，当前版本 v${res.version}${carried && carried.elements.length > 0 ? '（本地草稿已带到新版本）' : ''}`);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -1622,6 +1709,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
     // 由 video onError 触发后端 ffmpeg 转码回退（每文件只试一次，防循环）
     pendingFileRef.current = file;
     serverTriedRef.current = false;
+    netRetriedRef.current = false;
     setVideoConverting(null);
     // 新文件：清服务端派生轮询键、代理态、关键帧清单与上传进度（本地 object URL 无派生可言）
     setServerName(null);
@@ -1654,6 +1742,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
       const res = await uploadVideo(file, { onProgress: setUploadPct });
       if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null; }
       pendingFileRef.current = null; // 已是服务端文件，后续播放错误不再回退
+      netRetriedRef.current = false; // 新服务端 URL：鉴权自动重试额度重置
       setVideoUrl(videoFileUrl(res.name));
       setServerName(res.name); // 触发派生懒生成 + 5s 轮询（下方 effect）
       setVideoName(res.transcoded ? `${file.name} → MP4（已转换）` : `${file.name}（格式可直接播放）`);
@@ -1927,7 +2016,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
     // —— 评定与交付 ——
     { id: 'batch', group: '评定与交付', label: '批量评定', hint: '按循环整体表现统一选档', run: () => setShowBatch(true), disabled: !canWrite },
     { id: 'reuse', group: '评定与交付', label: '复用要素', hint: '从历史版本/同线工位套用结构', run: () => setShowReuse(true), disabled: !canWrite },
-    { id: 'submit', group: '评定与交付', label: '提交分解', hint: '本地草稿 → 正式 ST（可返工）', run: () => void submit(), disabled: busy },
+    { id: 'submit', group: '评定与交付', label: '提交分解', hint: '本地草稿 → 正式 ST（可返工）', run: () => void submit(), disabled: busy || loaded?.line === 'ai' },
     { id: 'waste', group: '评定与交付', label: 'AI 识别浪费', hint: '基于已提交的手工分解要素生成待审问题清单（与顶栏按钮同函数，禁用态一致）', run: () => void runWasteAnalysis(), disabled: !can('suggestion:generate') || draftDirty || !hasCommitted || busy || wasteBusy },
     { id: 'retest', group: '评定与交付', label: '开始复测', hint: '封存当前版本并开新版', run: () => void startRetest(), disabled: busy },
     { id: 'help', group: '评定与交付', label: '快捷键帮助', kbd: '?', run: () => setShowHelp(true) },
@@ -1974,7 +2063,12 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
         <div className="wb-id">
           <h1>{loaded.station.name}</h1>
           <div className="wb-meta mono">
-            {loaded.station.station_id} <i>·</i> v{loaded.station.version} <i>·</i>{' '}
+            {loaded.station.station_id} <i>·</i>{' '}
+            <b className={`wb-line-badge ${loaded.line}`}
+              title={loaded.line === 'ai' ? 'AI 自动分解版本（人工内容不能提交到此版本）' : '人工分解版本'}>
+              {loaded.line === 'ai' ? 'A' : 'M'}-{String(loaded.lineNo).padStart(2, '0')}
+            </b>{' '}
+            <i>·</i>{' '}
             {effVersions.length >= 2 ? (
               <a href={`#/diff/${loaded.station.station_id}/${effVersions[effVersions.length - 2].version}/${loaded.station.version}`}
                 title={`版本 Diff：相邻两版要素结构逐条比对（有效版本 ${effVersions.length} 个${emptyVerCount > 0 ? `，另有 ${emptyVerCount} 个空版本未计入` : ''}）`}>{effVersions.length} 个有效版本 ⤫</a>
@@ -2024,6 +2118,17 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
             aria-label="全屏切换">{isFull ? '⤡' : '⤢'}</button>
         </div>
       </header>
+      {aiCount > 0 && (
+        <div className="wb-ai-notice no-print" role="status">
+          <span>当前是 <b>A-{String(loaded.lineNo).padStart(2, '0')}</b>（AI 自动分解版本，{aiCount} 条）</span>
+          <span className="muted">人工分解不能提交到此版本；点右侧新建 M 线版本，AI 结果原样保留、互不覆盖。</span>
+          {canRetest && (
+            <button className="wb-top-btn" onClick={() => void startRetest()} title="封存当前版本并新建空白版本（本地草稿会自动带过去）">
+              复测并继续
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 瞬时提示一律浮层（flash/撤销/校验结果）：不占文档流，加要素、出提示都不再改变监看区高度 */}
       {flash && <div className="wb-toast wb-toast-flash">{flash}</div>}
@@ -2091,6 +2196,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                 ref={videoRef}
                 src={videoUrl}
                 tabIndex={-1}
+                preload="metadata"
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
                 onTimeUpdate={onVideoTime}
@@ -2099,11 +2205,22 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                   // 每文件只试一次（serverTriedRef 防循环）；其余错误明确提示，不黑屏静默
                   const v = e.currentTarget;
                   const code = v.error?.code;
+                  const isServerSrc = !!(videoUrl && (videoUrl.includes('/videos/file/') || videoUrl.includes('/derivative/proxy')));
                   if ((code === 3 || code === 4) && pendingFileRef.current && !serverTriedRef.current) {
                     serverTriedRef.current = true;
                     void convertOnServer(pendingFileRef.current);
+                  } else if (code === 2 && isServerSrc && !netRetriedRef.current) {
+                    /* 服务端视频 ?token= 有效 15min：长时间分解会过期 → 网络错误。
+                       刷新一次令牌即可，AUTH_REFRESHED_EVENT 会换新 URL 并恢复播放位置。 */
+                    netRetriedRef.current = true;
+                    void refreshTokens().then((ok) => {
+                      if (ok) setMsg('视频鉴权已刷新，正在恢复播放…');
+                      else setError('视频加载失败：登录状态已过期，请重新登录后再载入视频。');
+                    });
                   } else if (code) {
-                    setError(`视频加载失败（${v.error?.message || '未知错误'}）——可尝试转换为 MP4(H.264+AAC) 后重试`);
+                    const reason = code === 1 ? '加载被中止' : code === 2 ? '网络中断或鉴权失败'
+                      : code === 3 ? '视频解码失败' : code === 4 ? '该格式或编码无法播放' : '未知错误';
+                    setError(`视频加载失败（${reason}）——可重试；若仍失败请改用 MP4(H.264+AAC) 格式。`);
                   }
                 }}
                 onLoadedMetadata={(e) => {
@@ -2579,7 +2696,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                 </button></div>
                 {(verExpanded ? effVersions : effVersions.slice(-VER_PAGE)).map((v) => (
                   <div key={v.version} className={`wb-ver${v.is_current ? ' cur' : ''}`}>
-                    <span className="mono">v{v.version}</span>
+                    <span className={`mono wb-ver-line ${v.line}`}>{v.line === 'ai' ? 'A' : 'M'}-{String(v.line_no).padStart(2, '0')}</span>
                     <span className="muted">{v.element_count} 要素 · CT {v.ct}s</span>
                     <span className={`tag ${v.is_current ? 't-blue' : v.is_sealed ? 't-gray' : 't-teal'}`}>
                       {v.is_current ? '当前' : v.is_sealed ? '封存' : '草稿'}
@@ -2805,8 +2922,13 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
                 title={`一键清空当前 ${draft.length} 条未提交草稿，重新开始（二次确认；已提交的版本不受影响）`}>
                 清空{draft.length > 0 ? `（${draft.length}）` : ''}
               </button>
-              <button className="btn primary sm" disabled={busy || draft.length === 0} onClick={submit}>
-                {busy ? '提交中…' : '提交分解'}
+              <button className="btn primary sm"
+                disabled={busy || draft.length === 0 || loaded.line === 'ai'}
+                title={loaded.line === 'ai'
+                  ? '当前是 AI 自动分解版本（A 线），人工内容不能提交到此版本。请先点「开始复测」新建 M 线版本。'
+                  : undefined}
+                onClick={submit}>
+                {busy ? '提交中…' : loaded.line === 'ai' ? 'AI 版本不可提交' : '提交分解'}
               </button>
             </>
           )}
@@ -2878,7 +3000,7 @@ export default function WorkbenchPage({ stationId }: { stationId: string }) {
               {prevVersions.map((v) => (
                 <button key={v.version} className="rz-row" disabled={reuseBusy}
                   onClick={() => void applyReuse({ kind: 'prev', version: v.version, count: v.element_count })}>
-                  <span className="rz-name">v{v.version} <span className="tag t-gray">{v.is_sealed ? '封存' : '历史'}</span></span>
+                  <span className="rz-name"><span className={`mono wb-ver-line ${v.line}`}>{v.line === 'ai' ? 'A' : 'M'}-{String(v.line_no).padStart(2, '0')}</span> <span className="tag t-gray">{v.is_sealed ? '封存' : '历史'}</span></span>
                   <span className="muted">{v.element_count} 要素 · CT {v.ct}s</span>
                   <span className="rz-go">复用 →</span>
                 </button>

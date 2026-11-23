@@ -5,6 +5,10 @@ description: IE Improvement Platform 的统一项目记忆与交接工作流：�
 
 # 统一项目记忆与交接工作流（IE Improvement Platform）
 
+> **2026-11-22 更新 · 与 Memory Bank 的分工**：本文件是**深度工作流**（口径优先、证据原则、生产/非生产分离等完整方法论）。
+> **日常检索与写入**已由仓库根目录 `AGENTS.md` + `memory-bank/` + `.claude/skills/memory-bank/SKILL.md`（命令 `/memory-bank`）承担。
+> 两者不冲突：`memory-bank/facts` 是指针卡片，正文仍以 `handoff/明细/` 为准；本文件的 §三 工作原则与 §四 收口清单继续有效。
+
 本 skill 把本项目的 Agent 记忆体系与项目管理方式固化为可重复流程。
 **记忆的唯一事实来源是 `handoff/明细/`，不是会话日志、工具缓存或代码注释。**
 交接入口与速查表是 `handoff/00`~`04`；数据库硬性规则以根目录 `CLAUDE.md` 为准。

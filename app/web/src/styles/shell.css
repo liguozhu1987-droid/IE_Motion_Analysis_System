@@ -121,7 +121,7 @@
   background: rgba(255, 255, 255, 0.10); border: 1px solid rgba(255, 255, 255, 0.22);
   color: rgba(255, 255, 255, 0.86); border-radius: var(--r-sm); padding: 4px 11px;
   font-size: 12px; cursor: pointer; font-family: inherit;
-  transition: all var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 .userchip-logout:hover { background: rgba(165, 64, 58, 0.34); border-color: rgba(232, 197, 193, 0.5); color: #fff; }
 .userchip-link { color: rgba(255, 255, 255, 0.82); }
@@ -245,7 +245,7 @@
 .station-tabs a {
   padding: 5px 14px; font-size: 13px; color: var(--ink2);
   border-radius: var(--r-sm); border: 1px solid var(--line2); background: var(--card-solid);
-  transition: all var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), opacity var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 .station-tabs a:hover { border-color: var(--steel-400); color: var(--steel); }
 .station-tabs a.on {
